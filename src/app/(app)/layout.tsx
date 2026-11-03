@@ -1,0 +1,102 @@
+import type { CSSProperties } from "react";
+import { getContext } from "@/lib/context";
+import { ROLE_LABEL } from "@/lib/format";
+import { BranchSwitcher } from "@/components/branch-switcher";
+import { BrandMark } from "@/components/brand-mark";
+import { BottomNav, SideNav, type NavItem } from "@/components/nav-links";
+import { IconLogout } from "@/components/icons";
+
+const HEX = /^#[0-9a-fA-F]{6}$/;
+
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const ctx = await getContext();
+
+  if (!ctx) {
+    return (
+      <main className="flex min-h-screen items-center justify-center p-4">
+        <div className="card max-w-md space-y-3 text-center">
+          <h1>Tu usuario todavía no tiene acceso</h1>
+          <p className="text-sm text-muted">Pedile a la marca o a tu franquiciado que te asignen una sucursal.</p>
+          <form action="/auth/signout" method="post">
+            <button className="btn">Salir</button>
+          </form>
+        </div>
+      </main>
+    );
+  }
+
+  const items: NavItem[] = [
+    { href: "/", label: "Hoy", icon: "today" },
+    { href: "/pacientes", label: "Pacientes", icon: "patients" },
+    { href: "/recall", label: "Recall", icon: "recall" },
+    ...(ctx.canManageCurrentBranch ? [{ href: "/marketing", label: "Marketing", icon: "marketing" } as NavItem] : []),
+    ...(ctx.isNetwork
+      ? ([
+          { href: "/marca", label: "Marca", icon: "brand" },
+          { href: "/ajustes", label: "Ajustes", icon: "settings" },
+        ] as NavItem[])
+      : []),
+  ];
+
+  // Colores propios de la organización (si los cargó) pisan los del tema
+  const brand = ctx.org.settings.brand ?? {};
+  const themeVars: Record<string, string> = {};
+  if (brand.primary && HEX.test(brand.primary)) themeVars["--brand"] = brand.primary;
+  if (brand.primary_strong && HEX.test(brand.primary_strong)) themeVars["--brand-strong"] = brand.primary_strong;
+  if (brand.primary_soft && HEX.test(brand.primary_soft)) themeVars["--brand-soft"] = brand.primary_soft;
+
+  const role = ROLE_LABEL[ctx.roles[0]];
+
+  return (
+    <div className="min-h-screen lg:grid lg:grid-cols-[248px_1fr]" style={themeVars as CSSProperties}>
+      {/* Lateral (escritorio) */}
+      <aside className="sticky top-0 hidden h-screen flex-col gap-6 border-r border-line bg-surface px-4 py-6 lg:flex">
+        <div className="px-3">
+          <BrandMark org={ctx.org} />
+        </div>
+        <div className="px-1">
+          <BranchSwitcher branches={ctx.branches} currentId={ctx.currentBranch?.id ?? null} />
+        </div>
+        <SideNav items={items} />
+        <div className="mt-auto flex items-center gap-2 border-t border-line px-3 pt-4">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold">{ctx.email}</p>
+            <p className="text-xs text-muted">{role}</p>
+          </div>
+          <form action="/auth/signout" method="post">
+            <button className="rounded-lg p-2 text-muted hover:bg-subtle hover:text-ink" aria-label="Salir">
+              <IconLogout />
+            </button>
+          </form>
+        </div>
+      </aside>
+
+      {/* Barra superior (celular y tablet) */}
+      <header
+        className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-surface py-2.5 lg:hidden"
+        style={{
+          paddingLeft: "max(16px, env(safe-area-inset-left, 0px))",
+          paddingRight: "max(16px, env(safe-area-inset-right, 0px))",
+          top: "env(safe-area-inset-top, 0px)",
+        }}
+      >
+        <BrandMark org={ctx.org} compact />
+        <div className="ml-auto min-w-0 max-w-[55%]">
+          <BranchSwitcher branches={ctx.branches} currentId={ctx.currentBranch?.id ?? null} />
+        </div>
+      </header>
+
+      <main
+        className="mx-auto w-full max-w-6xl pb-28 pt-6 lg:px-10 lg:pb-12 lg:pt-10"
+        style={{
+          paddingLeft: "max(16px, env(safe-area-inset-left, 0px))",
+          paddingRight: "max(16px, env(safe-area-inset-right, 0px))",
+        }}
+      >
+        {children}
+      </main>
+
+      <BottomNav items={items} />
+    </div>
+  );
+}
