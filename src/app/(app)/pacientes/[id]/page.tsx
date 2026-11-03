@@ -138,7 +138,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
         <aside className="space-y-6">
           <section className="passport">
             <p className="text-sm opacity-80">Pasaporte de Belleza</p>
-            <p className="mt-1 font-display text-4xl leading-none num">{balance?.balance ?? 0}</p>
+            <p className="gold-text mt-1 font-display text-5xl leading-none num">{balance?.balance ?? 0}</p>
             <p className="text-sm opacity-80">Beauty Millas disponibles</p>
             {moves && moves.length > 0 && (
               <ul className="mt-3 space-y-1 text-xs">

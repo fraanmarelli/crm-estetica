@@ -12,11 +12,16 @@ values (
   'drbeauty',
   1,  -- 1 Beauty Milla por cada $1.000 cobrados
   jsonb_build_object(
+    'brand', jsonb_build_object(
+      'logo_url', '/brand/drbeauty-logo.svg',
+      'monogram_url', '/brand/drbeauty-monograma.svg'
+    ),
     'recall_message',
     'Hola {nombre}! Te escribimos de Dr. Beauty {sucursal}. Ya pasaron {meses} meses de tu {tratamiento}. ¿Querés que te reservemos un turno para mantener el resultado?'
   )
 )
-on conflict (slug) do nothing;
+on conflict (slug) do update
+  set settings = public.organizations.settings || jsonb_build_object('brand', excluded.settings->'brand');
 
 insert into public.branches (organization_id, name, address, phone, whatsapp)
 values

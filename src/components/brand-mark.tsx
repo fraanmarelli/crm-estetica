@@ -1,14 +1,16 @@
 import type { Organization } from "@/lib/types";
 
-// Logo de la organización si está cargado; si no, el nombre en la tipografía de la marca.
-export function BrandMark({ org, compact = false }: { org: Organization; compact?: boolean }) {
-  const logo = org.settings.brand?.logo_url;
-  if (logo) {
+// Logo de la organización. "full" = logo completo (lateral), "mono" = monograma (barra del celular).
+// Si la organización no cargó logo, se muestra su nombre en la tipografía de la marca.
+export function BrandMark({ org, variant = "full" }: { org: Organization; variant?: "full" | "mono" }) {
+  const brand = org.settings.brand ?? {};
+  const src = variant === "mono" ? (brand.monogram_url ?? brand.logo_url) : brand.logo_url;
+  if (src) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={logo} alt={org.name} className={compact ? "h-7 w-auto" : "h-9 w-auto"} />;
+    return <img src={src} alt={org.name} className={variant === "mono" ? "h-8 w-auto" : "h-auto w-36"} />;
   }
   return (
-    <span className={`font-display leading-none text-brand ${compact ? "text-xl" : "text-[1.6rem]"}`}>
+    <span className={`gold-text font-display leading-none ${variant === "mono" ? "text-xl" : "text-[1.7rem]"}`}>
       {org.name}
     </span>
   );

@@ -5,11 +5,7 @@ import type { Branch } from "@/lib/types";
 
 export function BranchSwitcher({ branches, currentId }: { branches: Branch[]; currentId: string | null }) {
   if (branches.length <= 1) {
-    return (
-      <p className="truncate px-2 text-sm font-semibold text-ink">
-        {branches[0]?.name ?? "Sin sucursal"}
-      </p>
-    );
+    return <p className="truncate px-1 text-sm font-semibold">{branches[0]?.name ?? "Sin sucursal"}</p>;
   }
   return (
     <form action={setBranch}>
@@ -19,7 +15,7 @@ export function BranchSwitcher({ branches, currentId }: { branches: Branch[]; cu
         name="branch_id"
         defaultValue={currentId ?? ""}
         onChange={(e) => e.currentTarget.form?.requestSubmit()}
-        className="input py-2 font-semibold"
+        className="input-chrome"
       >
         {branches.map((b) => (
           <option key={b.id} value={b.id}>

@@ -28,6 +28,7 @@ export type Organization = {
     // Identidad visual por organización (colores en hex, logo como URL pública)
     brand?: {
       logo_url?: string;
+      monogram_url?: string;
       primary?: string;
       primary_strong?: string;
       primary_soft?: string;

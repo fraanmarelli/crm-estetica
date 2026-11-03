@@ -113,7 +113,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
           <ol className="card divide-y divide-line p-0">
             {rows.map((r) => (
               <li key={r.id} className="grid grid-cols-[4.25rem_1fr] gap-x-4 gap-y-2 px-4 py-3 sm:grid-cols-[4.25rem_1fr_auto] sm:items-center">
-                <span className="font-display text-xl leading-tight num">{fmtTime(r.scheduled_at)}</span>
+                <span className="font-display text-xl leading-tight text-brand num">{fmtTime(r.scheduled_at)}</span>
                 <div className="min-w-0">
                   {r.patient ? (
                     <Link href={`/pacientes/${r.patient.id}`} className="font-semibold hover:text-brand">

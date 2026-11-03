@@ -50,21 +50,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[248px_1fr]" style={themeVars as CSSProperties}>
       {/* Lateral (escritorio) */}
-      <aside className="sticky top-0 hidden h-screen flex-col gap-6 border-r border-line bg-surface px-4 py-6 lg:flex">
-        <div className="px-3">
+      <aside className="sticky top-0 hidden h-screen flex-col gap-6 bg-chrome px-4 py-7 text-chrome-ink lg:flex">
+        <div className="px-3 pb-1">
           <BrandMark org={ctx.org} />
         </div>
         <div className="px-1">
           <BranchSwitcher branches={ctx.branches} currentId={ctx.currentBranch?.id ?? null} />
         </div>
         <SideNav items={items} />
-        <div className="mt-auto flex items-center gap-2 border-t border-line px-3 pt-4">
+        <div className="mt-auto flex items-center gap-2 border-t border-chrome-line px-3 pt-4">
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{ctx.email}</p>
-            <p className="text-xs text-muted">{role}</p>
+            <p className="text-xs text-chrome-muted">{role}</p>
           </div>
           <form action="/auth/signout" method="post">
-            <button className="rounded-lg p-2 text-muted hover:bg-subtle hover:text-ink" aria-label="Salir">
+            <button className="rounded-lg p-2 text-chrome-muted hover:bg-chrome-ink/5 hover:text-chrome-ink" aria-label="Salir">
               <IconLogout />
             </button>
           </form>
@@ -73,14 +73,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
       {/* Barra superior (celular y tablet) */}
       <header
-        className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-surface py-2.5 lg:hidden"
+        className="sticky top-0 z-20 flex items-center gap-3 bg-chrome py-2.5 text-chrome-ink lg:hidden"
         style={{
           paddingLeft: "max(16px, env(safe-area-inset-left, 0px))",
           paddingRight: "max(16px, env(safe-area-inset-right, 0px))",
           top: "env(safe-area-inset-top, 0px)",
         }}
       >
-        <BrandMark org={ctx.org} compact />
+        <BrandMark org={ctx.org} variant="mono" />
         <div className="ml-auto min-w-0 max-w-[55%]">
           <BranchSwitcher branches={ctx.branches} currentId={ctx.currentBranch?.id ?? null} />
         </div>
