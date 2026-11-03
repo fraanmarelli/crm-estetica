@@ -3,7 +3,7 @@
 import { useActionState, useMemo, useState } from "react";
 import { saveAppointment } from "@/app/(app)/actions";
 import { SubmitButton } from "@/components/submit-button";
-import { PAYMENT_METHODS, STATUS_LABEL } from "@/lib/format";
+import { PAYMENT_METHODS, STATUS_LABEL, pluralEs } from "@/lib/format";
 import type {
   ActionState,
   AppointmentItemInput,
@@ -65,12 +65,7 @@ export function AppointmentForm({
   }
 
   function selectTreatment(index: number, treatmentId: string) {
-    const t = treatments.find((x) => x.id === treatmentId);
-    const current = items[index];
-    updateItem(index, {
-      treatment_id: treatmentId,
-      price: current.price || (t?.default_price ? String(t.default_price) : ""),
-    });
+    updateItem(index, { treatment_id: treatmentId });
   }
 
   const showPayment = status === "completed";
@@ -157,14 +152,16 @@ export function AppointmentForm({
               <input
                 value={item.quantity}
                 onChange={(e) => updateItem(index, { quantity: e.target.value })}
-                placeholder={t?.unit_label ?? "Cantidad"}
+                placeholder={t?.supply ? `Cantidad (${pluralEs(t.supply.unit)})` : "Cantidad"}
+                aria-label="Cantidad de insumo usada"
                 inputMode="decimal"
                 className="input"
               />
               <input
                 value={item.price}
                 onChange={(e) => updateItem(index, { price: e.target.value })}
-                placeholder="Precio"
+                placeholder="Precio cobrado"
+                aria-label="Precio cobrado"
                 inputMode="numeric"
                 className="input"
               />

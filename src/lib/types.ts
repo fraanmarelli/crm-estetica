@@ -44,13 +44,24 @@ export type Membership = {
   role: Role;
 };
 
+// Ítem del catálogo de la marca. El precio de venta se escribe en cada turno.
 export type Treatment = {
   id: string;
   name: string;
   category: string | null;
   recall_days: number | null;
-  default_price: number | null;
   unit_label: string | null;
+  supply: { name: string; unit: string } | null;
+};
+
+// Insumo con su costo (solo lo reciben marca y franquiciados)
+export type Supply = {
+  id: string;
+  name: string;
+  unit: string;
+  unit_cost: number | null;
+  is_active: boolean;
+  updated_at: string;
 };
 
 export type Professional = { id: string; full_name: string; branch_id: string | null };

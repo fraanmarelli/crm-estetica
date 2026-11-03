@@ -44,7 +44,135 @@ const HANDLERS: Record<string, Handler> = {
     }
     if (!body.ok) throw new Error(body.error ?? "Apps Script respondió ok=false");
   },
+
+  // Klaviyo: un evento "Tratamiento realizado" por cada ítem del turno, con la fecha en que
+  // vence. En Klaviyo se arma un flow por tratamiento disparado por ese evento.
+  // Solo se envía si la paciente aceptó recibir comunicaciones y tiene email.
+  klaviyo: async (event) => {
+    if (event.event_type !== "appointment.completed") return;
+    const p = event.payload as KlaviyoPayload;
+    if (!p.acepta_marketing || !p.email || !event.secret) return;
+
+    const headers = {
+      Authorization: `Klaviyo-API-Key ${event.secret}`,
+      revision: KLAVIYO_REVISION,
+      accept: "application/vnd.api+json",
+      "Content-Type": "application/vnd.api+json",
+    };
+
+    const nextDates: Record<string, string> = {};
+    for (const item of p.items) {
+      if (item.proximo_vencimiento) nextDates[`proximo_${slug(item.tratamiento)}`] = item.proximo_vencimiento;
+    }
+
+    const profile = {
+      type: "profile",
+      attributes: {
+        email: p.email,
+        ...(p.telefono ? { phone_number: `+${p.telefono}` } : {}),
+        first_name: p.nombre,
+        ...(p.apellido ? { last_name: p.apellido } : {}),
+        properties: { sucursal: p.sucursal, paciente_id: p.paciente_id, ...nextDates },
+      },
+    };
+
+    for (const item of p.items) {
+      const res = await fetch("https://a.klaviyo.com/api/events", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          data: {
+            type: "event",
+            attributes: {
+              unique_id: `${p.id_crm}-${item.tratamiento_id}`,
+              time: p.fecha_iso,
+              value: item.precio ?? undefined,
+              properties: {
+                tratamiento: item.tratamiento,
+                tipo: item.tipo,
+                categoria: item.categoria,
+                zona: item.zona,
+                sucursal: p.sucursal,
+                profesional: p.profesional,
+                dias_para_repetir: item.dias_recall,
+                proximo_vencimiento: item.proximo_vencimiento,
+              },
+              metric: { data: { type: "metric", attributes: { name: "Tratamiento realizado" } } },
+              profile: { data: profile },
+            },
+          },
+        }),
+        signal: AbortSignal.timeout(20_000),
+      });
+      if (!res.ok) throw new Error(`Klaviyo ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    }
+
+    // Opcional: suscribir a una lista de email marketing (config.list_id)
+    const listId = String(event.config.list_id ?? "");
+    if (listId) {
+      const res = await fetch("https://a.klaviyo.com/api/profile-subscription-bulk-create-jobs", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          data: {
+            type: "profile-subscription-bulk-create-job",
+            attributes: {
+              profiles: {
+                data: [
+                  {
+                    type: "profile",
+                    attributes: {
+                      email: p.email,
+                      subscriptions: { email: { marketing: { consent: "SUBSCRIBED" } } },
+                    },
+                  },
+                ],
+              },
+            },
+            relationships: { list: { data: { type: "list", id: listId } } },
+          },
+        }),
+        signal: AbortSignal.timeout(20_000),
+      });
+      if (!res.ok) throw new Error(`Klaviyo (lista) ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    }
+  },
 };
+
+const KLAVIYO_REVISION = Deno.env.get("KLAVIYO_REVISION") ?? "2025-07-15";
+
+type KlaviyoPayload = {
+  id_crm: string;
+  fecha_iso: string;
+  sucursal: string;
+  paciente_id: string;
+  nombre: string;
+  apellido: string | null;
+  telefono: string | null;
+  email: string | null;
+  acepta_marketing: boolean;
+  profesional: string | null;
+  items: {
+    tratamiento_id: string;
+    tratamiento: string;
+    tipo: string;
+    categoria: string | null;
+    zona: string | null;
+    precio: number | null;
+    dias_recall: number | null;
+    proximo_vencimiento: string | null;
+  }[];
+};
+
+function slug(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "")
+    .slice(0, 40);
+}
 
 Deno.serve(async (req) => {
   const expected = Deno.env.get("DISPATCH_SECRET");

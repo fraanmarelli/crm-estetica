@@ -1,6 +1,7 @@
 -- =====================================================================
 -- Datos iniciales: red Dr Beauty, sucursales y catálogo de tratamientos.
--- Se puede correr más de una vez sin duplicar nada.
+-- Se corre DESPUÉS de todas las migraciones. Se puede correr más de una vez.
+-- Los costos de los insumos no van acá: los carga la marca en la pantalla Insumos.
 -- recall_days = cada cuántos días se recontacta a la paciente.
 -- Son valores iniciales: ajustalos con el equipo médico.
 -- =====================================================================
@@ -68,3 +69,38 @@ values
   ('00000000-0000-0000-0000-00000000d0b0', 'Consulta médica',               'Consulta',   null, null,       400),
   ('00000000-0000-0000-0000-00000000d0b0', 'Cirugía (consulta/cirugía)',    'Cirugía',    null, null,       500)
 on conflict (organization_id, name) do nothing;
+
+-- Insumos que vende la marca a las franquicias (el costo lo carga la marca en la app)
+insert into public.supplies (organization_id, name, unit)
+values
+  ('00000000-0000-0000-0000-00000000d0b0', 'Toxina botulínica',          'unidad'),
+  ('00000000-0000-0000-0000-00000000d0b0', 'Ácido hialurónico',          'jeringa'),
+  ('00000000-0000-0000-0000-00000000d0b0', 'Hilos tensores',             'hilo'),
+  ('00000000-0000-0000-0000-00000000d0b0', 'Sculptra',                   'vial'),
+  ('00000000-0000-0000-0000-00000000d0b0', 'Radiesse',                   'jeringa'),
+  ('00000000-0000-0000-0000-00000000d0b0', 'Profhilo',                   'jeringa'),
+  ('00000000-0000-0000-0000-00000000d0b0', 'Long Lasting',               'jeringa'),
+  ('00000000-0000-0000-0000-00000000d0b0', 'Kit de plasma',              'kit'),
+  ('00000000-0000-0000-0000-00000000d0b0', 'Chip hormonal',              'pellet')
+on conflict (organization_id, name) do nothing;
+
+-- Tratamiento -> insumo principal (solo si todavía no tiene uno asignado)
+update public.treatments t
+   set supply_id = s.id
+  from public.supplies s
+ where t.organization_id = '00000000-0000-0000-0000-00000000d0b0'
+   and s.organization_id = t.organization_id
+   and t.supply_id is null
+   and s.name = case
+     when t.name like 'Botox%'                then 'Toxina botulínica'
+     when t.name like 'Ácido hialurónico%'    then 'Ácido hialurónico'
+     when t.name = 'Rinomodelado'             then 'Ácido hialurónico'
+     when t.name like 'Hilos tensores%'       then 'Hilos tensores'
+     when t.name = 'FoxEyes'                  then 'Hilos tensores'
+     when t.name like 'Sculptra%'             then 'Sculptra'
+     when t.name = 'Radiesse'                 then 'Radiesse'
+     when t.name = 'Profhilo'                 then 'Profhilo'
+     when t.name = 'Long Lasting'             then 'Long Lasting'
+     when t.name like 'Plasma%'               then 'Kit de plasma'
+     when t.name = 'Chip hormonal'            then 'Chip hormonal'
+   end;

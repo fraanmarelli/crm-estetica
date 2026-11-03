@@ -41,6 +41,7 @@ export function NewPatientForm() {
         <div>
           <label className="label">Email</label>
           <input name="email" type="email" defaultValue={v.email} className="input" />
+          <p className="mt-1 text-xs text-muted">Sin email no le llegan los recordatorios automáticos por mail.</p>
         </div>
         <div>
           <label className="label">Fecha de nacimiento</label>
@@ -79,7 +80,7 @@ export function NewPatientForm() {
             defaultChecked={v.consent_marketing === "on"}
             className="mt-0.5"
           />
-          <span>Acepta recibir recordatorios y novedades por WhatsApp.</span>
+          <span>Acepta recibir recordatorios y novedades por WhatsApp y email.</span>
         </label>
       </div>
 

@@ -11,18 +11,23 @@ y entregá archivos completos.
 - UI en español rioplatense (es-AR). Moneda ARS.
 
 ## Jugadores (usar estos nombres en la UI)
-- **Marca** = dueño de la red (roles `network_owner`, `network_admin`). Ve todo. No paga.
-- **Franquiciado** = dueño de una sucursal (`branch_admin`). Ve su sucursal, marketing incluido. Paga el abono.
-- **Recepción / Profesional** = equipo de la sucursal. Operación diaria, sin marketing.
+- **Marca** = dueño de la red (roles `network_owner`, `network_admin`). Ve todo, costos incluidos. Define el
+  catálogo de tratamientos y los insumos con su costo para las franquicias. No paga.
+- **Franquiciado** = dueño de una sucursal (`branch_admin`). Ve su sucursal: números, costos, marketing. Paga el abono.
+- **Recepción / Profesional** = equipo de la sucursal. Operación diaria. Nunca ven costos ni márgenes.
 - **Pacientes** = clientes de las clínicas. No entran al CRM.
 
 ## Modelo de datos (ver `supabase/migrations/`)
 - `organizations` (red/cliente) → `branches` (sucursales) → `memberships` (usuario + rol + sucursal).
 - Pacientes pertenecen a la organización; `home_branch_id` = sucursal de origen.
 - `appointments` + `appointment_items` (un turno, varios tratamientos). `treatments.recall_days` define el recall.
+- Precio de venta: SIEMPRE manual en cada ítem (promos/descuentos). No hay lista de precios.
+- Costo: `supplies.unit_cost` (lo carga la marca) × `appointment_items.quantity`, congelado en
+  `appointment_items.cost` por trigger. `cost` y `unit_cost` no tienen SELECT para `authenticated`: se leen con
+  `branch_financials()` / `supply_list()` (marca y franquiciado). `integrations.secret` tampoco es legible.
 - `recall_queue` (vista) = último tratamiento realizado + recall_days, sin turno futuro, sin opt-out.
 - `loyalty_transactions` = libro mayor de millas (nunca se edita; se corrige con otro movimiento).
-- `event_outbox` + `integrations` = toda automatización saliente.
+- `event_outbox` + `integrations` = toda automatización saliente (tipos: `google_sheets`, `klaviyo`).
 - Marketing: `ad_connections` (una cuenta de Meta por sucursal), `ad_connection_secrets` (tokens, solo
   service role), `ad_insights_daily` (gasto/resultados por campaña y día), `marketing_summary()` cruza con pacientes.
 - Tareas programadas (pg_cron): `dispatch-events` cada minuto, `meta-sync` diario, `weekly-report` los lunes.

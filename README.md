@@ -1,7 +1,8 @@
 # CRM Estética — v1
 
 CRM para redes de clínicas de estética con franquicias: pacientes, turnos, recall por WhatsApp, Beauty Millas,
-publicidad de Meta cruzada con la facturación, mail semanal automático y copia de turnos a Google Sheets.
+costos de insumos y márgenes por franquicia, publicidad de Meta cruzada con la facturación, eventos para Klaviyo,
+mail semanal automático y copia de turnos a Google Sheets.
 
 **Stack:** Next.js (Vercel) + Supabase (base de datos, login, tareas automáticas) + Google Apps Script + Resend.
 **Costo del piloto:** US$0.
@@ -12,8 +13,8 @@ publicidad de Meta cruzada con la facturación, mail semanal automático y copia
 
 | Jugador | En el CRM (rol) | Ve | Hace |
 |---|---|---|---|
-| Dueño de la marca | **Marca** (`network_owner`) / su equipo (`network_admin`) | Todas las sucursales | Panel de la marca, marketing de toda la red, ajustes |
-| Dueño de una franquicia | **Franquiciado** (`branch_admin`) | Su sucursal | Todo lo de recepción + marketing + conectar su cuenta de Meta |
+| Dueño de la marca | **Marca** (`network_owner`) / su equipo (`network_admin`) | Todas las sucursales, costos incluidos | Catálogo, insumos y sus costos, panel de la marca |
+| Dueño de una franquicia | **Franquiciado** (`branch_admin`) | Su sucursal, costos y márgenes incluidos | Todo lo de recepción + números + marketing + conectar Meta y Klaviyo |
 | Equipo de la sucursal | **Recepción** (`reception`) / **Profesional** (`professional`) | Su sucursal | Pacientes, turnos, recall, millas |
 | Clientes de las clínicas | **Pacientes** | Nada (no entran) | Reciben el WhatsApp de recall que manda recepción |
 
@@ -25,11 +26,13 @@ Los permisos los controla la base de datos (RLS), no la pantalla.
 |---|---|---|
 | **Hoy** | Todos | Turnos del día, cobrado, pacientes para recontactar |
 | **Pacientes** | Todos | Alta (detecta duplicados en toda la marca; origen obligatorio), ficha e historial |
-| **Turno** | Todos | Agendar y registrar como realizado con tratamientos, monto y medio de pago |
+| **Turno** | Todos | Agendar y registrar como realizado: tratamiento, cantidad de insumo, precio cobrado (manual) y medio de pago |
 | **Recall** | Todos | A quién le toca repetir, botón de WhatsApp con el mensaje armado, registrar respuesta |
+| **Números** | Franquiciado y marca | Facturado, costo de insumos y margen; por profesional, por tratamiento y mejores pacientes |
+| **Insumos** | Marca edita, franquiciado consulta | Costo de cada insumo para las franquicias y qué insumo usa cada tratamiento |
 | **Marketing** | Franquiciado y marca | Conectar Meta, inversión, mensajes, pacientes nuevas de redes, costo por paciente, retorno, campañas |
 | **Marca** | Marca | Facturación, turnos y recall por sucursal, mes vs mes |
-| **Ajustes** | Marca | Conectar Google Sheets, errores de sincronización |
+| **Ajustes** | Franquiciado y marca | Conectar Klaviyo y Google Sheets, errores de envío |
 | **Mail semanal** | Franquiciado y marca | Todos los lunes 9:05 (Argentina), automático |
 
 ---
@@ -41,10 +44,11 @@ Los permisos los controla la base de datos (RLS), no la pantalla.
 1. [supabase.com](https://supabase.com) → **New project**. Nombre `crm-estetica`, región **South America (São Paulo)**.
 2. **SQL Editor → New query**. Corré uno por vez, en este orden, pegando el contenido completo de cada archivo:
    1. `supabase/migrations/20261103000000_init.sql`
-   2. `supabase/seed.sql`
-   3. `supabase/migrations/20261103000100_cron_dispatch.sql`
-   4. `supabase/migrations/20261103000200_marketing.sql`
-   5. `supabase/migrations/20261103000300_marketing_cron.sql`
+   2. `supabase/migrations/20261103000100_cron_dispatch.sql`
+   3. `supabase/migrations/20261103000200_marketing.sql`
+   4. `supabase/migrations/20261103000300_marketing_cron.sql`
+   5. `supabase/migrations/20261103000400_insumos_costos_klaviyo.sql`
+   6. `supabase/seed.sql` (siempre al final)
 3. **Authentication → Sign In / Providers → Email:** desactivá **"Allow new users to sign up"**.
 
 ### 2. Usuarios
@@ -143,12 +147,25 @@ completá la **verificación del negocio**. Mientras tanto, el piloto funciona c
 
 La conexión de Facebook dura unos 60 días: el CRM avisa cuando está por vencer y se renueva con «Reconectar».
 
-### 9. Google Sheets (opcional)
+### 9. Insumos y costos
+
+En el CRM → **Insumos** (como marca): cargá el costo de cada insumo para las franquicias y revisá qué insumo usa
+cada tratamiento. Desde ahí, cada turno realizado calcula su costo con la cantidad que carga recepción.
+El precio de venta no está en el catálogo: se escribe en cada turno (promos y descuentos).
+
+### 10. Klaviyo (email marketing por tratamiento)
+
+Cada franquiciado, en **Ajustes → Conectar → Klaviyo**, pega la clave privada de su cuenta (`pk_...`). Cada
+tratamiento realizado llega a Klaviyo como evento «Tratamiento realizado» con `tratamiento` y
+`proximo_vencimiento`. En Klaviyo se arma un flow por tratamiento (disparador: ese evento; filtro por tratamiento;
+espera; mail). Solo se envían pacientes con email y que aceptaron recibir comunicaciones.
+
+### 11. Google Sheets (opcional)
 
 1. Configurá `google-apps-script/Code.gs` en la planilla (instrucciones dentro del archivo).
 2. CRM → **Ajustes** → pegá la URL de Apps Script y el token.
 
-### 10. Mail semanal
+### 12. Mail semanal
 
 1. Creá una cuenta en [resend.com](https://resend.com) (gratis hasta 3.000 mails/mes) y **verificá un dominio**
    (te da registros DNS para pegar donde compraste el dominio). Sin dominio verificado solo puede enviarte a vos.
@@ -200,6 +217,8 @@ src/
     (app)/                 todo lo que requiere sesión
       page.tsx             Hoy
       pacientes/  turnos/  recall/
+      numeros/             facturado, costo y margen de la franquicia
+      insumos/             costos de insumos (marca) y su uso por tratamiento
       marketing/           Meta x CRM por sucursal y para la marca
       marca/               panel de la marca
       ajustes/             integraciones

@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { requireNetworkContext } from "@/lib/context";
+import { requireManagerContext } from "@/lib/context";
 import { fmtDateTime } from "@/lib/format";
 import { toggleIntegration } from "../actions";
 import { IntegrationForm } from "./integration-form";
@@ -7,9 +7,9 @@ import { IntegrationForm } from "./integration-form";
 type Integration = {
   id: string;
   name: string;
-  type: string;
+  type: "google_sheets" | "klaviyo";
   is_active: boolean;
-  config: { url?: string };
+  config: { url?: string; list_id?: string };
   branch: { name: string } | null;
 };
 
@@ -22,11 +22,14 @@ type OutboxRow = {
   created_at: string;
 };
 
+const TYPE_LABEL = { google_sheets: "Google Sheets", klaviyo: "Klaviyo" };
+
 export default async function SettingsPage() {
-  const ctx = await requireNetworkContext();
+  const ctx = await requireManagerContext();
   const supabase = await createClient();
 
-  const [{ data: integrations }, { data: problems }, { count: pending }] = await Promise.all([
+  // RLS: la marca ve todas; el franquiciado, las de su sucursal
+  const [{ data: integrations }, { data: problems }] = await Promise.all([
     supabase
       .from("integrations")
       .select("id, name, type, is_active, config, branch:branches(name)")
@@ -40,56 +43,70 @@ export default async function SettingsPage() {
       .neq("status", "sent")
       .order("id", { ascending: false })
       .limit(20),
-    supabase
-      .from("event_outbox")
-      .select("id", { count: "exact", head: true })
-      .eq("organization_id", ctx.org.id)
-      .eq("status", "pending"),
   ]);
 
   const list = (integrations ?? []) as unknown as Integration[];
   const errors = (problems ?? []) as OutboxRow[];
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <h1>Ajustes</h1>
+    <div className="mx-auto max-w-3xl space-y-8">
+      <div className="page-head">
+        <div>
+          <h1>Ajustes</h1>
+          <p className="page-sub">Conexiones con Klaviyo y Google Sheets</p>
+        </div>
+      </div>
 
       <section className="card space-y-4">
-        <div>
-          <h2>Planillas de Google conectadas</h2>
-          <p className="text-sm text-muted">
-            Cada turno realizado (o editado después de realizado) se copia a la planilla en menos de un minuto.
-            Eventos en cola ahora: {pending ?? 0}.
-          </p>
-        </div>
-
-        {list.length > 0 && (
-          <ul className="divide-y divide-line rounded-lg border border-line">
+        <h2>Conexiones</h2>
+        {list.length === 0 ? (
+          <p className="text-sm text-muted">Todavía no hay nada conectado.</p>
+        ) : (
+          <ul className="divide-y divide-line rounded-xl border border-line">
             {list.map((i) => (
               <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
-                <div>
-                  <p className="font-medium">
-                    {i.name} <span className="text-muted">· {i.branch?.name ?? "Todas las sucursales"}</span>
+                <div className="min-w-0">
+                  <p className="font-semibold">
+                    {TYPE_LABEL[i.type]}{" "}
+                    <span className="font-normal text-muted">· {i.branch?.name ?? "Todas las sucursales"}</span>
                   </p>
-                  <p className="max-w-md truncate text-xs text-muted">{i.config.url}</p>
+                  <p className="max-w-md truncate text-xs text-muted">
+                    {i.type === "google_sheets" ? i.config.url : i.config.list_id ? `Lista ${i.config.list_id}` : i.name}
+                  </p>
                 </div>
-                <form action={toggleIntegration}>
-                  <input type="hidden" name="id" value={i.id} />
-                  <input type="hidden" name="active" value={i.is_active ? "0" : "1"} />
-                  <button className={`btn btn-sm ${i.is_active ? "" : "btn-primary"}`}>
-                    {i.is_active ? "Pausar" : "Activar"}
-                  </button>
-                </form>
+                <div className="flex items-center gap-2">
+                  <span className={`badge ${i.is_active ? "badge-green" : "badge-gray"}`}>
+                    {i.is_active ? "Activa" : "Pausada"}
+                  </span>
+                  <form action={toggleIntegration}>
+                    <input type="hidden" name="id" value={i.id} />
+                    <input type="hidden" name="active" value={i.is_active ? "0" : "1"} />
+                    <button className="btn btn-sm">{i.is_active ? "Pausar" : "Activar"}</button>
+                  </form>
+                </div>
               </li>
             ))}
           </ul>
         )}
+      </section>
 
-        <IntegrationForm branches={ctx.branches} />
+      <section className="card space-y-4">
+        <h2>Conectar</h2>
+        <IntegrationForm branches={ctx.branches} isNetwork={ctx.isNetwork} currentBranch={ctx.currentBranch} />
       </section>
 
       <section className="card space-y-3">
-        <h2>Errores de sincronización</h2>
+        <h2>Cómo usar Klaviyo para los recordatorios</h2>
+        <ol className="list-decimal space-y-1 pl-5 text-sm text-muted">
+          <li>Cada tratamiento realizado llega a Klaviyo como evento «Tratamiento realizado», con el tratamiento y su fecha de vencimiento.</li>
+          <li>En Klaviyo creá un flow por tratamiento: disparador «Tratamiento realizado», filtro «tratamiento = Botox», espera de 110 días y el mail.</li>
+          <li>Agregá el filtro «no hizo Tratamiento realizado desde que empezó el flow» para no escribirle a quien ya volvió.</li>
+          <li>Solo se envían pacientes que aceptaron recibir mails y tienen email cargado.</li>
+        </ol>
+      </section>
+
+      <section className="card space-y-3">
+        <h2>Errores de envío</h2>
         {errors.length === 0 ? (
           <p className="text-sm text-muted">Sin errores.</p>
         ) : (

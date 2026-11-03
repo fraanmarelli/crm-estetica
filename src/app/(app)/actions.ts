@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { BRANCH_COOKIE, getContext, requireBranchContext, requireNetworkContext } from "@/lib/context";
+import { BRANCH_COOKIE, getContext, requireBranchContext, requireManagerContext } from "@/lib/context";
 import { localInputToISO } from "@/lib/format";
 import type {
   ActionState,
@@ -177,6 +177,9 @@ export async function saveAppointment(_prev: ActionState, formData: FormData): P
   if (status === "completed" && items.length === 0) {
     return { error: "Para marcarlo como realizado cargá al menos un tratamiento." };
   }
+  if (status === "completed" && items.some((i) => numOrNull(i.price ?? "") === null)) {
+    return { error: "Escribí el precio cobrado de cada tratamiento (con la promo o el descuento aplicado)." };
+  }
 
   const fields = {
     patient_id: patientId,
@@ -293,36 +296,68 @@ export async function adjustPoints(_prev: ActionState, formData: FormData): Prom
 }
 
 // ---------------------------------------------------------------------
-// Integraciones (solo red)
+// Integraciones (marca: cualquier sucursal o toda la red; franquiciado: la suya)
 // ---------------------------------------------------------------------
 export async function createIntegration(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const ctx = await requireNetworkContext();
+  const ctx = await requireManagerContext();
   const supabase = await createClient();
-  const url = str(formData, "url");
+  const type = str(formData, "type");
   const secret = str(formData, "secret");
+  const branchId = ctx.isNetwork ? orNull(str(formData, "branch_id")) : ctx.currentBranch.id;
 
-  if (!url.startsWith("https://script.google.com/")) {
-    return { error: "La URL tiene que ser la de la aplicación web de Apps Script." };
+  if (branchId && !ctx.branches.some((b) => b.id === branchId)) return { error: "Sucursal inválida." };
+
+  let config: Record<string, string> = {};
+  let events = ["appointment.completed", "appointment.updated"];
+  let name = str(formData, "name");
+
+  if (type === "google_sheets") {
+    const url = str(formData, "url");
+    if (!url.startsWith("https://script.google.com/")) {
+      return { error: "La URL tiene que ser la de la aplicación web de Apps Script.", values: valuesOf(formData) };
+    }
+    if (secret.length < 12) return { error: "El token tiene que tener al menos 12 caracteres.", values: valuesOf(formData) };
+    config = { url };
+    name = name || "Google Sheets";
+  } else if (type === "klaviyo") {
+    if (!/^pk_[A-Za-z0-9_]{10,}$/.test(secret)) {
+      return {
+        error: "La clave privada de Klaviyo empieza con pk_. La sacás de Klaviyo → Settings → API keys.",
+        values: valuesOf(formData),
+      };
+    }
+    const listId = str(formData, "list_id");
+    config = listId ? { list_id: listId } : {};
+    events = ["appointment.completed"];
+    name = name || "Klaviyo";
+  } else {
+    return { error: "Tipo de integración inválido." };
   }
-  if (secret.length < 12) return { error: "El token tiene que tener al menos 12 caracteres." };
 
   const { error } = await supabase.from("integrations").insert({
     organization_id: ctx.org.id,
-    branch_id: orNull(str(formData, "branch_id")),
-    type: "google_sheets",
-    name: str(formData, "name") || "Google Sheets",
-    config: { url },
+    branch_id: branchId,
+    type,
+    name,
+    config,
     secret,
+    events,
   });
-  if (error) return { error: `No se pudo guardar: ${error.message}` };
+  if (error) return { error: `No se pudo guardar: ${error.message}`, values: valuesOf(formData) };
 
   revalidatePath("/ajustes");
-  return { ok: "Integración creada. Los próximos turnos realizados se copian a la planilla." };
+  return {
+    ok:
+      type === "klaviyo"
+        ? "Klaviyo conectado. Cada tratamiento realizado se envía como evento «Tratamiento realizado»."
+        : "Planilla conectada. Los próximos turnos realizados se copian solos.",
+  };
 }
 
 export async function toggleIntegration(formData: FormData) {
-  await requireNetworkContext();
+  await requireManagerContext();
   const supabase = await createClient();
+  // RLS: marca o franquiciado de esa sucursal
   await supabase
     .from("integrations")
     .update({ is_active: str(formData, "active") === "1" })

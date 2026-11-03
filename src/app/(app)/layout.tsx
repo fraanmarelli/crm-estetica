@@ -29,13 +29,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     { href: "/", label: "Hoy", icon: "today" },
     { href: "/pacientes", label: "Pacientes", icon: "patients" },
     { href: "/recall", label: "Recall", icon: "recall" },
-    ...(ctx.canManageCurrentBranch ? [{ href: "/marketing", label: "Marketing", icon: "marketing" } as NavItem] : []),
-    ...(ctx.isNetwork
+    ...(ctx.canManageCurrentBranch
       ? ([
-          { href: "/marca", label: "Marca", icon: "brand" },
-          { href: "/ajustes", label: "Ajustes", icon: "settings" },
+          { href: "/numeros", label: "Números", icon: "numbers" },
+          { href: "/marketing", label: "Marketing", icon: "marketing" },
+          { href: "/insumos", label: "Insumos", icon: "supplies" },
         ] as NavItem[])
       : []),
+    ...(ctx.isNetwork ? ([{ href: "/marca", label: "Marca", icon: "brand" }] as NavItem[]) : []),
+    ...(ctx.canManageCurrentBranch ? ([{ href: "/ajustes", label: "Ajustes", icon: "settings" }] as NavItem[]) : []),
   ];
 
   // Colores propios de la organización (si los cargó) pisan los del tema

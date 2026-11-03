@@ -149,3 +149,9 @@ export function isoDaysAgo(days: number): string {
   d.setDate(d.getDate() - days);
   return d.toISOString().slice(0, 10);
 }
+
+// Plural simple en español: unidad → unidades, jeringa → jeringas
+export function pluralEs(word: string): string {
+  if (!word) return word;
+  return /[aeiouáéó]$/i.test(word) ? `${word}s` : `${word}es`;
+}

@@ -66,7 +66,7 @@ export function PatientEditForm({ patient }: { patient: Patient }) {
       <div className="space-y-1 text-sm">
         <label className="flex items-center gap-2">
           <input type="checkbox" name="consent_marketing" defaultChecked={v.consent_marketing === "on"} />
-          Acepta recordatorios por WhatsApp
+          Acepta recordatorios por WhatsApp y email
         </label>
         <label className="flex items-center gap-2">
           <input type="checkbox" name="opt_out" defaultChecked={v.opt_out === "on"} />
