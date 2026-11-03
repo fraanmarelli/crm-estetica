@@ -104,3 +104,25 @@ update public.treatments t
      when t.name like 'Plasma%'               then 'Kit de plasma'
      when t.name = 'Chip hormonal'            then 'Chip hormonal'
    end;
+
+-- Cuentas de cobro. Córdoba: las mismas columnas que usa su planilla (así se copian solas).
+insert into public.payment_accounts (organization_id, branch_id, name, currency, sort_order)
+select b.organization_id, b.id, v.name, v.currency, v.sort_order
+  from public.branches b,
+       (values ('Efectivo', 'ARS', 10), ('Dolar', 'USD', 20), ('GetNet Mariano', 'ARS', 30),
+               ('MP Marian', 'ARS', 40), ('GetNet Cami', 'ARS', 50), ('GetNet Chari', 'ARS', 60),
+               ('MP CHARI', 'ARS', 70), ('TR cuenta Mariano', 'ARS', 80), ('TR Cuenta Franco', 'ARS', 90)
+       ) as v(name, currency, sort_order)
+ where b.organization_id = '00000000-0000-0000-0000-00000000d0b0' and b.name = 'Córdoba'
+on conflict (branch_id, name) do nothing;
+
+-- Resto de las sucursales: cuentas genéricas (cada franquiciado las ajusta en Ajustes)
+insert into public.payment_accounts (organization_id, branch_id, name, currency, sort_order)
+select b.organization_id, b.id, v.name, v.currency, v.sort_order
+  from public.branches b,
+       (values ('Efectivo', 'ARS', 10), ('Transferencia', 'ARS', 20), ('Mercado Pago', 'ARS', 30),
+               ('Tarjeta de débito', 'ARS', 40), ('Tarjeta de crédito', 'ARS', 50), ('Dólares', 'USD', 60)
+       ) as v(name, currency, sort_order)
+ where b.organization_id = '00000000-0000-0000-0000-00000000d0b0' and b.name <> 'Córdoba'
+   and not exists (select 1 from public.payment_accounts pa where pa.branch_id = b.id)
+on conflict (branch_id, name) do nothing;

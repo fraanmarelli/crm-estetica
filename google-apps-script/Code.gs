@@ -5,6 +5,12 @@
  * en la planilla actual. Las columnas se asocian POR NOMBRE de encabezado,
  * así que no hace falta tocar la estructura de la planilla.
  *
+ * Además de los campos de abajo, el CRM manda una clave por cada columna de la
+ * planilla de Córdoba (Nombres, Apellidos, DNI (CUIL/CUIT), Tratamiento/s realizado/s,
+ * Medico/a, Comentario, celular, mail, Domicilio, Medio de pago, Total, Comision medica,
+ * Insumo, Ingreso Neto) y una por cada cuenta de cobro con su monto (Efectivo, Dolar,
+ * GetNet Mariano, MP CHARI, TR Cuenta Franco, ...). La fecha va en la columna A.
+ *
  * Ejemplo de JSON que manda el CRM:
  * {
  *   "token": "CAMBIAR-ESTE-TOKEN",
@@ -25,12 +31,14 @@
 
 // ===================== CONFIGURACIÓN =====================
 const CONFIG = {
-  TOKEN: 'CAMBIAR-ESTE-TOKEN',   // Clave secreta. Poné la misma en el CRM.
+  TOKEN: 'CAMBIAR-ESTE-TOKEN',   // Clave secreta. Poné la misma en el CRM (Ajustes).
   SHEET_NAME: 'Turnos',          // Nombre exacto de la pestaña donde se cargan los turnos.
   HEADER_ROW: 1,                 // Fila donde están los encabezados.
+  DATE_COLUMN: 1,                // Columna de la fecha aunque no tenga título (1 = A). 0 = no usar.
   ID_HEADER: 'ID CRM'            // Opcional: si existe una columna con este nombre, evita
                                  // duplicados y permite actualizar un turno ya cargado.
-                                 // Si no existe, el script solo agrega filas.
+                                 // Si no existe, el script solo agrega filas nuevas y no
+                                 // procesa ediciones (para no duplicar turnos).
 };
 // =========================================================
 
@@ -65,14 +73,26 @@ function doPost(e) {
       return h && payload.hasOwnProperty(h) ? toCellValue_(payload[h]) : '';
     });
 
+    // Fecha en una columna sin título (en la planilla de Córdoba, la A)
+    const dateIdx = CONFIG.DATE_COLUMN - 1;
+    if (dateIdx >= 0 && dateIdx < row.length && !headerKeys[dateIdx] && data.fecha) {
+      row[dateIdx] = toCellValue_(data.fecha);
+    }
+
     const unmatched = Object.keys(data).filter(function (k) {
       return headerKeys.indexOf(normalize_(k)) === -1;
     });
 
     // ¿Existe ya este turno? (solo si la planilla tiene la columna de ID)
     const idCol = headerKeys.indexOf(normalize_(CONFIG.ID_HEADER));
+    if (idCol >= 0 && data.id_crm) row[idCol] = data.id_crm;
     const idValue = idCol >= 0 ? row[idCol] : '';
     let targetRow = -1;
+
+    // Sin columna de ID no hay forma de encontrar la fila: las ediciones se ignoran
+    if (idCol < 0 && data.evento === 'appointment.updated') {
+      return json_({ ok: true, accion: 'ignorado', motivo: 'Edición sin columna ID CRM' });
+    }
 
     if (idCol >= 0 && idValue !== '') {
       const firstDataRow = CONFIG.HEADER_ROW + 1;
@@ -126,12 +146,16 @@ function probarInsercion() {
       contents: JSON.stringify({
         token: CONFIG.TOKEN,
         id_crm: 'TEST-001',
+        evento: 'appointment.completed',
         fecha: '2026-11-03',
-        paciente: 'Paciente de prueba',
-        telefono: '5491100000000',
-        tratamiento: 'Botox',
-        profesional: 'Dra. Prueba',
-        monto: 1000
+        'Nombres': 'Paciente',
+        'Apellidos': 'De Prueba',
+        'Tratamiento/s realizado/s': 'Botox (toxina botulínica) - Frente',
+        'Medico/a': 'Dra. Prueba',
+        'celular': '5491100000000',
+        'Total': 1000,
+        'Efectivo': 1000,
+        'Medio de pago': 'Efectivo'
       })
     },
     parameter: {}

@@ -81,6 +81,7 @@ export type Patient = {
   consent_data_at: string | null;
   consent_marketing_at: string | null;
   marketing_opt_out_at: string | null;
+  address: string | null;
   created_at: string;
 };
 
@@ -90,6 +91,10 @@ export type AppointmentItemInput = {
   quantity: string;
   price: string;
 };
+
+export type PaymentAccount = { id: string; name: string; currency: "ARS" | "USD" };
+
+export type PaymentInput = { account_id: string; amount: string; exchange_rate: string };
 
 // values: lo que el usuario había escrito, para no perderlo si hay un error
 export type ActionState = { error?: string; ok?: string; values?: Record<string, string> } | null;

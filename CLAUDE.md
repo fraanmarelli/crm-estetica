@@ -25,6 +25,15 @@ y entregá archivos completos.
 - Costo: `supplies.unit_cost` (lo carga la marca) × `appointment_items.quantity`, congelado en
   `appointment_items.cost` por trigger. `cost` y `unit_cost` no tienen SELECT para `authenticated`: se leen con
   `branch_financials()` / `supply_list()` (marca y franquiciado). `integrations.secret` tampoco es legible.
+- Cobro: `payment_accounts` (cuentas por sucursal, ARS o USD) y `appointment_payments` (partes del cobro).
+  `appointments.amount_paid` (ARS) / `amount_usd` / `payment_method` los calcula un trigger desde las partes.
+  Las partes en USD suman a `amount_paid` solo si tienen `exchange_rate`.
+- Comisión: `professionals.commission_pct` × `amount_paid` → `appointments.commission` (trigger), o manual con
+  `set_commission()`. `commission_pct` y `commission` no son legibles por `authenticated`; se leen con
+  `professional_list()` / `appointment_commission()` / `branch_financials()`. Ingreso neto = facturado − insumos − comisión.
+- Al guardar un turno realizado: se inserta como `scheduled`, después ítems y cobros, y al final el estado, para
+  que las integraciones reciban el turno completo una sola vez.
+- `appointment_event_payload()` incluye claves con los títulos de la planilla de Córdoba y una por cuenta de cobro.
 - `recall_queue` (vista) = último tratamiento realizado + recall_days, sin turno futuro, sin opt-out.
 - `loyalty_transactions` = libro mayor de millas (nunca se edita; se corrige con otro movimiento).
 - `event_outbox` + `integrations` = toda automatización saliente (tipos: `google_sheets`, `klaviyo`).

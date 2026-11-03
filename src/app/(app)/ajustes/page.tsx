@@ -3,6 +3,7 @@ import { requireManagerContext } from "@/lib/context";
 import { fmtDateTime } from "@/lib/format";
 import { toggleIntegration } from "../actions";
 import { IntegrationForm } from "./integration-form";
+import { AccountsForm, ProfessionalsForm } from "./team-forms";
 
 type Integration = {
   id: string;
@@ -29,7 +30,7 @@ export default async function SettingsPage() {
   const supabase = await createClient();
 
   // RLS: la marca ve todas; el franquiciado, las de su sucursal
-  const [{ data: integrations }, { data: problems }] = await Promise.all([
+  const [{ data: integrations }, { data: problems }, { data: profs }, { data: accounts }] = await Promise.all([
     supabase
       .from("integrations")
       .select("id, name, type, is_active, config, branch:branches(name)")
@@ -43,19 +44,49 @@ export default async function SettingsPage() {
       .neq("status", "sent")
       .order("id", { ascending: false })
       .limit(20),
+    supabase.rpc("professional_list", { p_branch: ctx.currentBranch.id }),
+    supabase
+      .from("payment_accounts")
+      .select("id, name, currency, is_active")
+      .eq("branch_id", ctx.currentBranch.id)
+      .order("sort_order")
+      .order("name"),
   ]);
 
   const list = (integrations ?? []) as unknown as Integration[];
   const errors = (problems ?? []) as OutboxRow[];
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8">
+    <div className="mx-auto max-w-4xl space-y-8">
       <div className="page-head">
         <div>
           <h1>Ajustes</h1>
-          <p className="page-sub">Conexiones con Klaviyo y Google Sheets</p>
+          <p className="page-sub">{ctx.currentBranch.name}: médicos, cuentas de cobro y conexiones</p>
         </div>
       </div>
+
+      <section className="card space-y-4">
+        <div>
+          <h2>Médicos y comisión</h2>
+          <p className="text-sm text-muted">
+            La comisión se calcula sola en cada turno: porcentaje sobre lo cobrado. Se puede cambiar a mano en un turno
+            puntual. Recepción no ve estos porcentajes.
+          </p>
+        </div>
+        <ProfessionalsForm
+          professionals={(profs ?? []) as { id: string; full_name: string; commission_pct: number; is_active: boolean }[]}
+        />
+      </section>
+
+      <section className="card space-y-4">
+        <div>
+          <h2>Cuentas de cobro</h2>
+          <p className="text-sm text-muted">Las opciones que aparecen al registrar cómo pagó cada paciente.</p>
+        </div>
+        <AccountsForm
+          accounts={(accounts ?? []) as { id: string; name: string; currency: "ARS" | "USD"; is_active: boolean }[]}
+        />
+      </section>
 
       <section className="card space-y-4">
         <h2>Conexiones</h2>

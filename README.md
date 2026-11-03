@@ -26,13 +26,13 @@ Los permisos los controla la base de datos (RLS), no la pantalla.
 |---|---|---|
 | **Hoy** | Todos | Turnos del día, cobrado, pacientes para recontactar |
 | **Pacientes** | Todos | Alta (detecta duplicados en toda la marca; origen obligatorio), ficha e historial |
-| **Turno** | Todos | Agendar y registrar como realizado: tratamiento, cantidad de insumo, precio cobrado (manual) y medio de pago |
+| **Turno** | Todos | Agendar y registrar como realizado: tratamiento, cantidad de insumo, precio cobrado (manual) y cobro dividido en varias cuentas |
 | **Recall** | Todos | A quién le toca repetir, botón de WhatsApp con el mensaje armado, registrar respuesta |
-| **Números** | Franquiciado y marca | Facturado, costo de insumos y margen; por profesional, por tratamiento y mejores pacientes |
+| **Números** | Franquiciado y marca | Facturado, insumos, comisiones e ingreso neto; liquidación por médico; por cuenta de cobro, por tratamiento y mejores pacientes |
 | **Insumos** | Marca edita, franquiciado consulta | Costo de cada insumo para las franquicias y qué insumo usa cada tratamiento |
 | **Marketing** | Franquiciado y marca | Conectar Meta, inversión, mensajes, pacientes nuevas de redes, costo por paciente, retorno, campañas |
 | **Marca** | Marca | Facturación, turnos y recall por sucursal, mes vs mes |
-| **Ajustes** | Franquiciado y marca | Conectar Klaviyo y Google Sheets, errores de envío |
+| **Ajustes** | Franquiciado y marca | Médicos y su comisión, cuentas de cobro, Klaviyo, Google Sheets, errores de envío |
 | **Mail semanal** | Franquiciado y marca | Todos los lunes 9:05 (Argentina), automático |
 
 ---
@@ -48,7 +48,10 @@ Los permisos los controla la base de datos (RLS), no la pantalla.
    3. `supabase/migrations/20261103000200_marketing.sql`
    4. `supabase/migrations/20261103000300_marketing_cron.sql`
    5. `supabase/migrations/20261103000400_insumos_costos_klaviyo.sql`
-   6. `supabase/seed.sql` (siempre al final)
+   6. `supabase/migrations/20261103000500_cobros_comisiones.sql`
+   7. `supabase/seed.sql` (siempre al final)
+
+   O todo junto: el archivo `instalacion-crm.sql` que arma Claude con estos siete en orden.
 3. **Authentication → Sign In / Providers → Email:** desactivá **"Allow new users to sign up"**.
 
 ### 2. Usuarios
@@ -67,12 +70,11 @@ select grant_membership('franquiciado.cordoba@gmail.com', 'drbeauty', 'branch_ad
 select grant_membership('recepcion.cordoba@gmail.com', 'drbeauty', 'reception', 'Córdoba');
 ```
 
-### 3. Profesionales (todavía sin pantalla)
+### 3. Médicos y cuentas de cobro
 
-```sql
-insert into professionals (organization_id, branch_id, full_name)
-select organization_id, id, 'Dra. Antonella' from branches where name = 'Córdoba';
-```
+En el CRM → **Ajustes** (como marca o franquiciado): cargá los médicos de la sucursal con su % de comisión y
+revisá las cuentas de cobro. Córdoba ya viene con las cuentas de su planilla (Efectivo, Dolar, GetNet Mariano,
+MP Marian, GetNet Cami, GetNet Chari, MP CHARI, TR cuenta Mariano, TR Cuenta Franco).
 
 ### 4. Una clave interna
 

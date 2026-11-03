@@ -15,6 +15,7 @@ export function PatientEditForm({ patient }: { patient: Patient }) {
     dni: patient.dni ?? "",
     email: patient.email ?? "",
     birth_date: patient.birth_date ?? "",
+    address: patient.address ?? "",
     source: patient.source ?? "",
     notes: patient.notes ?? "",
     consent_marketing: patient.consent_marketing_at ? "on" : "",
@@ -44,6 +45,10 @@ export function PatientEditForm({ patient }: { patient: Patient }) {
         <div>
           <label className="label">Email</label>
           <input name="email" type="email" defaultValue={v.email} className="input" />
+        </div>
+        <div>
+          <label className="label">Domicilio</label>
+          <input name="address" defaultValue={v.address} className="input" />
         </div>
         <div>
           <label className="label">Nacimiento</label>

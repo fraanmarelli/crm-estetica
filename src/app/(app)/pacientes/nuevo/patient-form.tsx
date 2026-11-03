@@ -44,6 +44,10 @@ export function NewPatientForm() {
           <p className="mt-1 text-xs text-muted">Sin email no le llegan los recordatorios automáticos por mail.</p>
         </div>
         <div>
+          <label className="label">Domicilio</label>
+          <input name="address" defaultValue={v.address} className="input" />
+        </div>
+        <div>
           <label className="label">Fecha de nacimiento</label>
           <input name="birth_date" type="date" defaultValue={v.birth_date} className="input" />
         </div>

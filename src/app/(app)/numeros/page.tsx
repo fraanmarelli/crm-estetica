@@ -10,10 +10,15 @@ type Financials = {
   pacientes: number;
   nuevas: number;
   facturado: number;
+  dolares: number;
+  dolares_sin_cotizar: number;
   costo: number;
+  comision: number;
+  ingreso_neto: number;
   margen: number;
   items_sin_costo: number;
-  por_profesional: (Row & { turnos: number; pacientes: number })[];
+  por_profesional: (Row & { turnos: number; pacientes: number; comision: number })[];
+  por_cuenta: { cuenta: string; moneda: "ARS" | "USD"; cobros: number; monto: number }[];
   por_tratamiento: (Row & { cantidad: number; insumo_usado: number; unidad: string | null })[];
   mejores_pacientes: { id: string; nombre: string; visitas: number; gastado: number; ultima_visita: string }[];
 };
@@ -76,20 +81,31 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi label="Facturado" value={fmtMoney(f.facturado, cur)} hint={`${f.turnos} turnos realizados`} />
         <Kpi
-          label="Margen"
-          value={fmtMoney(f.margen, cur)}
-          hint={`${pct(f.margen, f.facturado)} de lo facturado`}
+          label="Facturado"
+          value={fmtMoney(f.facturado, cur)}
+          hint={`${f.turnos} turnos · ticket ${fmtMoney(ticket, cur)}`}
+        />
+        <Kpi
+          label="Ingreso neto"
+          value={fmtMoney(f.ingreso_neto, cur)}
+          hint={`${pct(f.ingreso_neto, f.facturado)} de lo facturado`}
           accent
         />
-        <Kpi label="Costo de insumos" value={fmtMoney(f.costo, cur)} hint={`${pct(f.costo, f.facturado)} de lo facturado`} />
+        <Kpi label="Insumos" value={fmtMoney(f.costo, cur)} hint={`${pct(f.costo, f.facturado)} de lo facturado`} />
         <Kpi
-          label="Ticket promedio"
-          value={fmtMoney(ticket, cur)}
-          hint={`${f.pacientes} pacientes, ${f.nuevas} nuevas`}
+          label="Comisiones médicas"
+          value={fmtMoney(f.comision, cur)}
+          hint={`${pct(f.comision, f.facturado)} de lo facturado`}
         />
       </div>
+
+      <p className="text-sm text-muted">
+        {f.pacientes} pacientes atendidas, {f.nuevas} nuevas.
+        {f.dolares > 0 && ` Además se cobraron ${fmtMoney(f.dolares, "USD")}`}
+        {f.dolares_sin_cotizar > 0 && ` (${fmtMoney(f.dolares_sin_cotizar, "USD")} sin cotización, no sumados en pesos)`}
+        {f.dolares > 0 && "."}
+      </p>
 
       {f.items_sin_costo > 0 && (
         <p className="alert-error">
@@ -112,8 +128,9 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
                   <th>Turnos</th>
                   <th>Pacientes</th>
                   <th>Facturado</th>
-                  <th>Costo</th>
-                  <th>Margen</th>
+                  <th>Insumos</th>
+                  <th>Comisión a pagar</th>
+                  <th>Neto</th>
                 </tr>
               </thead>
               <tbody>
@@ -124,9 +141,39 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
                     <td>{r.pacientes}</td>
                     <td className="whitespace-nowrap">{fmtMoney(r.facturado, cur)}</td>
                     <td className="whitespace-nowrap">{fmtMoney(r.costo, cur)}</td>
+                    <td className="whitespace-nowrap font-semibold">{fmtMoney(r.comision, cur)}</td>
                     <td className="whitespace-nowrap">
                       {fmtMoney(r.margen, cur)} <span className="text-xs text-muted">{pct(r.margen, r.facturado)}</span>
                     </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        <p className="text-xs text-muted">«Comisión a pagar» es la liquidación de cada médico para el período elegido.</p>
+      </section>
+
+      <section className="space-y-3">
+        <h2>Por cuenta de cobro</h2>
+        <div className="card overflow-x-auto p-0">
+          {f.por_cuenta.length === 0 ? (
+            <p className="p-4 text-sm text-muted">Sin cobros registrados en el período.</p>
+          ) : (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Cuenta</th>
+                  <th>Cobros</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {f.por_cuenta.map((r) => (
+                  <tr key={r.cuenta}>
+                    <td className="font-medium">{r.cuenta}</td>
+                    <td>{r.cobros}</td>
+                    <td className="whitespace-nowrap">{fmtMoney(r.monto, r.moneda)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -148,7 +195,7 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
                   <th>Veces</th>
                   <th>Insumo usado</th>
                   <th>Facturado</th>
-                  <th>Costo</th>
+                  <th>Insumos</th>
                   <th>Margen</th>
                 </tr>
               </thead>
@@ -174,7 +221,8 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
           )}
         </div>
         <p className="text-xs text-muted">
-          Facturado por tratamiento suma el precio cobrado en cada ítem; el total de arriba es lo cobrado por turno.
+          Suma el precio escrito en cada tratamiento y descuenta solo insumos (la comisión es por turno, no por
+          tratamiento).
         </p>
       </section>
 

@@ -29,7 +29,7 @@ export default async function NewAppointmentPage({
     return <p className="alert-error">No se encontró la paciente.</p>;
   }
 
-  const { treatments, professionals } = await loadCatalog(ctx.org.id, ctx.currentBranch.id);
+  const { treatments, professionals, accounts } = await loadCatalog(ctx.org.id, ctx.currentBranch.id);
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
@@ -41,14 +41,16 @@ export default async function NewAppointmentPage({
         patientId={paciente}
         treatments={treatments}
         professionals={professionals}
+        accounts={accounts}
+        canSeeCosts={ctx.canManageCurrentBranch}
         defaults={{
           scheduled_at: isoToLocalInput(null),
           status: "scheduled",
           professional_id: "",
-          amount_paid: "",
-          payment_method: "",
           notes: "",
           items: [],
+          payments: [],
+          commission: "",
         }}
       />
     </div>

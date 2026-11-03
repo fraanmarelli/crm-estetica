@@ -14,12 +14,11 @@ type Appt = {
   professional_id: string | null;
   scheduled_at: string;
   status: AppointmentStatus;
-  amount_paid: number | null;
-  payment_method: string | null;
   notes: string | null;
   patient: { first_name: string; last_name: string | null } | null;
   branch: { name: string } | null;
   items: { treatment_id: string; zone: string | null; quantity: number | null; price: number | null }[];
+  payments: { account_id: string; amount: number; exchange_rate: number | null }[];
 };
 
 export default async function EditAppointmentPage({ params }: { params: Promise<{ id: string }> }) {
@@ -30,7 +29,7 @@ export default async function EditAppointmentPage({ params }: { params: Promise<
   const { data } = await supabase
     .from("appointments")
     .select(
-      "id, branch_id, patient_id, professional_id, scheduled_at, status, amount_paid, payment_method, notes, patient:patients(first_name, last_name), branch:branches(name), items:appointment_items(treatment_id, zone, quantity, price)",
+      "id, branch_id, patient_id, professional_id, scheduled_at, status, notes, patient:patients(first_name, last_name), branch:branches(name), items:appointment_items(treatment_id, zone, quantity, price), payments:appointment_payments(account_id, amount, exchange_rate)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -50,7 +49,12 @@ export default async function EditAppointmentPage({ params }: { params: Promise<
     );
   }
 
-  const { treatments, professionals } = await loadCatalog(ctx.org.id, ctx.currentBranch.id);
+  const { treatments, professionals, accounts } = await loadCatalog(ctx.org.id, ctx.currentBranch.id);
+  let commission = "";
+  if (ctx.canManageCurrentBranch) {
+    const { data: c } = await supabase.rpc("appointment_commission", { p_appointment: appt.id });
+    if (c?.[0]?.commission_manual && c[0].commission !== null) commission = String(c[0].commission);
+  }
   const s = (v: number | string | null) => (v === null ? "" : String(v));
 
   return (
@@ -65,13 +69,13 @@ export default async function EditAppointmentPage({ params }: { params: Promise<
         patientId={appt.patient_id}
         treatments={treatments}
         professionals={professionals}
+        accounts={accounts}
+        canSeeCosts={ctx.canManageCurrentBranch}
         defaults={{
           id: appt.id,
           scheduled_at: isoToLocalInput(appt.scheduled_at),
           status: appt.status === "scheduled" ? "completed" : appt.status,
           professional_id: appt.professional_id ?? "",
-          amount_paid: s(appt.amount_paid),
-          payment_method: appt.payment_method ?? "",
           notes: appt.notes ?? "",
           items: appt.items.map((i) => ({
             treatment_id: i.treatment_id,
@@ -79,6 +83,12 @@ export default async function EditAppointmentPage({ params }: { params: Promise<
             quantity: s(i.quantity),
             price: s(i.price),
           })),
+          payments: appt.payments.map((p) => ({
+            account_id: p.account_id,
+            amount: s(p.amount),
+            exchange_rate: s(p.exchange_rate),
+          })),
+          commission,
         }}
       />
     </div>
