@@ -1,8 +1,11 @@
 import Link from "next/link";
+import { Suspense } from "react";
+import { LiveSearch } from "@/components/live-search";
 import { createClient } from "@/lib/supabase/server";
 import { requireBranchContext } from "@/lib/context";
 import { loadCatalog } from "@/lib/catalog";
 import { fmtDate, fullName, isoToLocalInput, todayISO } from "@/lib/format";
+import { applyPatientSearch } from "@/lib/patient-search";
 import { AppointmentForm } from "@/components/appointment-form";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -22,16 +25,13 @@ export default async function NewAppointmentPage({
   // Paso 1: elegir paciente
   // ------------------------------------------------------------------
   if (!paciente) {
-    const term = q.replace(/[,()%*\\]/g, " ").trim();
+    const term = q.trim();
     let results: { id: string; first_name: string; last_name: string | null; phone: string | null }[] = [];
     if (term.length >= 2) {
-      const digits = term.replace(/\D/g, "");
-      const filters = [`first_name.ilike.%${term}%`, `last_name.ilike.%${term}%`];
-      if (digits.length >= 4) filters.push(`phone.ilike.%${digits}%`, `dni.ilike.%${digits}%`);
-      const { data } = await supabase
-        .from("patients")
-        .select("id, first_name, last_name, phone")
-        .or(filters.join(","))
+      const { data } = await applyPatientSearch(
+        supabase.from("patients").select("id, first_name, last_name, phone"),
+        term,
+      )
         .order("first_name")
         .limit(20);
       results = data ?? [];
@@ -50,25 +50,14 @@ export default async function NewAppointmentPage({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href={`/pacientes/ingreso?${newParams}`} className="btn">Ficha para la paciente</Link>
+            <Link href={`/pacientes/registro?${newParams}`} className="btn">Que se registre ella</Link>
             <Link href={`/pacientes/nuevo?${newParams}`} className="btn">Cargarla yo</Link>
           </div>
         </div>
 
-        <form className="flex gap-2">
-          {day && <input type="hidden" name="fecha" value={day} />}
-          {week && <input type="hidden" name="vista" value="semana" />}
-          <label htmlFor="buscar-paciente" className="sr-only">Buscar paciente</label>
-          <input
-            id="buscar-paciente"
-            name="q"
-            defaultValue={q}
-            placeholder="Nombre, celular o DNI"
-            className="input"
-            autoFocus
-          />
-          <button className="btn">Buscar</button>
-        </form>
+        <Suspense>
+          <LiveSearch placeholder="Nombre, apellido, celular o DNI" label="Buscar paciente" />
+        </Suspense>
 
         {term.length >= 2 && (
           <div className="card p-0">
@@ -76,7 +65,7 @@ export default async function NewAppointmentPage({
               <p className="p-4 text-sm text-muted">
                 No hay coincidencias.{" "}
                 <Link href={`/pacientes/nuevo?${newParams}`} className="link">Cargala como nueva</Link> o{" "}
-                <Link href={`/pacientes/ingreso?${newParams}`} className="link">que complete la ficha ella</Link>.
+                <Link href={`/pacientes/registro?${newParams}`} className="link">que se registre ella</Link>.
               </p>
             ) : (
               <ul className="divide-y divide-line">

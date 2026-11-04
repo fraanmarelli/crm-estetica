@@ -1,26 +1,24 @@
 import Link from "next/link";
+import { Suspense } from "react";
+import { LiveSearch } from "@/components/live-search";
 import { createClient } from "@/lib/supabase/server";
 import { requireBranchContext } from "@/lib/context";
 import { fmtDate, fullName } from "@/lib/format";
+import { applyPatientSearch } from "@/lib/patient-search";
 
 export default async function PatientsPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   await requireBranchContext();
   const { q = "" } = await searchParams;
-  const term = q.replace(/[,()%*\\]/g, " ").trim();
+  const term = q.trim();
   const supabase = await createClient();
 
   let query = supabase
     .from("patients")
-    .select("id, first_name, last_name, phone, dni, created_at, home_branch:branches(name)")
+    .select("id, first_name, last_name, phone, dni, created_at, self_registered_at, home_branch:branches(name)")
     .order("created_at", { ascending: false })
     .limit(50);
 
-  if (term) {
-    const digits = term.replace(/\D/g, "");
-    const filters = [`first_name.ilike.%${term}%`, `last_name.ilike.%${term}%`];
-    if (digits.length >= 4) filters.push(`phone.ilike.%${digits}%`, `dni.ilike.%${digits}%`);
-    query = query.or(filters.join(","));
-  }
+  if (term) query = applyPatientSearch(query, term);
 
   const { data } = await query;
   const patients = (data ?? []) as unknown as {
@@ -30,6 +28,7 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
     phone: string | null;
     dni: string | null;
     created_at: string;
+    self_registered_at: string | null;
     home_branch: { name: string } | null;
   }[];
 
@@ -38,21 +37,14 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1>Pacientes</h1>
         <div className="flex flex-wrap gap-2">
-          <Link href="/pacientes/ingreso" className="btn">Ficha de ingreso</Link>
+          <Link href="/pacientes/registro" className="btn">Registro con QR</Link>
           <Link href="/pacientes/nuevo" className="btn btn-primary">Nueva paciente</Link>
         </div>
       </div>
 
-      <form className="flex gap-2">
-        <input
-          name="q"
-          defaultValue={q}
-          placeholder="Buscar por nombre, teléfono o DNI"
-          className="input"
-          autoFocus
-        />
-        <button className="btn">Buscar</button>
-      </form>
+      <Suspense>
+        <LiveSearch placeholder="Buscá por nombre, apellido, celular o DNI" label="Buscar paciente" />
+      </Suspense>
 
       <div className="card overflow-x-auto p-0">
         {patients.length === 0 ? (
@@ -75,6 +67,7 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
                 <tr key={p.id}>
                   <td>
                     <Link href={`/pacientes/${p.id}`} className="link">{fullName(p)}</Link>
+                    {p.self_registered_at && <span className="badge badge-blue ml-2">Se registró sola</span>}
                   </td>
                   <td className="text-muted">{p.phone ?? "—"}</td>
                   <td className="text-muted">{p.dni ?? "—"}</td>

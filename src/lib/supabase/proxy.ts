@@ -1,8 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-// /ingreso/<token> = ficha que completa la paciente (sin sesión, valida el token)
-const PUBLIC_PATHS = ["/login", "/ingreso/"];
+// /registro/<token> = formulario donde la paciente carga sus datos (sin sesión, valida el token)
+const PUBLIC_PATHS = ["/login", "/registro/"];
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });

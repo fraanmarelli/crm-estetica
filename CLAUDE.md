@@ -41,9 +41,13 @@ y entregá archivos completos.
   `google_calendar`). Eventos: `appointment.saved` (cualquier cambio), `.completed`, `.updated` (cambio de un
   realizado), `.deleted`. `integration_refs` guarda el id externo (evento de Google) que devuelve el handler.
 - `appointments.duration_minutes` define el largo del turno (calendario).
-- Ficha de ingreso: `patient_intakes` (token de un solo uso, vence en 60 min). Recepción lo genera en
-  `/pacientes/ingreso` (QR + link); la paciente completa `/ingreso/[token]` (pública, sin sesión). El servidor
-  valida el token y recién ahí usa `createAdminClient()`; si el celular o DNI ya existe, no duplica ni modifica.
+- Registro de pacientes: link fijo por sucursal `/registro/[branches.intake_token]` (público, sin sesión) que
+  solo CREA pacientes (`patients.self_registered_at`). Recepción lo ve en `/pacientes/registro` (QR, link, se
+  registraron hoy); el franquiciado lo cambia con `rotate_intake_token()`. El servidor valida el token y recién ahí
+  usa `createAdminClient()`; tope de 10 registros por minuto por sucursal; si el celular o DNI ya existe no duplica
+  ni modifica, y responde igual para no revelar quién es paciente. (`patient_intakes` quedó sin uso.)
+- Búsqueda de pacientes: `applyPatientSearch()` (cada palabra en nombre, apellido, celular o DNI) + `LiveSearch`
+  (filtra mientras se escribe actualizando `?q=`).
 - Marketing: `ad_connections` (una cuenta de Meta por sucursal), `ad_connection_secrets` (tokens, solo
   service role), `ad_insights_daily` (gasto/resultados por campaña y día), `marketing_summary()` cruza con pacientes.
 - Tareas programadas (pg_cron): `dispatch-events` cada minuto, `meta-sync` diario, `weekly-report` los lunes.

@@ -52,7 +52,8 @@ Los permisos los controla la base de datos (RLS), no la pantalla.
    7. `supabase/migrations/20261104000600_agenda_google_calendar.sql`
    8. `supabase/migrations/20261104000700_senas.sql`
    9. `supabase/migrations/20261104000800_ficha_ingreso.sql`
-   10. `supabase/seed.sql` (siempre al final)
+   10. `supabase/migrations/20261104000900_registro_fijo.sql`
+   11. `supabase/seed.sql` (siempre al final)
 
    O todo junto: el archivo `instalacion-crm.sql` que arma Claude con todos en orden.
 3. **Authentication → Sign In / Providers → Email:** desactivá **"Allow new users to sign up"**.

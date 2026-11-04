@@ -1,30 +1,26 @@
 import type { Metadata } from "next";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { IntakeForm } from "./intake-form";
+import { RegisterForm } from "./register-form";
 
 export const metadata: Metadata = { title: "Tus datos", robots: { index: false, follow: false } };
 
-// Página pública: solo muestra el formulario si el link es válido
-export default async function PublicIntakePage({ params }: { params: Promise<{ token: string }> }) {
+// Página pública de registro de pacientes (link fijo de la sucursal)
+export default async function RegisterPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const admin = createAdminClient();
   const { data } = await admin
-    .from("patient_intakes")
-    .select("expires_at, used_at, organization:organizations(name, settings), branch:branches(name)")
-    .eq("token", token)
+    .from("branches")
+    .select("name, organization:organizations(name, settings)")
+    .eq("intake_token", token)
+    .eq("is_active", true)
     .maybeSingle();
 
-  const intake = data as unknown as {
-    expires_at: string;
-    used_at: string | null;
+  const branch = data as unknown as {
+    name: string;
     organization: { name: string; settings: { brand?: { logo_url?: string } } } | null;
-    branch: { name: string } | null;
   } | null;
-
-  const valid = intake && !intake.used_at && new Date(intake.expires_at).getTime() > Date.now();
-  const orgName = intake?.organization?.name ?? "la clínica";
-  const logo = intake?.organization?.settings?.brand?.logo_url;
-  const clinic = `${orgName}${intake?.branch ? ` ${intake.branch.name}` : ""}`;
+  const orgName = branch?.organization?.name ?? "la clínica";
+  const logo = branch?.organization?.settings?.brand?.logo_url;
 
   return (
     <main
@@ -41,21 +37,21 @@ export default async function PublicIntakePage({ params }: { params: Promise<{ t
         ) : (
           <span className="gold-text font-display text-3xl">{orgName}</span>
         )}
-        <p className="text-sm text-chrome-muted">{intake?.branch?.name ?? ""}</p>
+        {branch && <p className="text-sm text-chrome-muted">{branch.name}</p>}
       </header>
 
-      {valid ? (
+      {branch ? (
         <>
           <div>
             <h1>Tus datos</h1>
             <p className="page-sub">Completalos una sola vez. Los usamos para tu atención y tus turnos.</p>
           </div>
-          <IntakeForm token={token} clinic={clinic} />
+          <RegisterForm token={token} clinic={`${orgName} ${branch.name}`} />
         </>
       ) : (
         <div className="card space-y-2 text-center">
-          <h1>Este link no está disponible</h1>
-          <p className="text-muted">Ya se usó o venció. Pedile uno nuevo a recepción.</p>
+          <h1>Este link ya no funciona</h1>
+          <p className="text-muted">Pedile el nuevo a recepción.</p>
         </div>
       )}
     </main>

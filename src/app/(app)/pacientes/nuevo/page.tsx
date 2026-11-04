@@ -26,8 +26,8 @@ export default async function NewPatientPage({
             Queda registrada en {ctx.currentBranch.name}.{next.turno ? " Al guardar seguís con su turno." : ""}
           </p>
         </div>
-        <Link href={`/pacientes/ingreso${query ? `?${query}` : ""}`} className="btn">
-          Que la complete ella
+        <Link href={`/pacientes/registro${query ? `?${query}` : ""}`} className="btn">
+          Que se registre ella
         </Link>
       </div>
       <NewPatientForm next={next} />
