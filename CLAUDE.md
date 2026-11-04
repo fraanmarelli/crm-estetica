@@ -59,7 +59,11 @@ y entregá archivos completos.
   solo CREA pacientes (`patients.self_registered_at`). Recepción lo ve en `/pacientes/registro` (QR, link, se
   registraron hoy); el franquiciado lo cambia con `rotate_intake_token()`. El servidor valida el token y recién ahí
   usa `createAdminClient()`; tope de 10 registros por minuto por sucursal; si el celular o DNI ya existe no duplica
-  ni modifica, y responde igual para no revelar quién es paciente. (`patient_intakes` quedó sin uso.)
+  ni modifica, y responde igual para no revelar quién es paciente.
+- Ficha incompleta: carga rápida (nombre, celular, origen) para dar un turno sin tener a la paciente presente
+  = `patients.consent_data_at is null`. Se completa en `/pacientes/[id]/completar`: a mano (el form pide el
+  consentimiento) o con un link personal `/ficha/[patient_intakes.token]` (público, un uso, 7 días; el servidor
+  valida el token y recién ahí usa `createAdminClient()`; solo completa campos, no borra). Agenda y cobro avisan.
 - Búsqueda de pacientes: `applyPatientSearch()` (cada palabra en nombre, apellido, celular o DNI) + `LiveSearch`
   (filtra mientras se escribe actualizando `?q=`).
 - Marketing: `ad_connections` (una cuenta de Meta por sucursal), `ad_connection_secrets` (tokens, solo

@@ -18,7 +18,7 @@ type Appt = {
   duration_minutes: number;
   status: AppointmentStatus;
   notes: string | null;
-  patient: { first_name: string; last_name: string | null } | null;
+  patient: { first_name: string; last_name: string | null; consent_data_at: string | null } | null;
   branch: { name: string } | null;
   items: {
     treatment_id: string;
@@ -47,7 +47,7 @@ export default async function EditAppointmentPage({
   const { data } = await supabase
     .from("appointments")
     .select(
-      `id, branch_id, patient_id, professional_id, scheduled_at, duration_minutes, status, notes, patient:patients(first_name, last_name), branch:branches(name), items:appointment_items(treatment_id, zone, quantity, price, promotion_id, promotion:promotions(name)), payments:appointment_payments(account_id, amount, exchange_rate, is_deposit)`,
+      `id, branch_id, patient_id, professional_id, scheduled_at, duration_minutes, status, notes, patient:patients(first_name, last_name, consent_data_at), branch:branches(name), items:appointment_items(treatment_id, zone, quantity, price, promotion_id, promotion:promotions(name)), payments:appointment_payments(account_id, amount, exchange_rate, is_deposit)`,
     )
     .eq("id", id)
     .maybeSingle();
@@ -88,6 +88,19 @@ export default async function EditAppointmentPage({
             : "Para reprogramarlo, cambiá la fecha. Para registrar que se atendió, usá «Cobrar» desde la agenda."}
         </p>
       </div>
+      {appt.patient && !appt.patient.consent_data_at && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warn-line bg-warn-soft px-4 py-3 text-sm text-warn">
+          <span>
+            <b>Ficha incompleta:</b> faltan sus datos y el consentimiento.
+          </span>
+          <Link
+            href={`/pacientes/${appt.patient_id}/completar?volver=${encodeURIComponent(`/turnos/${appt.id}${checkout ? "?cobrar=1" : ""}`)}`}
+            className="btn btn-sm"
+          >
+            Completar ficha
+          </Link>
+        </div>
+      )}
       {appt.checks?.length > 0 && (
         <div className="card space-y-2">
           <h2 className="text-base">Transferencias en Mercado Pago</h2>

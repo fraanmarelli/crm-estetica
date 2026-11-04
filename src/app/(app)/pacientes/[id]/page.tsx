@@ -77,6 +77,11 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
             {p.phone ?? "Sin teléfono"} · Sucursal de origen: {p.home_branch?.name ?? "—"} · Alta {fmtDate(p.created_at)}
           </p>
           <div className="mt-2 flex flex-wrap gap-1">
+            {!p.consent_data_at && (
+              <Link href={`/pacientes/${p.id}/completar`} className="badge badge-amber hover:underline">
+                Ficha incompleta · completar
+              </Link>
+            )}
             {p.marketing_opt_out_at ? (
               <span className="badge badge-red">No contactar</span>
             ) : p.consent_marketing_at ? (

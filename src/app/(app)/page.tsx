@@ -29,7 +29,14 @@ type Row = {
   status: AppointmentStatus;
   amount_paid: number | null;
   amount_usd: number | null;
-  patient: { id: string; first_name: string; last_name: string | null; phone: string | null; notes: string | null } | null;
+  patient: {
+    id: string;
+    first_name: string;
+    last_name: string | null;
+    phone: string | null;
+    notes: string | null;
+    consent_data_at: string | null;
+  } | null;
   professional: { full_name: string } | null;
   items: { zone: string | null; treatment: { name: string } | null }[];
   checks: TransferCheck[];
@@ -110,7 +117,7 @@ export default async function AgendaPage({
       supabase
         .from("appointments")
         .select(
-          `id, scheduled_at, duration_minutes, status, amount_paid, amount_usd, patient:patients(id, first_name, last_name, phone, notes), professional:professionals(full_name), items:appointment_items(zone, treatment:treatments(name))`,
+          `id, scheduled_at, duration_minutes, status, amount_paid, amount_usd, patient:patients(id, first_name, last_name, phone, notes, consent_data_at), professional:professionals(full_name), items:appointment_items(zone, treatment:treatments(name))`,
         )
         .eq("branch_id", branchId)
         .gte("scheduled_at", start)
@@ -376,8 +383,17 @@ export default async function AgendaPage({
                       ) : (
                         <span className="font-semibold">Paciente</span>
                       )}
-                      {p && !returning.has(p.id) && r.status !== "cancelled" && (
+                      {/* Si tiene la ficha incompleta, ese aviso ya dice que es nueva */}
+                      {p && p.consent_data_at && !returning.has(p.id) && r.status !== "cancelled" && (
                         <span className="badge badge-amber">Primera vez</span>
+                      )}
+                      {p && !p.consent_data_at && r.status !== "cancelled" && (
+                        <Link
+                          href={`/pacientes/${p.id}/completar?volver=${encodeURIComponent(`/?fecha=${day}${viewParam}`)}`}
+                          className="badge badge-amber hover:underline"
+                        >
+                          Ficha incompleta · completar
+                        </Link>
                       )}
                       {r.status === "scheduled" && (Number(r.amount_paid) > 0 || Number(r.amount_usd) > 0) && (
                         <span className="badge badge-green">

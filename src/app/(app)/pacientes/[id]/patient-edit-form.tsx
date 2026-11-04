@@ -6,7 +6,17 @@ import { SubmitButton } from "@/components/submit-button";
 import { PATIENT_SOURCES } from "@/lib/format";
 import type { ActionState, Patient } from "@/lib/types";
 
-export function PatientEditForm({ patient }: { patient: Patient }) {
+// completing: se usa para completar una ficha incompleta (pide el consentimiento y vuelve a `back`)
+export function PatientEditForm({
+  patient,
+  completing = false,
+  back,
+}: {
+  patient: Patient;
+  completing?: boolean;
+  back?: string;
+}) {
+  const missingConsent = !patient.consent_data_at;
   const [state, action] = useActionState<ActionState, FormData>(updatePatient, null);
   const v: Record<string, string> = state?.values ?? {
     first_name: patient.first_name,
@@ -25,6 +35,7 @@ export function PatientEditForm({ patient }: { patient: Patient }) {
   return (
     <form key={JSON.stringify(v)} action={action} className="space-y-3">
       <input type="hidden" name="id" value={patient.id} />
+      {back && <input type="hidden" name="back" value={back} />}
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className="label">Nombre</label>
@@ -69,6 +80,12 @@ export function PatientEditForm({ patient }: { patient: Patient }) {
         <textarea name="notes" rows={2} defaultValue={v.notes} className="input" />
       </div>
       <div className="space-y-1 text-sm">
+        {missingConsent && (
+          <label className="flex items-start gap-2 rounded-lg bg-subtle p-2">
+            <input type="checkbox" name="consent_data" required={completing} className="mt-0.5" />
+            <span>La paciente aceptó que guardemos sus datos para su atención{completing ? " (obligatorio)" : ""}.</span>
+          </label>
+        )}
         <label className="flex items-center gap-2">
           <input type="checkbox" name="consent_marketing" defaultChecked={v.consent_marketing === "on"} />
           Acepta recordatorios por WhatsApp y email
@@ -81,7 +98,7 @@ export function PatientEditForm({ patient }: { patient: Patient }) {
       {state?.error && <p className="alert-error">{state.error}</p>}
       {state?.ok && <p className="alert-ok">{state.ok}</p>}
       <div className="flex justify-end">
-        <SubmitButton>Guardar cambios</SubmitButton>
+        <SubmitButton>{completing ? "Completar ficha" : "Guardar cambios"}</SubmitButton>
       </div>
     </form>
   );

@@ -65,7 +65,10 @@ export async function createPatient(_prev: PatientActionState, formData: FormDat
   if (!str(formData, "source")) {
     return { error: "Elegí cómo nos conoció: es lo que permite medir la publicidad.", values: valuesOf(formData) };
   }
-  if (formData.get("consent_data") !== "on") {
+  // Carga rápida (para dar un turno sin tenerla presente): queda con la ficha incompleta,
+  // sin consentimiento, hasta que ella la complete con su link o en el local
+  const quick = str(formData, "quick") === "1";
+  if (!quick && formData.get("consent_data") !== "on") {
     return { error: "Falta el consentimiento de la paciente para registrar sus datos.", values: valuesOf(formData) };
   }
 
@@ -99,8 +102,8 @@ export async function createPatient(_prev: PatientActionState, formData: FormDat
       address: orNull(str(formData, "address")),
       source: orNull(str(formData, "source")),
       notes: orNull(str(formData, "notes")),
-      consent_data_at: now,
-      consent_marketing_at: formData.get("consent_marketing") === "on" ? now : null,
+      consent_data_at: quick ? null : now,
+      consent_marketing_at: !quick && formData.get("consent_marketing") === "on" ? now : null,
     })
     .select("id")
     .single();
@@ -128,7 +131,7 @@ export async function updatePatient(_prev: ActionState, formData: FormData): Pro
 
   const { data: current } = await supabase
     .from("patients")
-    .select("consent_marketing_at, marketing_opt_out_at")
+    .select("consent_data_at, consent_marketing_at, marketing_opt_out_at")
     .eq("id", id)
     .single();
 
@@ -150,11 +153,19 @@ export async function updatePatient(_prev: ActionState, formData: FormData): Pro
       notes: orNull(str(formData, "notes")),
       consent_marketing_at: wantsMarketing ? (current?.consent_marketing_at ?? now) : null,
       marketing_opt_out_at: wantsOptOut ? (current?.marketing_opt_out_at ?? now) : null,
+      // Completar la ficha a mano: el consentimiento de datos se registra una vez y no se borra desde acá
+      ...(current?.consent_data_at ? {} : formData.get("consent_data") === "on" ? { consent_data_at: now } : {}),
     })
     .eq("id", id);
 
   if (error) return { error: `No se pudo guardar: ${error.message}`, values: valuesOf(formData) };
   revalidatePath(`/pacientes/${id}`);
+  revalidatePath("/");
+  if (!current?.consent_data_at && formData.get("consent_data") === "on") {
+    const back = str(formData, "back");
+    if (back.startsWith("/")) redirect(back);
+    return { ok: "Ficha completa." };
+  }
   return { ok: "Datos guardados." };
 }
 
@@ -459,4 +470,30 @@ export async function toggleIntegration(formData: FormData) {
     .update({ is_active: str(formData, "active") === "1" })
     .eq("id", str(formData, "id"));
   revalidatePath("/ajustes");
+}
+
+// ---------------------------------------------------------------------
+// Ficha incompleta: link personal (7 días, un uso) para que la paciente complete sus datos
+// ---------------------------------------------------------------------
+export async function createIntakeLink(formData: FormData) {
+  const ctx = await requireBranchContext();
+  const supabase = await createClient();
+  const patientId = str(formData, "patient_id");
+  // RLS: solo si la paciente es visible para este usuario
+  const { data: patient } = await supabase
+    .from("patients")
+    .select("id, consent_data_at")
+    .eq("id", patientId)
+    .maybeSingle();
+  if (!patient || patient.consent_data_at) return;
+
+  const { randomBytes } = await import("node:crypto");
+  await supabase.from("patient_intakes").insert({
+    organization_id: ctx.org.id,
+    branch_id: ctx.currentBranch.id,
+    patient_id: patient.id,
+    token: randomBytes(18).toString("base64url"),
+    expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+  });
+  revalidatePath(`/pacientes/${patient.id}/completar`);
 }

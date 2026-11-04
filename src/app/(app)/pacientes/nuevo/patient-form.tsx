@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { createPatient, type PatientActionState } from "../../actions";
 import { SubmitButton } from "@/components/submit-button";
 import { PATIENT_SOURCES } from "@/lib/format";
@@ -10,6 +10,8 @@ export function NewPatientForm({ next }: { next: { turno: string; fecha: string;
   const [state, action] = useActionState<PatientActionState, FormData>(createPatient, null);
   const v = state?.values ?? {};
   const hasDupes = Boolean(state?.duplicates?.length);
+  // Rápida: solo lo necesario para dar el turno; el resto lo completa ella después
+  const [quick, setQuick] = useState(v.quick ? v.quick === "1" : next.turno === "1");
 
   return (
     // La key fuerza a recargar los valores escritos si hubo un error
@@ -17,6 +19,30 @@ export function NewPatientForm({ next }: { next: { turno: string; fecha: string;
       {next.turno && <input type="hidden" name="next_turno" value="1" />}
       {next.fecha && <input type="hidden" name="next_fecha" value={next.fecha} />}
       {next.vista && <input type="hidden" name="next_vista" value={next.vista} />}
+      <input type="hidden" name="quick" value={quick ? "1" : ""} />
+      <div className="grid grid-cols-2 gap-1 rounded-full bg-subtle p-1 text-sm font-semibold" role="radiogroup" aria-label="Tipo de carga">
+        {[
+          { value: true, label: "Rápida, para dar el turno" },
+          { value: false, label: "Ficha completa" },
+        ].map((o) => (
+          <button
+            key={o.label}
+            type="button"
+            role="radio"
+            aria-checked={quick === o.value}
+            onClick={() => setQuick(o.value)}
+            className={`rounded-full px-3 py-1.5 ${quick === o.value ? "bg-surface text-ink shadow-sm" : "text-muted"}`}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+      {quick && (
+        <p className="text-sm text-muted">
+          Solo nombre, celular y cómo nos conoció. Queda como «Ficha incompleta» y el resto (DNI, mail, consentimiento)
+          lo completa ella con un QR cuando llega, o lo cargás vos.
+        </p>
+      )}
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="label">Nombre *</label>
@@ -37,20 +63,20 @@ export function NewPatientForm({ next }: { next: { turno: string; fecha: string;
             className="input"
           />
         </div>
-        <div>
+        <div className={quick ? "hidden" : ""}>
           <label className="label">DNI</label>
           <input name="dni" inputMode="numeric" defaultValue={v.dni} className="input" />
         </div>
-        <div>
+        <div className={quick ? "hidden" : ""}>
           <label className="label">Email</label>
           <input name="email" type="email" defaultValue={v.email} className="input" />
           <p className="mt-1 text-xs text-muted">Sin email no le llegan los recordatorios automáticos por mail.</p>
         </div>
-        <div>
+        <div className={quick ? "hidden" : ""}>
           <label className="label">Domicilio</label>
           <input name="address" defaultValue={v.address} className="input" />
         </div>
-        <div>
+        <div className={quick ? "hidden" : ""}>
           <label className="label">Fecha de nacimiento</label>
           <input name="birth_date" type="date" defaultValue={v.birth_date} className="input" />
         </div>
@@ -64,17 +90,17 @@ export function NewPatientForm({ next }: { next: { turno: string; fecha: string;
           </select>
         </div>
       </div>
-      <div>
+      <div className={quick ? "hidden" : ""}>
         <label className="label">Notas</label>
         <textarea name="notes" rows={2} defaultValue={v.notes} className="input" />
       </div>
 
-      <div className="space-y-2 rounded-lg bg-subtle p-3 text-sm">
+      <div className={`space-y-2 rounded-lg bg-subtle p-3 text-sm ${quick ? "hidden" : ""}`}>
         <label className="flex items-start gap-2">
           <input
             type="checkbox"
             name="consent_data"
-            required
+            required={!quick}
             defaultChecked={v.consent_data === "on"}
             className="mt-0.5"
           />
