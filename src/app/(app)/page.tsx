@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AutoRefresh } from "@/components/auto-refresh";
-import { TRANSFER_CHECKS_SELECT, TransferStatus, type TransferCheck } from "@/components/transfer-status";
+import { TransferStatus, loadTransferChecks, type TransferCheck } from "@/components/transfer-status";
 import { createClient } from "@/lib/supabase/server";
 import { getContext } from "@/lib/context";
 import {
@@ -110,7 +110,7 @@ export default async function AgendaPage({
       supabase
         .from("appointments")
         .select(
-          `id, scheduled_at, duration_minutes, status, amount_paid, amount_usd, patient:patients(id, first_name, last_name, phone, notes), professional:professionals(full_name), items:appointment_items(zone, treatment:treatments(name)), ${TRANSFER_CHECKS_SELECT}`,
+          `id, scheduled_at, duration_minutes, status, amount_paid, amount_usd, patient:patients(id, first_name, last_name, phone, notes), professional:professionals(full_name), items:appointment_items(zone, treatment:treatments(name))`,
         )
         .eq("branch_id", branchId)
         .gte("scheduled_at", start)
@@ -144,6 +144,9 @@ export default async function AgendaPage({
   }
 
   const rows = (dayAppts ?? []) as unknown as Row[];
+  // Verificación de transferencias aparte: si falla (ej. falta la migración) la agenda se ve igual
+  const checksByAppt = await loadTransferChecks(supabase, rows.map((r) => r.id));
+  for (const r of rows) r.checks = checksByAppt.get(r.id) ?? [];
   const active = rows.filter((r) => r.status !== "cancelled");
   const done = rows.filter((r) => r.status === "completed");
   const pending = rows.filter((r) => r.status === "scheduled");

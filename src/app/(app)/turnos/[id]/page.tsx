@@ -6,7 +6,7 @@ import { loadCatalog } from "@/lib/catalog";
 import { fullName, isoToLocalInput } from "@/lib/format";
 import { AppointmentForm } from "@/components/appointment-form";
 import { AutoRefresh } from "@/components/auto-refresh";
-import { TRANSFER_CHECKS_SELECT, TransferStatus, type TransferCheck } from "@/components/transfer-status";
+import { TransferStatus, loadTransferChecks, type TransferCheck } from "@/components/transfer-status";
 import type { AppointmentStatus } from "@/lib/types";
 
 type Appt = {
@@ -47,13 +47,14 @@ export default async function EditAppointmentPage({
   const { data } = await supabase
     .from("appointments")
     .select(
-      `id, branch_id, patient_id, professional_id, scheduled_at, duration_minutes, status, notes, patient:patients(first_name, last_name), branch:branches(name), items:appointment_items(treatment_id, zone, quantity, price, promotion_id, promotion:promotions(name)), payments:appointment_payments(account_id, amount, exchange_rate, is_deposit), ${TRANSFER_CHECKS_SELECT}`,
+      `id, branch_id, patient_id, professional_id, scheduled_at, duration_minutes, status, notes, patient:patients(first_name, last_name), branch:branches(name), items:appointment_items(treatment_id, zone, quantity, price, promotion_id, promotion:promotions(name)), payments:appointment_payments(account_id, amount, exchange_rate, is_deposit)`,
     )
     .eq("id", id)
     .maybeSingle();
 
   if (!data) notFound();
   const appt = data as unknown as Appt;
+  appt.checks = (await loadTransferChecks(supabase, [appt.id])).get(appt.id) ?? [];
 
   if (appt.branch_id !== ctx.currentBranch.id) {
     return (

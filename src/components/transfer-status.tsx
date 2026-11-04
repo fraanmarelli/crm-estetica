@@ -11,8 +11,22 @@ export type TransferCheck = {
   account: { name: string } | null;
 };
 
-export const TRANSFER_CHECKS_SELECT =
-  "checks:transfer_checks(status, amount, is_deposit, matched_by, transfer_at, note, account:payment_accounts(name))";
+type Db = Awaited<ReturnType<typeof import("@/lib/supabase/server").createClient>>;
+
+// Chequeos por turno. Consulta aparte y tolerante: si falla, el resto de la pantalla no se rompe.
+export async function loadTransferChecks(supabase: Db, appointmentIds: string[]) {
+  const out = new Map<string, TransferCheck[]>();
+  if (appointmentIds.length === 0) return out;
+  const { data, error } = await supabase
+    .from("transfer_checks")
+    .select("appointment_id, status, amount, is_deposit, matched_by, transfer_at, note, account:payment_accounts(name)")
+    .in("appointment_id", appointmentIds);
+  if (error || !data) return out;
+  for (const row of data as unknown as (TransferCheck & { appointment_id: string })[]) {
+    out.set(row.appointment_id, [...(out.get(row.appointment_id) ?? []), row]);
+  }
+  return out;
+}
 
 const TEXT = {
   verified: { cls: "text-ok", icon: "✓", label: "llegó" },
