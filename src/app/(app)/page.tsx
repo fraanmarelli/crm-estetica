@@ -25,6 +25,7 @@ type Row = {
   duration_minutes: number;
   status: AppointmentStatus;
   amount_paid: number | null;
+  amount_usd: number | null;
   patient: { id: string; first_name: string; last_name: string | null; phone: string | null; notes: string | null } | null;
   professional: { full_name: string } | null;
   items: { zone: string | null; treatment: { name: string } | null }[];
@@ -88,7 +89,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
       supabase
         .from("appointments")
         .select(
-          "id, scheduled_at, duration_minutes, status, amount_paid, patient:patients(id, first_name, last_name, phone, notes), professional:professionals(full_name), items:appointment_items(zone, treatment:treatments(name))",
+          "id, scheduled_at, duration_minutes, status, amount_paid, amount_usd, patient:patients(id, first_name, last_name, phone, notes), professional:professionals(full_name), items:appointment_items(zone, treatment:treatments(name))",
         )
         .eq("branch_id", branchId)
         .gte("scheduled_at", start)
@@ -303,6 +304,14 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
                       )}
                       {p && !returning.has(p.id) && r.status !== "cancelled" && (
                         <span className="badge badge-amber">Primera vez</span>
+                      )}
+                      {r.status === "scheduled" && (Number(r.amount_paid) > 0 || Number(r.amount_usd) > 0) && (
+                        <span className="badge badge-green">
+                          Señó{" "}
+                          {Number(r.amount_paid) > 0
+                            ? fmtMoney(r.amount_paid, ctx.org.currency)
+                            : fmtMoney(r.amount_usd, "USD")}
+                        </span>
                       )}
                     </div>
                     <p className="truncate text-sm text-muted">

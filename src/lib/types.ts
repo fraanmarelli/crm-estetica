@@ -94,7 +94,7 @@ export type AppointmentItemInput = {
 
 export type PaymentAccount = { id: string; name: string; currency: "ARS" | "USD" };
 
-export type PaymentInput = { account_id: string; amount: string; exchange_rate: string };
+export type PaymentInput = { account_id: string; amount: string; exchange_rate: string; is_deposit?: boolean };
 
 // values: lo que el usuario había escrito, para no perderlo si hay un error
 export type ActionState = { error?: string; ok?: string; values?: Record<string, string> } | null;

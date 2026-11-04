@@ -59,9 +59,11 @@ export function AppointmentForm({
   const [status, setStatus] = useState<AppointmentStatus>(defaults.status);
   const [professionalId, setProfessionalId] = useState(defaults.professional_id);
   const [items, setItems] = useState<AppointmentItemInput[]>(defaults.items.length ? defaults.items : [emptyItem()]);
-  const [payments, setPayments] = useState<PaymentInput[]>(
-    defaults.payments.length ? defaults.payments : [emptyPayment()],
-  );
+  const initialDeposit = defaults.payments.find((p) => p.is_deposit) ?? null;
+  const initialRest = defaults.payments.filter((p) => !p.is_deposit);
+  const [hasDeposit, setHasDeposit] = useState(Boolean(initialDeposit));
+  const [deposit, setDeposit] = useState<PaymentInput>(initialDeposit ?? { ...emptyPayment(), is_deposit: true });
+  const [payments, setPayments] = useState<PaymentInput[]>(initialRest.length ? initialRest : [emptyPayment()]);
   const [notes, setNotes] = useState(defaults.notes);
   const [commission, setCommission] = useState(defaults.commission ?? "");
 
@@ -76,33 +78,98 @@ export function AppointmentForm({
 
   const accountById = (id: string) => accounts.find((a) => a.id === id);
   const itemsTotal = items.reduce((s, i) => s + toNum(i.price), 0);
-  const paidArs = payments.reduce((s, p) => {
-    const acc = accountById(p.account_id);
-    if (!acc) return s;
-    if (acc.currency === "ARS") return s + toNum(p.amount);
-    return p.exchange_rate ? s + toNum(p.amount) * toNum(p.exchange_rate) : s;
-  }, 0);
-  const paidUsd = payments.reduce(
-    (s, p) => (accountById(p.account_id)?.currency === "USD" ? s + toNum(p.amount) : s),
-    0,
-  );
+
+  // Cada parte del cobro en pesos; los dólares cuentan solo si tienen cotización
+  function inPesos(list: PaymentInput[]) {
+    let ars = 0;
+    let usdRated = 0;
+    let usdUnrated = 0;
+    for (const p of list) {
+      const acc = accountById(p.account_id);
+      if (!acc) continue;
+      if (acc.currency === "ARS") ars += toNum(p.amount);
+      else if (toNum(p.exchange_rate) > 0) {
+        ars += toNum(p.amount) * toNum(p.exchange_rate);
+        usdRated += toNum(p.amount);
+      } else usdUnrated += toNum(p.amount);
+    }
+    return { ars, usdRated, usdUnrated };
+  }
+  const depositSum = inPesos(hasDeposit ? [deposit] : []);
+  const restSum = inPesos(payments);
+  const paidArs = depositSum.ars + restSum.ars;
+  const usdRated = depositSum.usdRated + restSum.usdRated;
+  const usdUnrated = depositSum.usdUnrated + restSum.usdUnrated;
   const difference = itemsTotal - paidArs;
 
   function updateItem(index: number, patch: Partial<AppointmentItemInput>) {
     setItems((prev) => prev.map((it, i) => (i === index ? { ...it, ...patch } : it)));
   }
-  function updatePayment(index: number, patch: Partial<PaymentInput>) {
-    setPayments((prev) => prev.map((p, i) => (i === index ? { ...p, ...patch } : p)));
-  }
 
   const completed = status === "completed";
+
+  // Una línea de cobro (cuenta + monto + cotización si es en dólares)
+  function paymentRow(
+    p: PaymentInput,
+    onChange: (patch: Partial<PaymentInput>) => void,
+    onRemove: () => void,
+    key: string,
+  ) {
+    const usd = accountById(p.account_id)?.currency === "USD";
+    return (
+      <div
+        key={key}
+        className={`grid gap-2 rounded-xl bg-subtle p-2 ${usd ? "sm:grid-cols-[2fr_1fr_1fr_auto]" : "sm:grid-cols-[2fr_1fr_auto]"}`}
+      >
+        <select
+          value={p.account_id}
+          onChange={(e) => onChange({ account_id: e.target.value })}
+          className="input"
+          aria-label="Cuenta"
+        >
+          <option value="">Elegí la cuenta</option>
+          {accounts.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+              {a.currency === "USD" ? " (US$)" : ""}
+            </option>
+          ))}
+        </select>
+        <input
+          value={p.amount}
+          onChange={(e) => onChange({ amount: e.target.value })}
+          placeholder={usd ? "Monto en US$" : "Monto"}
+          aria-label="Monto"
+          inputMode="numeric"
+          className="input"
+        />
+        {usd && (
+          <input
+            value={p.exchange_rate}
+            onChange={(e) => onChange({ exchange_rate: e.target.value })}
+            placeholder="Cotización (opcional)"
+            aria-label="Cotización"
+            inputMode="numeric"
+            className="input"
+          />
+        )}
+        <button type="button" className="btn" onClick={onRemove} aria-label="Quitar">
+          ✕
+        </button>
+      </div>
+    );
+  }
 
   return (
     <form action={action} className="card space-y-6">
       {defaults.id && <input type="hidden" name="id" value={defaults.id} />}
       <input type="hidden" name="patient_id" value={patientId} />
       <input type="hidden" name="items" value={JSON.stringify(items)} />
-      <input type="hidden" name="payments" value={JSON.stringify(completed ? payments : [])} />
+      <input
+        type="hidden"
+        name="payments"
+        value={JSON.stringify([...(hasDeposit ? [{ ...deposit, is_deposit: true }] : []), ...(completed ? payments : [])])}
+      />
 
       <div className="grid gap-4 sm:grid-cols-4">
         <div className="sm:col-span-1">
@@ -228,6 +295,31 @@ export function AppointmentForm({
         })}
       </section>
 
+      {!completed && status !== "cancelled" && (
+        <section className="space-y-2">
+          <h2>Seña</h2>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={hasDeposit} onChange={(e) => setHasDeposit(e.target.checked)} />
+            Reservó pagando una seña
+          </label>
+          {hasDeposit && (
+            <>
+              {paymentRow(deposit, (patch) => setDeposit((d) => ({ ...d, ...patch })), () => setHasDeposit(false), "deposit")}
+              <p className="text-sm text-muted">
+                Seña: <b className="num text-ink">{money(depositSum.ars)}</b>
+                {depositSum.usdUnrated > 0 && ` + ${money(depositSum.usdUnrated, "USD")} sin cotización`}
+                {itemsTotal > 0 && depositSum.usdUnrated === 0 && (
+                  <>
+                    {" "}· falta cobrar al atender <b className="num text-ink">{money(Math.max(itemsTotal - depositSum.ars, 0))}</b>
+                  </>
+                )}
+                . Se descuenta sola cuando registres el turno.
+              </p>
+            </>
+          )}
+        </section>
+      )}
+
       {completed && (
         <section className="space-y-2">
           <div className="flex items-center justify-between">
@@ -237,70 +329,62 @@ export function AppointmentForm({
             </button>
           </div>
           <p className="text-xs text-muted">Si pagó en varias partes, cargá una línea por cada cuenta.</p>
-          {payments.map((p, index) => {
-            const acc = accountById(p.account_id);
-            const usd = acc?.currency === "USD";
-            return (
-              <div key={index} className={`grid gap-2 rounded-xl bg-subtle p-2 ${usd ? "sm:grid-cols-[2fr_1fr_1fr_auto]" : "sm:grid-cols-[2fr_1fr_auto]"}`}>
-                <select
-                  value={p.account_id}
-                  onChange={(e) => updatePayment(index, { account_id: e.target.value })}
-                  className="input"
-                  aria-label="Cuenta"
-                >
-                  <option value="">Elegí la cuenta</option>
-                  {accounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                      {a.currency === "USD" ? " (US$)" : ""}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  value={p.amount}
-                  onChange={(e) => updatePayment(index, { amount: e.target.value })}
-                  placeholder={usd ? "Monto en US$" : "Monto"}
-                  aria-label="Monto"
-                  inputMode="numeric"
-                  className="input"
-                />
-                {usd && (
-                  <input
-                    value={p.exchange_rate}
-                    onChange={(e) => updatePayment(index, { exchange_rate: e.target.value })}
-                    placeholder="Cotización (opcional)"
-                    aria-label="Cotización"
-                    inputMode="numeric"
-                    className="input"
-                  />
-                )}
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() =>
-                    setPayments((prev) => (prev.length === 1 ? [emptyPayment()] : prev.filter((_, i) => i !== index)))
-                  }
-                  aria-label="Quitar parte"
-                >
-                  ✕
-                </button>
+
+          {hasDeposit && (
+            <div className="space-y-1">
+              <span className="badge badge-blue">Seña cobrada al reservar</span>
+              {paymentRow(deposit, (patch) => setDeposit((d) => ({ ...d, ...patch })), () => setHasDeposit(false), "deposit")}
+            </div>
+          )}
+          {payments.map((p, index) =>
+            paymentRow(
+              p,
+              (patch) => setPayments((prev) => prev.map((x, i) => (i === index ? { ...x, ...patch } : x))),
+              () => setPayments((prev) => (prev.length === 1 ? [emptyPayment()] : prev.filter((_, i) => i !== index))),
+              `p-${index}`,
+            ),
+          )}
+
+          <dl className="grid gap-1 rounded-xl border border-line p-3 text-sm sm:max-w-md">
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted">Total de los tratamientos</dt>
+              <dd className="num">{money(itemsTotal)}</dd>
+            </div>
+            {hasDeposit && (
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted">Seña</dt>
+                <dd className="num">{money(depositSum.ars)}</dd>
               </div>
-            );
-          })}
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
-            <span>
-              Cobrado: <b className="num">{money(paidArs)}</b>
-              {paidUsd > 0 && <b className="num"> + {money(paidUsd, "USD")}</b>}
-            </span>
-            {itemsTotal > 0 && Math.abs(difference) >= 1 && (
-              <span className={difference > 0 ? "text-warn" : "text-muted"}>
-                {difference > 0
-                  ? `Faltan ${money(difference)} para el precio de los tratamientos`
-                  : `${money(-difference)} más que el precio de los tratamientos`}
-                {paidUsd > 0 && " (los dólares sin cotización no se cuentan)"}
-              </span>
             )}
-          </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted">{hasDeposit ? "Cobrado hoy" : "Cobrado"}</dt>
+              <dd className="num">{money(restSum.ars)}</dd>
+            </div>
+            {usdRated > 0 && (
+              <p className="text-xs text-muted">Incluye {money(usdRated, "USD")} pasados a pesos con la cotización cargada.</p>
+            )}
+            {usdUnrated > 0 && (
+              <p className="text-xs text-warn">
+                {money(usdUnrated, "USD")} sin cotización: no se suman a los pesos. Cargá la cotización para comparar con el
+                total.
+              </p>
+            )}
+          </dl>
+
+          {itemsTotal > 0 && usdUnrated === 0 && (
+            Math.abs(difference) < 1 ? (
+              <p className="alert-ok">Cobro completo.</p>
+            ) : difference > 0 ? (
+              <p className="rounded-lg border border-warn-line bg-warn-soft px-3 py-2 text-sm text-warn">
+                Falta cobrar <b className="num">{money(difference)}</b>.
+              </p>
+            ) : (
+              <p className="alert-error" role="alert">
+                Estás cobrando <b className="num">{money(-difference)}</b> de más que el precio de los tratamientos. Revisá
+                los montos.
+              </p>
+            )
+          )}
         </section>
       )}
 

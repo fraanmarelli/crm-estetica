@@ -27,7 +27,8 @@ y entregá archivos completos.
   `branch_financials()` / `supply_list()` (marca y franquiciado). `integrations.secret` tampoco es legible.
 - Cobro: `payment_accounts` (cuentas por sucursal, ARS o USD) y `appointment_payments` (partes del cobro).
   `appointments.amount_paid` (ARS) / `amount_usd` / `payment_method` los calcula un trigger desde las partes.
-  Las partes en USD suman a `amount_paid` solo si tienen `exchange_rate`.
+  Las partes en USD suman a `amount_paid` solo si tienen `exchange_rate`. La seña es una parte con
+  `is_deposit = true` cargada con el turno agendado; al registrarlo realizado se cobra solo el resto.
 - Comisión: `professionals.commission_pct` × `amount_paid` → `appointments.commission` (trigger), o manual con
   `set_commission()`. `commission_pct` y `commission` no son legibles por `authenticated`; se leen con
   `professional_list()` / `appointment_commission()` / `branch_financials()`. Ingreso neto = facturado − insumos − comisión.

@@ -180,6 +180,22 @@ export async function saveAppointment(_prev: ActionState, formData: FormData): P
   }
   items = items.filter((i) => i.treatment_id);
   payments = payments.filter((p) => p.account_id || p.amount);
+  // Si todavía no se atendió, solo se guarda la seña
+  if (status !== "completed") payments = payments.filter((p) => p.is_deposit);
+
+  for (const p of payments) {
+    const amount = numOrNull(p.amount ?? "");
+    if (!p.account_id || amount === null || amount <= 0) {
+      return {
+        error: p.is_deposit
+          ? "La seña necesita la cuenta y un monto mayor a 0 (o destildá «Reservó pagando una seña»)."
+          : "Cada parte del cobro necesita la cuenta y un monto mayor a 0.",
+      };
+    }
+    if (p.exchange_rate && (numOrNull(p.exchange_rate) ?? 0) <= 0) {
+      return { error: "La cotización del dólar no es válida." };
+    }
+  }
 
   if (status === "completed") {
     if (items.length === 0) return { error: "Para marcarlo como realizado cargá al menos un tratamiento." };
@@ -187,15 +203,6 @@ export async function saveAppointment(_prev: ActionState, formData: FormData): P
       return { error: "Escribí el precio cobrado de cada tratamiento (con la promo o el descuento aplicado)." };
     }
     if (payments.length === 0) return { error: "Cargá cómo pagó (al menos una cuenta y su monto)." };
-    for (const p of payments) {
-      const amount = numOrNull(p.amount ?? "");
-      if (!p.account_id || amount === null || amount <= 0) {
-        return { error: "Cada parte del cobro necesita la cuenta y un monto mayor a 0." };
-      }
-      if (p.exchange_rate && (numOrNull(p.exchange_rate) ?? 0) <= 0) {
-        return { error: "La cotización del dólar no es válida." };
-      }
-    }
   }
 
   // Se guarda primero sin marcar como realizado, después tratamientos y cobros, y al final
@@ -258,6 +265,7 @@ export async function saveAppointment(_prev: ActionState, formData: FormData): P
         account_id: p.account_id,
         amount: numOrNull(p.amount),
         exchange_rate: numOrNull(p.exchange_rate ?? ""),
+        is_deposit: Boolean(p.is_deposit),
       })),
     );
     if (error) return { error: `No se pudo guardar el cobro: ${error.message}` };

@@ -19,7 +19,7 @@ type Appt = {
   patient: { first_name: string; last_name: string | null } | null;
   branch: { name: string } | null;
   items: { treatment_id: string; zone: string | null; quantity: number | null; price: number | null }[];
-  payments: { account_id: string; amount: number; exchange_rate: number | null }[];
+  payments: { account_id: string; amount: number; exchange_rate: number | null; is_deposit: boolean }[];
 };
 
 export default async function EditAppointmentPage({ params }: { params: Promise<{ id: string }> }) {
@@ -30,7 +30,7 @@ export default async function EditAppointmentPage({ params }: { params: Promise<
   const { data } = await supabase
     .from("appointments")
     .select(
-      "id, branch_id, patient_id, professional_id, scheduled_at, duration_minutes, status, notes, patient:patients(first_name, last_name), branch:branches(name), items:appointment_items(treatment_id, zone, quantity, price), payments:appointment_payments(account_id, amount, exchange_rate)",
+      "id, branch_id, patient_id, professional_id, scheduled_at, duration_minutes, status, notes, patient:patients(first_name, last_name), branch:branches(name), items:appointment_items(treatment_id, zone, quantity, price), payments:appointment_payments(account_id, amount, exchange_rate, is_deposit)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -94,6 +94,7 @@ export default async function EditAppointmentPage({ params }: { params: Promise<
             account_id: p.account_id,
             amount: s(p.amount),
             exchange_rate: s(p.exchange_rate),
+            is_deposit: p.is_deposit,
           })),
           commission,
         }}
