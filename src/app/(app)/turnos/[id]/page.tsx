@@ -6,6 +6,7 @@ import { loadCatalog } from "@/lib/catalog";
 import { fullName, isoToLocalInput } from "@/lib/format";
 import { AppointmentForm } from "@/components/appointment-form";
 import { AutoRefresh } from "@/components/auto-refresh";
+import { IntakePrompt } from "@/components/intake-prompt";
 import { TransferStatus, loadTransferChecks, type TransferCheck } from "@/components/transfer-status";
 import type { AppointmentStatus } from "@/lib/types";
 
@@ -88,6 +89,13 @@ export default async function EditAppointmentPage({
             : "Para reprogramarlo, cambiá la fecha. Para registrar que se atendió, usá «Cobrar» desde la agenda."}
         </p>
       </div>
+      {checkout && appt.patient && !appt.patient.consent_data_at && (
+        <IntakePrompt
+          patientId={appt.patient_id}
+          firstName={appt.patient.first_name}
+          volver={`/turnos/${appt.id}?cobrar=1${sp.vista === "semana" ? "&vista=semana" : ""}`}
+        />
+      )}
       {appt.patient && !appt.patient.consent_data_at && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warn-line bg-warn-soft px-4 py-3 text-sm text-warn">
           <span>

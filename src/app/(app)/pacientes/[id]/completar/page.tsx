@@ -115,7 +115,7 @@ export default async function CompleteIntakePage({
         )}
       </section>
 
-      <section className="card space-y-4">
+      <section id="yo" className="card scroll-mt-6 space-y-4">
         <div>
           <h2>La completo yo</h2>
           <p className="text-sm text-muted">Si te dicta los datos o prefiere que la cargues vos.</p>

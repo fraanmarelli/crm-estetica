@@ -503,4 +503,9 @@ export async function createIntakeLink(formData: FormData) {
     expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
   });
   revalidatePath(`/pacientes/${patient.id}/completar`);
+  // Desde el aviso del cobro: va directo a la pantalla con el QR y vuelve al cobro al terminar
+  const volver = str(formData, "volver");
+  if (volver.startsWith("/") && !volver.startsWith("//")) {
+    redirect(`/pacientes/${patient.id}/completar?volver=${encodeURIComponent(volver)}`);
+  }
 }

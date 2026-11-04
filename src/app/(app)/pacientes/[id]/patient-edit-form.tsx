@@ -80,21 +80,28 @@ export function PatientEditForm({
         <label className="label">Notas</label>
         <textarea name="notes" rows={2} defaultValue={v.notes} className="input" />
       </div>
-      <div className="space-y-1 text-sm">
+      {/* Consentimientos: los mismos dos que firma ella en su link, juntos y alineados */}
+      <div className="space-y-2.5 rounded-xl bg-subtle p-3 text-sm">
         {missingConsent && (
-          <label className="flex items-start gap-2 rounded-lg bg-subtle p-2">
-            <input type="checkbox" name="consent_data" required={completing} className="mt-0.5" />
-            <span>La paciente aceptó que guardemos sus datos para su atención{completing ? " (obligatorio)" : ""}.</span>
+          <label className="flex items-start gap-2.5">
+            <input type="checkbox" name="consent_data" required={completing} className="mt-0.5 shrink-0" />
+            <span>
+              La paciente aceptó que guardemos sus datos para su atención
+              {completing ? <span className="text-muted"> (obligatorio)</span> : ""}
+            </span>
           </label>
         )}
-        <label className="flex items-center gap-2">
-          <input type="checkbox" name="consent_marketing" defaultChecked={v.consent_marketing === "on"} />
-          Acepta recordatorios por WhatsApp y email
+        <label className="flex items-start gap-2.5">
+          <input type="checkbox" name="consent_marketing" defaultChecked={v.consent_marketing === "on"} className="mt-0.5 shrink-0" />
+          <span>Acepta recordatorios y novedades por WhatsApp y email</span>
         </label>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" name="opt_out" defaultChecked={v.opt_out === "on"} />
-          Pidió no ser contactada
-        </label>
+        {/* Al completar una ficha nueva no tiene sentido; queda para la edición normal */}
+        {!completing && (
+          <label className="flex items-start gap-2.5">
+            <input type="checkbox" name="opt_out" defaultChecked={v.opt_out === "on"} className="mt-0.5 shrink-0" />
+            <span>Pidió no ser contactada</span>
+          </label>
+        )}
       </div>
       {state?.error && <p className="alert-error">{state.error}</p>}
       {state?.ok && <p className="alert-ok">{state.ok}</p>}

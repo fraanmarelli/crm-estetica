@@ -207,6 +207,15 @@
     background: var(--chrome);
     color: var(--chrome-ink);
   }
+  /* Casillas y opciones con el color de la marca y un tamaño parejo */
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: var(--brand);
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+  }
+
   /* Selector nativo en pantallas táctiles, propio en la compu (ver date-fields.tsx).
      Los nativos ocultos no llevan "required": un campo oculto obligatorio frena el envío. */
   .touch-only {
