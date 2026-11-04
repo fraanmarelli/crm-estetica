@@ -110,6 +110,12 @@ export async function createPatient(_prev: PatientActionState, formData: FormDat
     return { error: `No se pudo guardar: ${error.message}`, values: valuesOf(formData) };
   }
 
+  // Si venía de "Nuevo turno", sigue directo a cargarle el turno
+  if (str(formData, "next_turno") === "1") {
+    const fecha = str(formData, "next_fecha");
+    const vista = str(formData, "next_vista") === "semana" ? "&vista=semana" : "";
+    redirect(`/turnos/nuevo?paciente=${data.id}${/^\d{4}-\d{2}-\d{2}$/.test(fecha) ? `&fecha=${fecha}` : ""}${vista}`);
+  }
   redirect(`/pacientes/${data.id}`);
 }
 

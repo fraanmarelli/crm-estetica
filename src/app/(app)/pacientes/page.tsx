@@ -37,7 +37,10 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1>Pacientes</h1>
-        <Link href="/pacientes/nuevo" className="btn btn-primary">Nueva paciente</Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/pacientes/ingreso" className="btn">Ficha de ingreso</Link>
+          <Link href="/pacientes/nuevo" className="btn btn-primary">Nueva paciente</Link>
+        </div>
       </div>
 
       <form className="flex gap-2">

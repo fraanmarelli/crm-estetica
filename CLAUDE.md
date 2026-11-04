@@ -41,6 +41,9 @@ y entregá archivos completos.
   `google_calendar`). Eventos: `appointment.saved` (cualquier cambio), `.completed`, `.updated` (cambio de un
   realizado), `.deleted`. `integration_refs` guarda el id externo (evento de Google) que devuelve el handler.
 - `appointments.duration_minutes` define el largo del turno (calendario).
+- Ficha de ingreso: `patient_intakes` (token de un solo uso, vence en 60 min). Recepción lo genera en
+  `/pacientes/ingreso` (QR + link); la paciente completa `/ingreso/[token]` (pública, sin sesión). El servidor
+  valida el token y recién ahí usa `createAdminClient()`; si el celular o DNI ya existe, no duplica ni modifica.
 - Marketing: `ad_connections` (una cuenta de Meta por sucursal), `ad_connection_secrets` (tokens, solo
   service role), `ad_insights_daily` (gasto/resultados por campaña y día), `marketing_summary()` cruza con pacientes.
 - Tareas programadas (pg_cron): `dispatch-events` cada minuto, `meta-sync` diario, `weekly-report` los lunes.
@@ -65,6 +68,13 @@ y entregá archivos completos.
    Los tokens de terceros nunca van al navegador ni a tablas legibles por usuarios.
 
 ## Próximos pasos previstos
+- **Consentimiento informado** en la ficha de ingreso: cláusulas por tratamiento + firma digital (dibujada en
+  pantalla), guardado con fecha, versión del texto y paciente. Pedido explícito del dueño del proyecto.
+- **Código de lote** del insumo usado (jeringa, vial, etc.) en cada ítem del cobro, por trazabilidad sanitaria
+  (ANMAT). Pedido explícito del dueño del proyecto.
+- **"Conectar con Google"** (OAuth) para Calendar y Sheets en vez de Apps Script: un botón, el CRM crea el
+  calendario de la sucursal solo. Requiere proyecto en Google Cloud y verificación de la app por Google.
+- **Exportar a Excel** los turnos/cobros por período, para sucursales que no necesitan sincronizar una planilla.
 - ABM de profesionales y de usuarios (invitar por email) desde la app.
 - Importar pacientes/turnos históricos desde la planilla (CSV) usando `external_ref` (no se re-sincronizan).
 - Editar el mensaje de recall y los `recall_days` desde Ajustes.

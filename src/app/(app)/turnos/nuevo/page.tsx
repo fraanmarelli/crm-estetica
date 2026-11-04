@@ -36,6 +36,7 @@ export default async function NewAppointmentPage({
         .limit(20);
       results = data ?? [];
     }
+    const newParams = `turno=1${day ? `&fecha=${day}` : ""}${week ? "&vista=semana" : ""}`;
     const withDate = (extra: string) =>
       `/turnos/nuevo?${extra}${day ? `&fecha=${day}` : ""}${week ? "&vista=semana" : ""}`;
 
@@ -48,7 +49,10 @@ export default async function NewAppointmentPage({
               {day ? `Para el ${fmtDate(day)} en ${ctx.currentBranch.name}. ` : ""}Buscá a la paciente.
             </p>
           </div>
-          <Link href="/pacientes/nuevo" className="btn">Paciente nueva</Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/pacientes/ingreso?${newParams}`} className="btn">Ficha para la paciente</Link>
+            <Link href={`/pacientes/nuevo?${newParams}`} className="btn">Cargarla yo</Link>
+          </div>
         </div>
 
         <form className="flex gap-2">
@@ -70,7 +74,9 @@ export default async function NewAppointmentPage({
           <div className="card p-0">
             {results.length === 0 ? (
               <p className="p-4 text-sm text-muted">
-                No hay coincidencias. <Link href="/pacientes/nuevo" className="link">Cargala como nueva</Link>
+                No hay coincidencias.{" "}
+                <Link href={`/pacientes/nuevo?${newParams}`} className="link">Cargala como nueva</Link> o{" "}
+                <Link href={`/pacientes/ingreso?${newParams}`} className="link">que complete la ficha ella</Link>.
               </p>
             ) : (
               <ul className="divide-y divide-line">

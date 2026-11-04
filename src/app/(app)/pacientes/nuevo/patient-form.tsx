@@ -6,7 +6,7 @@ import { createPatient, type PatientActionState } from "../../actions";
 import { SubmitButton } from "@/components/submit-button";
 import { PATIENT_SOURCES } from "@/lib/format";
 
-export function NewPatientForm() {
+export function NewPatientForm({ next }: { next: { turno: string; fecha: string; vista: string } }) {
   const [state, action] = useActionState<PatientActionState, FormData>(createPatient, null);
   const v = state?.values ?? {};
   const hasDupes = Boolean(state?.duplicates?.length);
@@ -14,6 +14,9 @@ export function NewPatientForm() {
   return (
     // La key fuerza a recargar los valores escritos si hubo un error
     <form key={JSON.stringify(v)} action={action} className="card space-y-4">
+      {next.turno && <input type="hidden" name="next_turno" value="1" />}
+      {next.fecha && <input type="hidden" name="next_fecha" value={next.fecha} />}
+      {next.vista && <input type="hidden" name="next_vista" value={next.vista} />}
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="label">Nombre *</label>
@@ -98,7 +101,12 @@ export function NewPatientForm() {
                 <span>
                   {d.display_name} · {d.home_branch ?? "sin sucursal"}
                 </span>
-                <Link href={`/turnos/nuevo?paciente=${d.id}`} className="link">Darle un turno</Link>
+                <Link
+                  href={`/turnos/nuevo?paciente=${d.id}${next.fecha ? `&fecha=${next.fecha}` : ""}${next.vista ? `&vista=${next.vista}` : ""}`}
+                  className="link"
+                >
+                  Darle un turno
+                </Link>
               </li>
             ))}
           </ul>
