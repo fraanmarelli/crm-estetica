@@ -78,6 +78,7 @@ export async function saveAccounts(_prev: ActionState, formData: FormData): Prom
     }
   }
   revalidatePath("/ajustes");
+  revalidatePath("/facturacion");
   return { ok: "Cuentas guardadas." };
 }
 
@@ -100,5 +101,6 @@ export async function createAccount(_prev: ActionState, formData: FormData): Pro
     return { error: `No se pudo crear: ${error.message}` };
   }
   revalidatePath("/ajustes");
-  return { ok: "Cuenta agregada." };
+  revalidatePath("/facturacion");
+  return { ok: "Cuenta agregada. Su titular para el monotributo se elige en Facturación." };
 }

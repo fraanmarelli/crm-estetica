@@ -11,6 +11,8 @@ import {
   IconToday,
   IconNumbers,
   IconSupplies,
+  IconBilling,
+  IconPromo,
 } from "@/components/icons";
 
 export type NavItem = { href: string; label: string; icon: keyof typeof ICONS };
@@ -24,6 +26,8 @@ const ICONS = {
   settings: IconSettings,
   numbers: IconNumbers,
   supplies: IconSupplies,
+  billing: IconBilling,
+  promos: IconPromo,
 };
 
 function isActive(pathname: string, href: string) {

@@ -90,6 +90,20 @@ export type AppointmentItemInput = {
   zone: string;
   quantity: string;
   price: string;
+  promotion_id?: string;
+  promotion_name?: string; // solo para mostrar
+};
+
+// Promo: un tratamiento a precio fijo o un combo con precio total.
+// branch_id null = de la marca, para toda la red.
+export type Promotion = {
+  id: string;
+  name: string;
+  price: number;
+  branch_id: string | null;
+  valid_until: string | null;
+  is_active: boolean;
+  items: { treatment_id: string; zone: string | null; sort_order: number }[];
 };
 
 export type PaymentAccount = { id: string; name: string; currency: "ARS" | "USD" };

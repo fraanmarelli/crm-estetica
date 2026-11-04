@@ -18,7 +18,14 @@ type Appt = {
   notes: string | null;
   patient: { first_name: string; last_name: string | null } | null;
   branch: { name: string } | null;
-  items: { treatment_id: string; zone: string | null; quantity: number | null; price: number | null }[];
+  items: {
+    treatment_id: string;
+    zone: string | null;
+    quantity: number | null;
+    price: number | null;
+    promotion_id: string | null;
+    promotion: { name: string } | null;
+  }[];
   payments: { account_id: string; amount: number; exchange_rate: number | null; is_deposit: boolean }[];
 };
 
@@ -37,7 +44,7 @@ export default async function EditAppointmentPage({
   const { data } = await supabase
     .from("appointments")
     .select(
-      "id, branch_id, patient_id, professional_id, scheduled_at, duration_minutes, status, notes, patient:patients(first_name, last_name), branch:branches(name), items:appointment_items(treatment_id, zone, quantity, price), payments:appointment_payments(account_id, amount, exchange_rate, is_deposit)",
+      "id, branch_id, patient_id, professional_id, scheduled_at, duration_minutes, status, notes, patient:patients(first_name, last_name), branch:branches(name), items:appointment_items(treatment_id, zone, quantity, price, promotion_id, promotion:promotions(name)), payments:appointment_payments(account_id, amount, exchange_rate, is_deposit)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -57,7 +64,7 @@ export default async function EditAppointmentPage({
     );
   }
 
-  const { treatments, professionals, accounts } = await loadCatalog(ctx.org.id, ctx.currentBranch.id);
+  const { treatments, professionals, accounts, promotions } = await loadCatalog(ctx.org.id, ctx.currentBranch.id);
   let commission = "";
   if (ctx.canManageCurrentBranch) {
     const { data: c } = await supabase.rpc("appointment_commission", { p_appointment: appt.id });
@@ -82,6 +89,7 @@ export default async function EditAppointmentPage({
         treatments={treatments}
         professionals={professionals}
         accounts={accounts}
+        promotions={promotions}
         canSeeCosts={ctx.canManageCurrentBranch}
         mode={checkout ? "checkout" : "full"}
         returnView={sp.vista === "semana" ? "semana" : undefined}
@@ -97,6 +105,8 @@ export default async function EditAppointmentPage({
             zone: i.zone ?? "",
             quantity: s(i.quantity),
             price: s(i.price),
+            promotion_id: i.promotion_id ?? "",
+            promotion_name: i.promotion?.name ?? "",
           })),
           payments: appt.payments.map((p) => ({
             account_id: p.account_id,

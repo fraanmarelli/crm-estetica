@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { requireManagerContext } from "@/lib/context";
 import { fmtDateTime } from "@/lib/format";
@@ -81,7 +82,10 @@ export default async function SettingsPage() {
       <section className="card space-y-4">
         <div>
           <h2>Cuentas de cobro</h2>
-          <p className="text-sm text-muted">Las opciones que aparecen al registrar cómo pagó cada paciente.</p>
+          <p className="text-sm text-muted">
+            Las opciones que aparecen al registrar cómo pagó cada paciente. El titular de cada cuenta y los topes del
+            monotributo se cargan en <Link href="/facturacion" className="link">Facturación</Link>.
+          </p>
         </div>
         <AccountsForm
           accounts={(accounts ?? []) as { id: string; name: string; currency: "ARS" | "USD"; is_active: boolean }[]}

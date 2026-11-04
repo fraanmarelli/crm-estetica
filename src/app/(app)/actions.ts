@@ -255,9 +255,14 @@ export async function saveAppointment(_prev: ActionState, formData: FormData): P
         zone: orNull(i.zone ?? ""),
         quantity: numOrNull(i.quantity ?? ""),
         price: numOrNull(i.price ?? ""),
+        // La base verifica que la promo sea de la red o de esta sucursal
+        promotion_id: orNull(i.promotion_id ?? ""),
       })),
     );
-    if (error) return { error: `No se pudieron guardar los tratamientos: ${error.message}` };
+    if (error) {
+      if (error.message.includes("promo")) return { error: "Una de las promos no corresponde a esta sucursal." };
+      return { error: `No se pudieron guardar los tratamientos: ${error.message}` };
+    }
   }
 
   const { error: delPayErr } = await supabase.from("appointment_payments").delete().eq("appointment_id", appointmentId);

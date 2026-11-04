@@ -101,3 +101,19 @@ export const IconViewWeek = (p: Props) => (
     <path d="M3.5 9.5h17M7 12.5h3M7 16h3M14 12.5h3" />
   </Svg>
 );
+
+// Comprobante con el borde inferior dentado
+export const IconBilling = (p: Props) => (
+  <Svg {...p}>
+    <path d="M6 3.5h12v17l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4-2 1.4z" />
+    <path d="M9 8h6M9 11.5h6M9 15h3.5" />
+  </Svg>
+);
+
+// Etiqueta de precio
+export const IconPromo = (p: Props) => (
+  <Svg {...p}>
+    <path d="M3.5 12.6V4.5a1 1 0 0 1 1-1h8.1a1 1 0 0 1 .7.3l7.2 7.2a1 1 0 0 1 0 1.4l-8.1 8.1a1 1 0 0 1-1.4 0l-7.2-7.2a1 1 0 0 1-.3-.7z" />
+    <circle cx="8.5" cy="8.5" r="1.5" />
+  </Svg>
+);

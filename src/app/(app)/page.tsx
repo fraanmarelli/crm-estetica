@@ -82,8 +82,14 @@ export default async function AgendaPage({
   const branchId = ctx.currentBranch.id;
   const supabase = await createClient();
 
-  const [{ data: monthAppts }, { data: dayAppts }, { data: due }, { data: birthdays }, { data: pastPending }] =
-    await Promise.all([
+  const [
+    { data: monthAppts },
+    { data: dayAppts },
+    { data: due },
+    { data: birthdays },
+    { data: pastPending },
+    { data: holderData },
+  ] = await Promise.all([
       // Mes: solo cuántos turnos hay por día. Semana: el detalle de cada turno.
       supabase
         .from("appointments")
@@ -117,6 +123,10 @@ export default async function AgendaPage({
         .lt("scheduled_at", dayRange(today).start)
         .order("scheduled_at", { ascending: false })
         .limit(200),
+      // Topes del monotributo: solo franquiciado (y marca)
+      ctx.canManageCurrentBranch
+        ? supabase.rpc("holder_status", { p_branch: branchId })
+        : Promise.resolve({ data: null }),
     ]);
 
   // Turnos por día para el calendario
@@ -163,6 +173,14 @@ export default async function AgendaPage({
   const birthdayTpl = (ctx.org.settings.birthday_message as string | undefined) || DEFAULT_BIRTHDAY;
   const canRemind = day >= today;
   const viewParam = view === "semana" ? "&vista=semana" : "";
+
+  const billingAlerts = ((holderData ?? []) as {
+    holder_id: string;
+    name: string;
+    annual_limit: number | null;
+    last12_total: number;
+    level: string;
+  }[]).filter((h) => h.level === "warn" || h.level === "over");
 
   const notices: React.ReactNode[] = [];
   if (bdays.length) {
@@ -231,6 +249,31 @@ export default async function AgendaPage({
         </div>
         <Link href={`/turnos/nuevo?fecha=${day}${viewParam}`} className="btn btn-primary">Nuevo turno</Link>
       </div>
+
+      {billingAlerts.length > 0 && (
+        <div className="space-y-2">
+          {billingAlerts.map((h) => {
+            const total = Number(h.last12_total);
+            const limit = Number(h.annual_limit);
+            const over = h.level === "over";
+            return (
+              <Link
+                key={h.holder_id}
+                href="/facturacion"
+                className={`block rounded-xl border px-4 py-3 text-sm ${
+                  over ? "border-bad-line bg-bad-soft text-bad" : "border-warn-line bg-warn-soft text-warn"
+                }`}
+              >
+                <b>{h.name}</b>{" "}
+                {over
+                  ? `llegó al tope del monotributo: ${fmtMoney(total)} de ${fmtMoney(limit)} en los últimos 12 meses. Revisalo con tu contador.`
+                  : `ya facturó el ${Math.floor((total / limit) * 100)}% de su tope: ${fmtMoney(total)} de ${fmtMoney(limit)} en 12 meses (le quedan ${fmtMoney(limit - total)}).`}{" "}
+                <span className="underline underline-offset-2">Ver facturación</span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
 
       {view === "semana" ? (
         <WeekCalendar

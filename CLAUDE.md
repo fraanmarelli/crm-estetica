@@ -35,6 +35,14 @@ y entregá archivos completos.
 - Al guardar un turno realizado: se inserta como `scheduled`, después ítems y cobros, y al final el estado, para
   que las integraciones reciban el turno completo una sola vez.
 - `appointment_event_payload()` incluye claves con los títulos de la planilla de Córdoba y una por cuenta de cobro.
+- Promos: `promotions` (branch_id null = de la marca para toda la red; si no, de una sucursal) + `promotion_items`
+  (uno = precio fijo, varios = combo). Al aplicarla en el turno el precio se reparte entre los ítems (editable) y
+  cada ítem guarda `appointment_items.promotion_id` (columna «Promo» de la planilla). Crean/pausan: marca (red o
+  sucursal) y franquiciado (la suya), con `can_manage_promotion()`.
+- Facturación (monotributo): `account_holders` (titular, CUIT, `annual_limit` = tope de su categoría, `alert_pct`)
+  por sucursal; `payment_accounts.holder_id` (sin titular = no suma, ej. efectivo). `holder_status()` da lo del mes
+  y lo de los últimos 12 meses con `level` ok/warn/over; `billing_by_account()` lo de cada cuenta en un período.
+  Los cobros se cuentan en el día del turno. Solo franquiciado y marca; la agenda avisa con warn/over.
 - `recall_queue` (vista) = último tratamiento realizado + recall_days, sin turno futuro, sin opt-out.
 - `loyalty_transactions` = libro mayor de millas (nunca se edita; se corrige con otro movimiento).
 - `event_outbox` + `integrations` = toda automatización saliente (tipos: `google_sheets`, `klaviyo`,

@@ -32,6 +32,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ...(ctx.canManageCurrentBranch
       ? ([
           { href: "/numeros", label: "Números", icon: "numbers" },
+          { href: "/facturacion", label: "Facturación", icon: "billing" },
+          { href: "/promos", label: "Promos", icon: "promos" },
           { href: "/marketing", label: "Marketing", icon: "marketing" },
           { href: "/insumos", label: "Insumos", icon: "supplies" },
         ] as NavItem[])

@@ -11,6 +11,7 @@ import type {
   PaymentAccount,
   PaymentInput,
   Professional,
+  Promotion,
   Treatment,
 } from "@/lib/types";
 
@@ -43,6 +44,7 @@ export function AppointmentForm({
   treatments,
   professionals,
   accounts,
+  promotions = [],
   canSeeCosts,
   defaults,
   mode = "full",
@@ -52,6 +54,7 @@ export function AppointmentForm({
   treatments: Treatment[];
   professionals: Professional[];
   accounts: PaymentAccount[];
+  promotions?: Promotion[];
   canSeeCosts: boolean;
   defaults: AppointmentDefaults;
   // "checkout" = registrar que se atendió y cobrar: estado fijo en realizado, fecha plegada
@@ -123,7 +126,36 @@ export function AppointmentForm({
     setItems((prev) => prev.map((it, i) => (i === index ? { ...it, ...patch } : it)));
   }
 
+  // Aplica una promo: suma sus tratamientos con el precio repartido (se puede ajustar a mano)
+  function applyPromo(promoId: string) {
+    const promo = promotions.find((p) => p.id === promoId);
+    if (!promo) return;
+    const list = [...promo.items].sort((a, b) => a.sort_order - b.sort_order);
+    const share = Math.floor(promo.price / list.length);
+    const added: AppointmentItemInput[] = list.map((it, i) => ({
+      treatment_id: it.treatment_id,
+      zone: it.zone ?? "",
+      quantity: "",
+      price: String(i === list.length - 1 ? promo.price - share * (list.length - 1) : share),
+      promotion_id: promo.id,
+      promotion_name: promo.name,
+    }));
+    setItems((prev) => [...prev.filter((it) => it.treatment_id), ...added]);
+  }
+
   const completed = status === "completed";
+
+  // Promos aplicadas en este turno, con lo cargado en sus tratamientos
+  const promoSummary = [...new Set(items.map((i) => i.promotion_id).filter(Boolean))].map((id) => {
+    const promo = promotions.find((p) => p.id === id);
+    const rows = items.filter((i) => i.promotion_id === id);
+    return {
+      id: id as string,
+      name: promo?.name ?? rows[0]?.promotion_name ?? "Promo",
+      price: promo?.price ?? rows.reduce((s, i) => s + toNum(i.price), 0),
+      charged: rows.reduce((s, i) => s + toNum(i.price), 0),
+    };
+  });
 
   // Una línea de cobro (cuenta + monto + cotización si es en dólares)
   function paymentRow(
@@ -312,14 +344,45 @@ export function AppointmentForm({
       <section className="space-y-2">
         <div className="flex items-center justify-between">
           <h2>{mode === "checkout" ? "Qué se hizo" : "Tratamientos"}</h2>
-          <button type="button" className="btn btn-sm" onClick={() => setItems((p) => [...p, emptyItem()])}>
-            Agregar tratamiento
-          </button>
+          <div className="flex flex-wrap justify-end gap-2">
+            {promotions.length > 0 && (
+              <select
+                value=""
+                onChange={(e) => applyPromo(e.target.value)}
+                className="input input-sm w-auto"
+                aria-label="Aplicar promo"
+              >
+                <option value="">Aplicar promo</option>
+                {promotions.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} · {money(p.price)}
+                  </option>
+                ))}
+              </select>
+            )}
+            <button type="button" className="btn btn-sm" onClick={() => setItems((p) => [...p, emptyItem()])}>
+              Agregar tratamiento
+            </button>
+          </div>
         </div>
         {items.map((item, index) => {
           const t = treatments.find((x) => x.id === item.treatment_id);
           return (
-            <div key={index} className="grid gap-2 rounded-xl bg-subtle p-2 sm:grid-cols-[2fr_1.3fr_1fr_1fr_auto]">
+            <div key={index} className="space-y-1 rounded-xl bg-subtle p-2">
+              {item.promotion_id && (
+                <div className="flex items-center gap-2 px-1 text-xs">
+                  <span className="badge badge-gold">Promo</span>
+                  <span className="font-semibold">{item.promotion_name}</span>
+                  <button
+                    type="button"
+                    className="ml-auto text-muted underline-offset-2 hover:underline"
+                    onClick={() => updateItem(index, { promotion_id: "", promotion_name: "" })}
+                  >
+                    Sacar de la promo
+                  </button>
+                </div>
+              )}
+            <div className="grid gap-2 sm:grid-cols-[2fr_1.3fr_1fr_1fr_auto]">
               <select
                 value={item.treatment_id}
                 onChange={(e) => updateItem(index, { treatment_id: e.target.value })}
@@ -367,8 +430,18 @@ export function AppointmentForm({
                 ✕
               </button>
             </div>
+            </div>
           );
         })}
+        {promoSummary.map((p) => (
+          <p key={p.id} className="text-xs text-muted">
+            {p.name}: precio de la promo <b className="num text-ink">{money(p.price)}</b>
+            {Math.abs(p.charged - p.price) >= 1 && (
+              <> · cargado <b className="num text-ink">{money(p.charged)}</b></>
+            )}
+            . Podés ajustar el precio de cada tratamiento.
+          </p>
+        ))}
       </section>
 
       {!completed && status !== "cancelled" && (
