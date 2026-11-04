@@ -21,7 +21,7 @@ export function startMpOAuth(requestOrigin: string) {
   const state = b64url(randomBytes(24));
   const verifier = b64url(randomBytes(32));
   const challenge = b64url(createHash("sha256").update(verifier).digest());
-  const url = new URL("https://auth.mercadopago.com/authorization");
+  const url = new URL("https://auth.mercadopago.com.ar/authorization");
   url.search = new URLSearchParams({
     client_id: process.env.MP_CLIENT_ID!,
     response_type: "code",
@@ -30,8 +30,7 @@ export function startMpOAuth(requestOrigin: string) {
     redirect_uri: mpRedirectUri(requestOrigin),
     code_challenge: challenge,
     code_challenge_method: "S256",
-    // Solo lectura: nunca mueve plata. offline_access da el refresh token.
-    scope: "read offline_access",
+    // Los permisos (lectura + acceso offline) se definen en la aplicación de Mercado Pago, no en la URL
   }).toString();
   return { url, state, verifier };
 }
