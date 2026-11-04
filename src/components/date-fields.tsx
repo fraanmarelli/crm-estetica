@@ -183,15 +183,19 @@ export function DateTimeField({
         aria-label="Fecha y hora"
       />
       {/* Compu: calendario + horarios */}
-      <div ref={ref} className="pointer-only relative grid grid-cols-[1fr_6.5rem] gap-2">
+      <div ref={ref} className="pointer-only relative grid grid-cols-[minmax(0,1fr)_6.5rem] gap-2">
         <button
           type="button"
-          className="input text-left"
+          className="input flex items-center gap-2 text-left"
           onClick={() => setOpen((o) => !o)}
           aria-haspopup="dialog"
           aria-expanded={open}
         >
-          {longLabel(date)}
+          <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-muted" fill="none" stroke="currentColor" strokeWidth={1.75} aria-hidden="true">
+            <rect x="3.5" y="5" width="17" height="15" rx="2.5" />
+            <path d="M3.5 10h17M8 3v4M16 3v4" strokeLinecap="round" />
+          </svg>
+          <span className="truncate whitespace-nowrap first-letter:uppercase">{longLabel(date)}</span>
         </button>
         <select
           value={time}

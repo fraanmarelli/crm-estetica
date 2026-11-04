@@ -257,12 +257,14 @@ export function AppointmentForm({
     return (
       <div
         key={key}
-        className={`grid gap-2 rounded-xl bg-subtle p-2 ${usd ? "sm:grid-cols-[2fr_1fr_1fr_auto]" : "sm:grid-cols-[2fr_1fr_auto]"}`}
+        className={`grid items-center gap-2 rounded-xl bg-subtle p-3 ${
+          usd ? "grid-cols-[1fr_1fr_auto] sm:grid-cols-[2fr_1fr_1fr_auto]" : "grid-cols-[1fr_auto] sm:grid-cols-[2fr_1fr_auto]"
+        }`}
       >
         <select
           value={p.account_id}
           onChange={(e) => onChange({ account_id: e.target.value })}
-          className="input"
+          className={`input ${usd ? "col-span-3" : "col-span-2"} sm:col-span-1`}
           aria-label="Cuenta"
         >
           <option value="">Elegí la cuenta</option>
@@ -291,8 +293,16 @@ export function AppointmentForm({
             className="input num"
           />
         )}
-        <button type="button" className="btn" onClick={onRemove} aria-label="Quitar">
-          ✕
+        <button
+          type="button"
+          className="flex h-10 w-10 items-center justify-center justify-self-end rounded-full text-muted hover:bg-surface hover:text-ink"
+          onClick={onRemove}
+          aria-label="Quitar"
+          title="Quitar"
+        >
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+            <path d="M6 6l12 12M18 6 6 18" strokeLinecap="round" />
+          </svg>
         </button>
       </div>
     );
@@ -367,9 +377,9 @@ export function AppointmentForm({
           </details>
         </>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1.2fr_1.2fr]">
-          <div className="sm:col-span-2 lg:col-span-1">
-            <label className="label" htmlFor="appt-date">Fecha y hora</label>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          <div className="col-span-2 sm:col-span-1">
+            <label className="label" htmlFor="appt-date">Día y hora</label>
             <DateTimeField id="appt-date" name="scheduled_at" value={scheduledAt} onChange={setScheduledAt} />
           </div>
           <div>
@@ -397,7 +407,7 @@ export function AppointmentForm({
         </div>
       )}
 
-      <section className="space-y-2">
+      <section className="space-y-3 border-t border-line pt-5">
         <div className="flex items-center justify-between">
           <h2>{mode === "checkout" ? "Qué se hizo" : "Tratamientos"}</h2>
           <button type="button" className="btn btn-sm" onClick={() => setRows((p) => [...p, emptyRow()])}>
@@ -414,20 +424,12 @@ export function AppointmentForm({
           // Si la promo ya no está vigente (turno viejo), igual se muestra en el selector
           const promoMissing = isPromo && !promotions.some((p) => p.id === row.promotion_id);
           return (
-            <div key={index} className="space-y-1 rounded-xl bg-subtle p-2">
-              <div
-                className={`grid gap-2 ${
-                  isPromo
-                    ? showQuantity
-                      ? "sm:grid-cols-[3.3fr_1fr_1fr_auto]"
-                      : "sm:grid-cols-[4.3fr_1fr_auto]"
-                    : "sm:grid-cols-[2fr_1.3fr_1fr_1fr_auto]"
-                }`}
-              >
+            <div key={index} className="space-y-3 rounded-xl bg-subtle p-3">
+              <div className="flex items-center gap-2">
                 <select
                   value={isPromo ? `promo:${row.promotion_id}` : row.treatment_id}
                   onChange={(e) => pick(index, e.target.value)}
-                  className="input"
+                  className="input min-w-0 flex-1"
                   aria-label="Tratamiento o promo"
                 >
                   <option value="">Elegí un tratamiento o una promo</option>
@@ -449,59 +451,77 @@ export function AppointmentForm({
                     </optgroup>
                   ))}
                 </select>
-                {!isPromo && (
-                  <input
-                    value={row.zone}
-                    onChange={(e) => updateRow(index, { zone: e.target.value })}
-                    placeholder="Zona"
-                    aria-label="Zona"
-                    className="input"
-                  />
-                )}
-                {showQuantity && (
-                  <input
-                    value={row.quantity}
-                    onChange={(e) => updateRow(index, { quantity: e.target.value })}
-                    placeholder={supply ? `Cantidad (${pluralEs(supply.unit)})` : "Cantidad"}
-                    aria-label="Cantidad de insumo usada"
-                    inputMode="decimal"
-                    className="input"
-                  />
-                )}
-                <input
-                  value={row.price}
-                  onChange={(e) => updateRow(index, { price: groupThousands(e.target.value) })}
-                  placeholder="Precio cobrado"
-                  aria-label="Precio cobrado"
-                  inputMode="decimal"
-                  className="input num"
-                />
                 <button
                   type="button"
-                  className="btn"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted hover:bg-surface hover:text-ink"
                   onClick={() => setRows((p) => (p.length === 1 ? [emptyRow()] : p.filter((_, i) => i !== index)))}
                   aria-label="Quitar tratamiento"
+                  title="Quitar"
                 >
-                  ✕
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                    <path d="M6 6l12 12M18 6 6 18" strokeLinecap="round" />
+                  </svg>
                 </button>
               </div>
               {isPromo && row.promo_items.length > 0 && (
-                <p className="px-1 text-xs text-muted">
+                <p className="text-xs text-muted">
                   Incluye{" "}
                   {row.promo_items
                     .map((it) => `${treatmentName(it.treatment_id)}${it.zone ? ` (${it.zone})` : ""}`)
                     .join(" + ")}
                 </p>
               )}
+              <div className={`grid gap-2 ${isPromo ? (showQuantity ? "grid-cols-2" : "grid-cols-1 sm:max-w-[12rem]") : "grid-cols-2 sm:grid-cols-3"}`}>
+                {!isPromo && (
+                  <div>
+                    <label className="mb-1 block text-xs text-muted" htmlFor={`zone-${index}`}>Zona</label>
+                    <input
+                      id={`zone-${index}`}
+                      value={row.zone}
+                      onChange={(e) => updateRow(index, { zone: e.target.value })}
+                      placeholder="Opcional"
+                      className="input"
+                    />
+                  </div>
+                )}
+                {showQuantity && (
+                  <div>
+                    <label className="mb-1 block text-xs text-muted" htmlFor={`qty-${index}`}>
+                      {supply ? `Cantidad (${pluralEs(supply.unit)})` : "Cantidad"}
+                    </label>
+                    <input
+                      id={`qty-${index}`}
+                      value={row.quantity}
+                      onChange={(e) => updateRow(index, { quantity: e.target.value })}
+                      placeholder="Opcional"
+                      inputMode="decimal"
+                      className="input"
+                    />
+                  </div>
+                )}
+                <div className={!isPromo ? "col-span-2 sm:col-span-1" : ""}>
+                  <label className="mb-1 block text-xs text-muted" htmlFor={`price-${index}`}>Precio cobrado</label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted">$</span>
+                    <input
+                      id={`price-${index}`}
+                      value={row.price}
+                      onChange={(e) => updateRow(index, { price: groupThousands(e.target.value) })}
+                      inputMode="decimal"
+                      className="input num pl-7 font-semibold"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           );
         })}
       </section>
 
       {!completed && status !== "cancelled" && (
-        <section className="space-y-2">
+        <section className="space-y-3 border-t border-line pt-5">
           <h2>Seña</h2>
-          <label className="flex items-center gap-2 text-sm">
+          <label className="flex items-center gap-2.5 text-sm">
             <input type="checkbox" checked={hasDeposit} onChange={(e) => setHasDeposit(e.target.checked)} />
             Reservó pagando una seña
           </label>
@@ -524,7 +544,7 @@ export function AppointmentForm({
       )}
 
       {completed && (
-        <section className="space-y-2">
+        <section className="space-y-3 border-t border-line pt-5">
           <div className="flex items-center justify-between">
             <h2>Cobro</h2>
             <button type="button" className="btn btn-sm" onClick={() => setPayments((p) => [...p, emptyPayment()])}>
@@ -598,7 +618,7 @@ export function AppointmentForm({
       )}
 
       {completed && canSeeCosts && (
-        <section className="space-y-2">
+        <section className="space-y-3 border-t border-line pt-5">
           <h2>Comisión médica</h2>
           <div className="grid gap-2 sm:grid-cols-[1fr_2fr] sm:items-center">
             <input
@@ -618,7 +638,7 @@ export function AppointmentForm({
         </section>
       )}
 
-      <div>
+      <div className="border-t border-line pt-5">
         <label className="label" htmlFor="appt-notes">Comentario</label>
         <textarea
           id="appt-notes"

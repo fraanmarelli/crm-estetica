@@ -101,7 +101,7 @@ export default async function NewAppointmentPage({
   const start = !day || day === todayISO() ? isoToLocalInput(null) : `${day}T10:00`;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="mx-auto max-w-4xl space-y-4">
       <div>
         <h1>Nuevo turno · {brief[0].display_name}</h1>
         <p className="page-sub">Sucursal {ctx.currentBranch.name}</p>

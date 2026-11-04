@@ -154,6 +154,8 @@ export function isoDaysAgo(days: number): string {
 // Plural simple en español: unidad → unidades, jeringa → jeringas
 export function pluralEs(word: string): string {
   if (!word) return word;
+  // Abreviaturas (ml, cc, u) no se pluralizan
+  if (word.length <= 2 || !/[aeiouáéíóú]/i.test(word)) return word;
   return /[aeiouáéó]$/i.test(word) ? `${word}s` : `${word}es`;
 }
 

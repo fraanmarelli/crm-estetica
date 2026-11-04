@@ -80,7 +80,7 @@ export default async function EditAppointmentPage({
   const name = appt.patient ? fullName(appt.patient) : "Paciente";
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="mx-auto max-w-4xl space-y-4">
       <div>
         <h1>{checkout ? `Cobrar a ${name}` : `Turno · ${name}`}</h1>
         <p className="page-sub">
