@@ -5,6 +5,8 @@ import { requireBranchContext } from "@/lib/context";
 import { loadCatalog } from "@/lib/catalog";
 import { fullName, isoToLocalInput } from "@/lib/format";
 import { AppointmentForm } from "@/components/appointment-form";
+import { AutoRefresh } from "@/components/auto-refresh";
+import { TRANSFER_CHECKS_SELECT, TransferStatus, type TransferCheck } from "@/components/transfer-status";
 import type { AppointmentStatus } from "@/lib/types";
 
 type Appt = {
@@ -27,6 +29,7 @@ type Appt = {
     promotion: { name: string } | null;
   }[];
   payments: { account_id: string; amount: number; exchange_rate: number | null; is_deposit: boolean }[];
+  checks: TransferCheck[];
 };
 
 export default async function EditAppointmentPage({
@@ -44,7 +47,7 @@ export default async function EditAppointmentPage({
   const { data } = await supabase
     .from("appointments")
     .select(
-      "id, branch_id, patient_id, professional_id, scheduled_at, duration_minutes, status, notes, patient:patients(first_name, last_name), branch:branches(name), items:appointment_items(treatment_id, zone, quantity, price, promotion_id, promotion:promotions(name)), payments:appointment_payments(account_id, amount, exchange_rate, is_deposit)",
+      `id, branch_id, patient_id, professional_id, scheduled_at, duration_minutes, status, notes, patient:patients(first_name, last_name), branch:branches(name), items:appointment_items(treatment_id, zone, quantity, price, promotion_id, promotion:promotions(name)), payments:appointment_payments(account_id, amount, exchange_rate, is_deposit), ${TRANSFER_CHECKS_SELECT}`,
     )
     .eq("id", id)
     .maybeSingle();
@@ -84,6 +87,13 @@ export default async function EditAppointmentPage({
             : "Para reprogramarlo, cambiá la fecha. Para registrar que se atendió, usá «Cobrar» desde la agenda."}
         </p>
       </div>
+      {appt.checks?.length > 0 && (
+        <div className="card space-y-2">
+          <h2 className="text-base">Transferencias en Mercado Pago</h2>
+          <TransferStatus checks={appt.checks} />
+          {appt.checks.some((c) => c.status === "pending") && <AutoRefresh />}
+        </div>
+      )}
       <AppointmentForm
         patientId={appt.patient_id}
         treatments={treatments}

@@ -43,6 +43,12 @@ y entregá archivos completos.
   por sucursal; `payment_accounts.holder_id` (sin titular = no suma, ej. efectivo). `holder_status()` da lo del mes
   y lo de los últimos 12 meses con `level` ok/warn/over; `billing_by_account()` lo de cada cuenta en un período.
   Los cobros se cuentan en el día del turno. Solo franquiciado y marca; la agenda avisa con warn/over.
+- Verificación de transferencias MP: `mp_connections` (una cuenta de MP por `payment_accounts`, OAuth solo lectura,
+  rutas `/api/mp/connect` y `/api/mp/callback`) + `mp_connection_secrets` (tokens, solo service role).
+  Un trigger en `appointment_payments` crea `transfer_checks` (clave turno+cuenta+monto+seña, sobrevive a la edición
+  del turno); la función `mp-verify` (cron cada minuto) usa `match.ts` (monto exacto, DNI de la paciente vs CUIT,
+  ventana ±72 h, una transferencia valida un solo cobro) y marca pending/verified/review/not_found. Solo el
+  servidor escribe los chequeos. `cleanup_transfer_checks()` borra los de cobros que ya no existen.
 - `recall_queue` (vista) = último tratamiento realizado + recall_days, sin turno futuro, sin opt-out.
 - `loyalty_transactions` = libro mayor de millas (nunca se edita; se corrige con otro movimiento).
 - `event_outbox` + `integrations` = toda automatización saliente (tipos: `google_sheets`, `klaviyo`,

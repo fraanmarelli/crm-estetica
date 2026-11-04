@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { requireManagerContext } from "@/lib/context";
-import { fmtDateTime } from "@/lib/format";
+import { fmtDateTime, fmtTime } from "@/lib/format";
+import { mpConfigured } from "@/lib/mercadopago";
 import { toggleIntegration } from "../actions";
+import { disconnectMp } from "./actions";
 import { IntegrationForm } from "./integration-form";
 import { AccountsForm, ProfessionalsForm } from "./team-forms";
 
@@ -26,12 +28,25 @@ type OutboxRow = {
 
 const TYPE_LABEL = { google_sheets: "Google Sheets", klaviyo: "Klaviyo", google_calendar: "Google Calendar" };
 
-export default async function SettingsPage() {
+type MpConnection = {
+  id: string;
+  account_id: string;
+  mp_nickname: string | null;
+  last_checked_at: string | null;
+  last_error: string | null;
+};
+
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ mp?: string; mp_error?: string }>;
+}) {
   const ctx = await requireManagerContext();
+  const sp = await searchParams;
   const supabase = await createClient();
 
   // RLS: la marca ve todas; el franquiciado, las de su sucursal
-  const [{ data: integrations }, { data: problems }, { data: profs }, { data: accounts }] = await Promise.all([
+  const [{ data: integrations }, { data: problems }, { data: profs }, { data: accounts }, { data: mpData }] = await Promise.all([
     supabase
       .from("integrations")
       .select("id, name, type, is_active, config, branch:branches(name)")
@@ -52,7 +67,15 @@ export default async function SettingsPage() {
       .eq("branch_id", ctx.currentBranch.id)
       .order("sort_order")
       .order("name"),
+    supabase
+      .from("mp_connections")
+      .select("id, account_id, mp_nickname, last_checked_at, last_error")
+      .eq("branch_id", ctx.currentBranch.id),
   ]);
+  const mpConnections = (mpData ?? []) as MpConnection[];
+  const pesoAccounts = ((accounts ?? []) as { id: string; name: string; currency: string; is_active: boolean }[]).filter(
+    (a) => a.currency === "ARS" && a.is_active && a.name.toLowerCase() !== "efectivo",
+  );
 
   const list = (integrations ?? []) as unknown as Integration[];
   const errors = (problems ?? []) as OutboxRow[];
@@ -90,6 +113,60 @@ export default async function SettingsPage() {
         <AccountsForm
           accounts={(accounts ?? []) as { id: string; name: string; currency: "ARS" | "USD"; is_active: boolean }[]}
         />
+      </section>
+
+      <section id="mp" className="card space-y-4">
+        <div>
+          <h2>Verificar transferencias de Mercado Pago</h2>
+          <p className="text-sm text-muted">
+            Conectá cada cuenta de Mercado Pago del local. Cuando se carga un cobro o una seña en esa cuenta, el CRM se
+            fija solo si la plata llegó: monto exacto y, si la paciente tiene DNI cargado, que la haya mandado ella.
+            Tarda uno o dos minutos. Es solo lectura: el CRM no puede mover plata.
+          </p>
+        </div>
+        {sp.mp === "ok" && <p className="alert-ok">Cuenta de Mercado Pago conectada.</p>}
+        {sp.mp_error && <p className="alert-error">{sp.mp_error}</p>}
+        {!mpConfigured() ? (
+          <p className="text-sm text-muted">Falta configurar la aplicación de Mercado Pago en el servidor (ver README).</p>
+        ) : (
+          <ul className="divide-y divide-line">
+            {pesoAccounts.map((a) => {
+              const conn = mpConnections.find((c) => c.account_id === a.id);
+              return (
+                <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
+                  <div className="min-w-0">
+                    <p className="font-semibold">{a.name}</p>
+                    {conn ? (
+                      <p className={`text-xs ${conn.last_error ? "text-bad" : "text-muted"}`}>
+                        {conn.last_error
+                          ? `Error: ${conn.last_error}`
+                          : `Conectada${conn.mp_nickname ? ` a ${conn.mp_nickname}` : ""}${
+                              conn.last_checked_at ? ` · último chequeo ${fmtTime(conn.last_checked_at)}` : ""
+                            }`}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted">Sin conectar</p>
+                    )}
+                  </div>
+                  {conn ? (
+                    <form action={disconnectMp}>
+                      <input type="hidden" name="id" value={conn.id} />
+                      <button className="btn btn-sm">Desconectar</button>
+                    </form>
+                  ) : (
+                    <a href={`/api/mp/connect?account=${a.id}`} className="btn btn-sm">
+                      Conectar con Mercado Pago
+                    </a>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <p className="text-xs text-muted">
+          Al conectar, iniciá sesión con la cuenta de Mercado Pago de esa persona (por ejemplo, la de Marian para «MP
+          Marian»). Las transferencias a bancos y los cobros con posnet no se pueden verificar así.
+        </p>
       </section>
 
       <section className="card space-y-4">

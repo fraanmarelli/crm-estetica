@@ -214,6 +214,26 @@ Lo reciben la marca (todas las sucursales) y cada franquiciado (su sucursal). Re
 
 ---
 
+### 14. Mercado Pago (verificar transferencias)
+
+Cada cuenta de cobro de Mercado Pago del local se conecta desde **Ajustes → Verificar transferencias**.
+Cuando se carga un cobro o una seña en esa cuenta, la función `mp-verify` (cada minuto) busca en Mercado
+Pago una transferencia entrante por el monto exacto y, si la paciente tiene DNI, que venga de ella. Solo
+lectura: el CRM nunca puede mover plata.
+
+1. En [Mercado Pago Developers](https://www.mercadopago.com.ar/developers/panel/app) creá una aplicación
+   (ej. «Dr Beauty CRM»). En su configuración poné como **Redirect URL** `https://TU-URL-DE-VERCEL/api/mp/callback`.
+2. Copiá las credenciales de producción **Client ID** y **Client Secret**:
+   - En Vercel → Settings → Environment Variables: `MP_CLIENT_ID` y `MP_CLIENT_SECRET` (Secret). Redeploy.
+   - En Supabase → Edge Functions → Secrets: las mismas dos (sirven para renovar el acceso cada 6 meses).
+3. Creá la función `mp-verify` (Edge Functions → Deploy a new function → Via editor) con el contenido de
+   `supabase/functions/mp-verify/` en un solo archivo, y desactivá **Verify JWT**.
+4. Corré la migración `20261104001400_mp_verify_cron.sql` (programa el chequeo cada minuto).
+
+Qué ve recepción: en la agenda y en el turno, debajo de la paciente, «✓ MP Marian $ 50.000: transferencia
+verificada», «… esperando la transferencia» (la página se actualiza sola), «! revisar» o «✕ no llegó».
+Las transferencias a bancos y los cobros con posnet no se pueden verificar así.
+
 ## Cómo se calcula el retorno de la publicidad
 
 - **Pacientes nuevas de redes:** dadas de alta en el período que respondieron Instagram o Facebook en

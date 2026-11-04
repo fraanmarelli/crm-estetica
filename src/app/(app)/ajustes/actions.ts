@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { requireManagerContext } from "@/lib/context";
+import { canManageBranch, requireManagerContext } from "@/lib/context";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { ActionState } from "@/lib/types";
 
 const pctOrNull = (v: unknown) => {
@@ -103,4 +104,22 @@ export async function createAccount(_prev: ActionState, formData: FormData): Pro
   revalidatePath("/ajustes");
   revalidatePath("/facturacion");
   return { ok: "Cuenta agregada. Su titular para el monotributo se elige en Facturación." };
+}
+
+// ---------------- Mercado Pago ----------------
+export async function disconnectMp(formData: FormData) {
+  const ctx = await requireManagerContext();
+  const supabase = await createClient();
+  const { data: conn } = await supabase
+    .from("mp_connections")
+    .select("id, account_id, branch_id")
+    .eq("id", String(formData.get("id") ?? ""))
+    .maybeSingle();
+  // Permiso verificado en código antes de usar el service role
+  if (!conn || !canManageBranch(ctx, conn.branch_id)) return;
+  const admin = createAdminClient();
+  // Los cobros que esperaban verificación dejan de esperarla; los ya verificados quedan
+  await admin.from("transfer_checks").delete().eq("account_id", conn.account_id).eq("status", "pending");
+  await admin.from("mp_connections").delete().eq("id", conn.id);
+  revalidatePath("/ajustes");
 }

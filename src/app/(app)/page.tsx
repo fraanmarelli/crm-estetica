@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { AutoRefresh } from "@/components/auto-refresh";
+import { TRANSFER_CHECKS_SELECT, TransferStatus, type TransferCheck } from "@/components/transfer-status";
 import { createClient } from "@/lib/supabase/server";
 import { getContext } from "@/lib/context";
 import {
@@ -30,6 +32,7 @@ type Row = {
   patient: { id: string; first_name: string; last_name: string | null; phone: string | null; notes: string | null } | null;
   professional: { full_name: string } | null;
   items: { zone: string | null; treatment: { name: string } | null }[];
+  checks: TransferCheck[];
 };
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -107,7 +110,7 @@ export default async function AgendaPage({
       supabase
         .from("appointments")
         .select(
-          "id, scheduled_at, duration_minutes, status, amount_paid, amount_usd, patient:patients(id, first_name, last_name, phone, notes), professional:professionals(full_name), items:appointment_items(zone, treatment:treatments(name))",
+          `id, scheduled_at, duration_minutes, status, amount_paid, amount_usd, patient:patients(id, first_name, last_name, phone, notes), professional:professionals(full_name), items:appointment_items(zone, treatment:treatments(name)), ${TRANSFER_CHECKS_SELECT}`,
         )
         .eq("branch_id", branchId)
         .gte("scheduled_at", start)
@@ -182,6 +185,8 @@ export default async function AgendaPage({
     level: string;
   }[]).filter((h) => h.level === "warn" || h.level === "over");
 
+  const waitingTransfer = rows.some((r) => r.checks?.some((c) => c.status === "pending"));
+
   const notices: React.ReactNode[] = [];
   if (bdays.length) {
     notices.push(
@@ -242,6 +247,7 @@ export default async function AgendaPage({
 
   return (
     <div className="space-y-6">
+      {waitingTransfer && <AutoRefresh />}
       <div className="page-head">
         <div>
           <h1>Agenda</h1>
@@ -385,6 +391,11 @@ export default async function AgendaPage({
                         .join(", ") || "Sin tratamiento cargado"}
                       {r.professional ? ` con ${r.professional.full_name}` : ""}
                     </p>
+                    {r.checks?.length > 0 && (
+                      <div className="mt-1">
+                        <TransferStatus checks={r.checks} compact />
+                      </div>
+                    )}
                     {p?.notes && (
                       <p className="mt-0.5 line-clamp-2 text-xs text-ink">
                         <span className="font-semibold">Nota:</span> {p.notes}
