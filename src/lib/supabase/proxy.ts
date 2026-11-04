@@ -25,10 +25,10 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // No poner código entre createServerClient y getUser: refresca la sesión.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // No poner código entre createServerClient y getClaims: refresca la sesión.
+  // getClaims verifica la firma del token localmente (sin ir al servidor de Auth).
+  const { data } = await supabase.auth.getClaims();
+  const user = data?.claims?.sub ? data.claims : null;
 
   const path = request.nextUrl.pathname;
   const isPublic = PUBLIC_PATHS.some((p) => path.startsWith(p));
