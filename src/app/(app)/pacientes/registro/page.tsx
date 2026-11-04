@@ -65,15 +65,15 @@ export default async function RegisterLinkPage({
           <div className="mx-auto w-[240px] rounded-xl border border-line bg-white p-2" dangerouslySetInnerHTML={{ __html: qr }} />
           <div className="space-y-3 text-sm">
             <p>
-              <b>Celular del local:</b> abrí el formulario, guardalo en favoritos y pasale el celular a la paciente.
-              Al terminar queda listo para la siguiente.
+              <b>Celular del local:</b> abrilo con el botón de abajo, guardalo en favoritos y pasale el celular a la
+              paciente. Al terminar queda listo para la siguiente.
             </p>
             <p>
               <b>Su celular:</b> que escanee el QR. Podés imprimirlo y dejarlo en recepción.
             </p>
             <div className="flex flex-wrap gap-2">
-              <a href={url} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
-                Abrir formulario
+              <a href={`${url}?local=1`} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
+                Abrir en el celular del local
               </a>
               <CopyLink url={url} />
               <a href={qrDownload} download={`registro-${ctx.currentBranch.name}.svg`} className="btn">

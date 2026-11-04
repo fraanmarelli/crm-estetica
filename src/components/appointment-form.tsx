@@ -104,9 +104,20 @@ export function AppointmentForm({
   const depositSum = inPesos(hasDeposit ? [deposit] : []);
   const restSum = inPesos(payments);
   const paidArs = depositSum.ars + restSum.ars;
-  const usdRated = depositSum.usdRated + restSum.usdRated;
   const usdUnrated = depositSum.usdUnrated + restSum.usdUnrated;
   const difference = itemsTotal - paidArs;
+  // Detalle de cada parte en dólares con su cotización (transparencia administrativa)
+  const usdLines = [
+    ...(hasDeposit ? [{ ...deposit, is_deposit: true }] : []),
+    ...(status === "completed" ? payments : []),
+  ]
+    .filter((p) => accountById(p.account_id)?.currency === "USD" && toNum(p.exchange_rate) > 0 && toNum(p.amount) > 0)
+    .map((p) => ({
+      account: accountById(p.account_id)!.name,
+      usd: toNum(p.amount),
+      rate: toNum(p.exchange_rate),
+      deposit: Boolean(p.is_deposit),
+    }));
 
   function updateItem(index: number, patch: Partial<AppointmentItemInput>) {
     setItems((prev) => prev.map((it, i) => (i === index ? { ...it, ...patch } : it)));
@@ -425,9 +436,15 @@ export function AppointmentForm({
               <dt className="text-muted">{hasDeposit ? "Cobrado hoy" : "Cobrado"}</dt>
               <dd className="num">{money(restSum.ars)}</dd>
             </div>
-            {usdRated > 0 && (
-              <p className="text-xs text-muted">Incluye {money(usdRated, "USD")} pasados a pesos con la cotización cargada.</p>
-            )}
+            {usdLines.map((l, i) => (
+              <div key={i} className="flex justify-between gap-4 text-xs text-muted">
+                <dt>
+                  {l.account}: {money(l.usd, "USD")} × cotización {money(l.rate)}
+                  {l.deposit ? " (seña)" : ""}
+                </dt>
+                <dd className="num">{money(l.usd * l.rate)}</dd>
+              </div>
+            ))}
             {usdUnrated > 0 && (
               <p className="text-xs text-warn">
                 {money(usdUnrated, "USD")} sin cotización: no se suman a los pesos. Cargá la cotización para comparar con el

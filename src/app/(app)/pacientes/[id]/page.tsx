@@ -120,7 +120,10 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
                         )}
                       </td>
                       <td className="text-muted">{a.branch?.name ?? "—"}</td>
-                      <td className="whitespace-nowrap">{fmtMoney(a.amount_paid, ctx.org.currency)}</td>
+                      <td>
+                        <span className="whitespace-nowrap">{fmtMoney(a.amount_paid, ctx.org.currency)}</span>
+                        {a.payment_method && <span className="block text-xs text-muted">{a.payment_method}</span>}
+                      </td>
                       <td>
                         <span className={STATUS_CLASS[a.status]}>{STATUS_LABEL[a.status]}</span>
                       </td>

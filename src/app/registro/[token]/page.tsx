@@ -5,8 +5,16 @@ import { RegisterForm } from "./register-form";
 export const metadata: Metadata = { title: "Tus datos", robots: { index: false, follow: false } };
 
 // Página pública de registro de pacientes (link fijo de la sucursal)
-export default async function RegisterPage({ params }: { params: Promise<{ token: string }> }) {
+export default async function RegisterPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ token: string }>;
+  searchParams: Promise<{ local?: string }>;
+}) {
   const { token } = await params;
+  // ?local=1 = abierto desde el CRM en el celular de la clínica (el QR no lo lleva)
+  const onClinicDevice = (await searchParams).local === "1";
   const admin = createAdminClient();
   const { data } = await admin
     .from("branches")
@@ -46,7 +54,7 @@ export default async function RegisterPage({ params }: { params: Promise<{ token
             <h1>Tus datos</h1>
             <p className="page-sub">Completalos una sola vez. Los usamos para tu atención y tus turnos.</p>
           </div>
-          <RegisterForm token={token} clinic={`${orgName} ${branch.name}`} />
+          <RegisterForm token={token} clinic={`${orgName} ${branch.name}`} onClinicDevice={onClinicDevice} />
         </>
       ) : (
         <div className="card space-y-2 text-center">

@@ -5,7 +5,7 @@ import { registerPatient, type RegisterState } from "./actions";
 import { SubmitButton } from "@/components/submit-button";
 import { PATIENT_SOURCES } from "@/lib/format";
 
-export function RegisterForm({ token, clinic }: { token: string; clinic: string }) {
+export function RegisterForm({ token, clinic, onClinicDevice }: { token: string; clinic: string; onClinicDevice: boolean }) {
   const [state, action] = useActionState<RegisterState, FormData>(registerPatient, null);
   const v = state?.values ?? {};
 
@@ -13,11 +13,17 @@ export function RegisterForm({ token, clinic }: { token: string; clinic: string 
     return (
       <div className="card space-y-4 text-center">
         <h1>¡Listo, {state.done}!</h1>
-        <p className="text-muted">Tus datos quedaron registrados. Ya podés devolver el celular.</p>
-        {/* Para el celular del local: deja el formulario listo para la próxima paciente */}
-        <button type="button" className="btn" onClick={() => window.location.reload()}>
-          Registrar a otra persona
-        </button>
+        {onClinicDevice ? (
+          <>
+            <p className="text-muted">Tus datos quedaron registrados. Ya podés devolver el celular.</p>
+            {/* Celular del local: deja el formulario listo para la próxima paciente */}
+            <button type="button" className="btn" onClick={() => window.location.reload()}>
+              Registrar a otra persona
+            </button>
+          </>
+        ) : (
+          <p className="text-muted">Tus datos quedaron registrados. Ya podés cerrar esta página. ¡Te esperamos!</p>
+        )}
       </div>
     );
   }
