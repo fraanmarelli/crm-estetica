@@ -25,13 +25,14 @@ function Messages({ state }: { state: ActionState }) {
 const fmtPlain = (n: number | null) => (n === null ? "" : n.toLocaleString("es-AR", { maximumFractionDigits: 0 }));
 
 // Alta o edición de un titular
-export function HolderForm({ holder }: { holder?: HolderFields }) {
+// compact: dentro de la tarjeta del titular (dos columnas); si no, una fila en pantallas anchas
+export function HolderForm({ holder, compact = false }: { holder?: HolderFields; compact?: boolean }) {
   const [state, action] = useActionState<ActionState, FormData>(holder?.id ? updateHolder : createHolder, null);
   const id = holder?.id ?? "new";
   return (
     <form key={holder?.id ? id : (state?.ok ?? id)} action={action} className="space-y-3">
       {holder?.id && <input type="hidden" name="id" value={holder.id} />}
-      <div className="grid gap-3 sm:grid-cols-[1fr_10rem_11rem_7rem]">
+      <div className={`grid gap-3 sm:grid-cols-2 ${compact ? "" : "lg:grid-cols-[1.4fr_1fr_1fr_8rem]"}`}>
         <div>
           <label className="label" htmlFor={`h-name-${id}`}>Titular</label>
           <input id={`h-name-${id}`} name="name" required defaultValue={holder?.name} placeholder="Ej. Mariano" className="input" />
@@ -52,22 +53,19 @@ export function HolderForm({ holder }: { holder?: HolderFields }) {
           />
         </div>
         <div>
-          <label className="label" htmlFor={`h-pct-${id}`}>Avisar al</label>
-          <div className="flex items-center gap-1">
-            <input
-              id={`h-pct-${id}`}
-              name="alert_pct"
-              defaultValue={String(holder?.alert_pct ?? 80)}
-              inputMode="numeric"
-              className="input num"
-            />
-            <span className="text-sm text-muted">%</span>
-          </div>
+          <label className="label" htmlFor={`h-pct-${id}`}>Avisar al (%)</label>
+          <input
+            id={`h-pct-${id}`}
+            name="alert_pct"
+            defaultValue={String(holder?.alert_pct ?? 80)}
+            inputMode="numeric"
+            className="input num"
+          />
         </div>
       </div>
       <Messages state={state} />
       <div className="flex justify-end">
-        <SubmitButton className="btn">{holder?.id ? "Guardar" : "Agregar titular"}</SubmitButton>
+        <SubmitButton className="btn">{holder?.id ? "Guardar cambios" : "Agregar titular"}</SubmitButton>
       </div>
     </form>
   );
