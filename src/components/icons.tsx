@@ -87,3 +87,17 @@ export const IconSupplies = (p: Props) => (
     <path d="M14.5 3.5l6 6M17.5 6.5l-9.8 9.8-3.6.9.9-3.6 9.8-9.8M10 9l5 5M3.5 20.5l2-2" />
   </Svg>
 );
+
+export const IconViewMonth = (p: Props) => (
+  <Svg {...p}>
+    <rect x="3.5" y="4.5" width="17" height="16" rx="2.5" />
+    <path d="M3.5 9.5h17M9.2 9.5v11M14.8 9.5v11M3.5 15h17" />
+  </Svg>
+);
+
+export const IconViewWeek = (p: Props) => (
+  <Svg {...p}>
+    <rect x="3.5" y="4.5" width="17" height="16" rx="2.5" />
+    <path d="M3.5 9.5h17M7 12.5h3M7 16h3M14 12.5h3" />
+  </Svg>
+);

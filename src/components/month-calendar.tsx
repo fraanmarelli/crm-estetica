@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AgendaViewToggle } from "@/components/agenda-view-toggle";
 
 export type DayCount = { total: number; done: number; pending: number; noShow: number };
 
@@ -45,10 +46,11 @@ export function MonthCalendar({
 
   return (
     <section className="card space-y-3 p-3 sm:p-4" aria-label="Calendario">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <h2 className="font-display text-xl font-normal">
           {MONTHS[m - 1]} {y}
         </h2>
+        <AgendaViewToggle day={selected} view="mes" />
         <div className="ml-auto flex items-center gap-1">
           {selected !== today && (
             <Link href={`/?fecha=${today}`} className="btn btn-sm" scroll={false}>

@@ -45,6 +45,8 @@ export function AppointmentForm({
   accounts,
   canSeeCosts,
   defaults,
+  mode = "full",
+  returnView,
 }: {
   patientId: string;
   treatments: Treatment[];
@@ -52,6 +54,10 @@ export function AppointmentForm({
   accounts: PaymentAccount[];
   canSeeCosts: boolean;
   defaults: AppointmentDefaults;
+  // "checkout" = registrar que se atendió y cobrar: estado fijo en realizado, fecha plegada
+  mode?: "full" | "checkout";
+  // Vista de la agenda a la que volver después de guardar ("semana" o "mes")
+  returnView?: string;
 }) {
   const [state, action] = useActionState<ActionState, FormData>(saveAppointment, null);
   const [scheduledAt, setScheduledAt] = useState(defaults.scheduled_at);
@@ -164,6 +170,7 @@ export function AppointmentForm({
     <form action={action} className="card space-y-6">
       {defaults.id && <input type="hidden" name="id" value={defaults.id} />}
       <input type="hidden" name="patient_id" value={patientId} />
+      {returnView && <input type="hidden" name="return_view" value={returnView} />}
       <input type="hidden" name="items" value={JSON.stringify(items)} />
       <input
         type="hidden"
@@ -171,8 +178,65 @@ export function AppointmentForm({
         value={JSON.stringify([...(hasDeposit ? [{ ...deposit, is_deposit: true }] : []), ...(completed ? payments : [])])}
       />
 
-      <div className="grid gap-4 sm:grid-cols-4">
-        <div className="sm:col-span-1">
+      {mode === "checkout" ? (
+        <>
+          <input type="hidden" name="status" value="completed" />
+          <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className="label" htmlFor="appt-prof">Atendió</label>
+          <select
+            id="appt-prof"
+            name="professional_id"
+            value={professionalId}
+            onChange={(e) => setProfessionalId(e.target.value)}
+            className="input"
+          >
+            <option value="">—</option>
+            {professionals.map((p) => (
+              <option key={p.id} value={p.id}>{p.full_name}</option>
+            ))}
+          </select>
+        </div>
+          </div>
+          <details className="rounded-xl border border-line px-3 py-2">
+            <summary className="cursor-pointer text-sm font-semibold text-muted">Cambiar fecha u horario</summary>
+            <div className="mt-3 grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className="label" htmlFor="appt-date">Fecha y hora</label>
+          <input
+            id="appt-date"
+            type="datetime-local"
+            name="scheduled_at"
+            required
+            value={scheduledAt}
+            onChange={(e) => setScheduledAt(e.target.value)}
+            className="input"
+          />
+        </div>
+        <div>
+          <label className="label" htmlFor="appt-duration">Duración</label>
+          <select
+            id="appt-duration"
+            name="duration_minutes"
+            value={duration}
+            onChange={(e) => setDuration(e.target.value)}
+            className="input"
+          >
+            {[...new Set([...DURATIONS, Number(duration)])]
+              .sort((a, b) => a - b)
+              .map((m) => (
+                <option key={m} value={m}>
+                  {m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ""}`}
+                </option>
+              ))}
+          </select>
+        </div>
+            </div>
+          </details>
+        </>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-4">
+        <div>
           <label className="label" htmlFor="appt-date">Fecha y hora</label>
           <input
             id="appt-date"
@@ -231,11 +295,12 @@ export function AppointmentForm({
             ))}
           </select>
         </div>
-      </div>
+        </div>
+      )}
 
       <section className="space-y-2">
         <div className="flex items-center justify-between">
-          <h2>Tratamientos</h2>
+          <h2>{mode === "checkout" ? "Qué se hizo" : "Tratamientos"}</h2>
           <button type="button" className="btn btn-sm" onClick={() => setItems((p) => [...p, emptyItem()])}>
             Agregar tratamiento
           </button>
@@ -424,7 +489,9 @@ export function AppointmentForm({
       {state?.error && <p className="alert-error">{state.error}</p>}
 
       <div className="flex justify-end">
-        <SubmitButton>{defaults.id ? "Guardar turno" : "Crear turno"}</SubmitButton>
+        <SubmitButton>
+          {mode === "checkout" ? "Registrar atención y cobro" : defaults.id ? "Guardar turno" : "Crear turno"}
+        </SubmitButton>
       </div>
     </form>
   );

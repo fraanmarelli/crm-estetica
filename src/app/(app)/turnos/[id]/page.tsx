@@ -22,9 +22,16 @@ type Appt = {
   payments: { account_id: string; amount: number; exchange_rate: number | null; is_deposit: boolean }[];
 };
 
-export default async function EditAppointmentPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditAppointmentPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ cobrar?: string; vista?: string }>;
+}) {
   const ctx = await requireBranchContext();
   const { id } = await params;
+  const sp = await searchParams;
   const supabase = await createClient();
 
   const { data } = await supabase
@@ -57,14 +64,17 @@ export default async function EditAppointmentPage({ params }: { params: Promise<
     if (c?.[0]?.commission_manual && c[0].commission !== null) commission = String(c[0].commission);
   }
   const s = (v: number | string | null) => (v === null ? "" : String(v));
+  const checkout = sp.cobrar === "1" && appt.status !== "cancelled";
+  const name = appt.patient ? fullName(appt.patient) : "Paciente";
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <div>
-        <h1>Turno · {appt.patient ? fullName(appt.patient) : "Paciente"}</h1>
-        <p className="text-sm text-muted">
-          Para registrarlo como realizado, dejá el estado en «Realizado» y cargá lo que se hizo y cómo pagó. Para
-          reprogramarlo, cambiá la fecha y dejalo «Agendado».
+        <h1>{checkout ? `Cobrar a ${name}` : `Turno · ${name}`}</h1>
+        <p className="page-sub">
+          {checkout
+            ? "Confirmá qué se hizo, la cantidad de insumo, el precio y cómo pagó."
+            : "Para reprogramarlo, cambiá la fecha. Para registrar que se atendió, usá «Cobrar» desde la agenda."}
         </p>
       </div>
       <AppointmentForm
@@ -73,15 +83,13 @@ export default async function EditAppointmentPage({ params }: { params: Promise<
         professionals={professionals}
         accounts={accounts}
         canSeeCosts={ctx.canManageCurrentBranch}
+        mode={checkout ? "checkout" : "full"}
+        returnView={sp.vista === "semana" ? "semana" : undefined}
         defaults={{
           id: appt.id,
           scheduled_at: isoToLocalInput(appt.scheduled_at),
           duration_minutes: String(appt.duration_minutes ?? 30),
-          // Un turno agendado que ya pasó se abre listo para registrarlo como realizado
-          status:
-            appt.status === "scheduled" && new Date(appt.scheduled_at).getTime() <= Date.now() + 60 * 60 * 1000
-              ? "completed"
-              : appt.status,
+          status: checkout ? "completed" : appt.status,
           professional_id: appt.professional_id ?? "",
           notes: appt.notes ?? "",
           items: appt.items.map((i) => ({

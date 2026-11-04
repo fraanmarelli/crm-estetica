@@ -10,10 +10,11 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 export default async function NewAppointmentPage({
   searchParams,
 }: {
-  searchParams: Promise<{ paciente?: string; fecha?: string; q?: string }>;
+  searchParams: Promise<{ paciente?: string; fecha?: string; q?: string; vista?: string }>;
 }) {
   const ctx = await requireBranchContext();
-  const { paciente, fecha, q = "" } = await searchParams;
+  const { paciente, fecha, q = "", vista } = await searchParams;
+  const week = vista === "semana";
   const day = fecha && ISO_DATE.test(fecha) ? fecha : null;
   const supabase = await createClient();
 
@@ -35,7 +36,8 @@ export default async function NewAppointmentPage({
         .limit(20);
       results = data ?? [];
     }
-    const withDate = (extra: string) => `/turnos/nuevo?${extra}${day ? `&fecha=${day}` : ""}`;
+    const withDate = (extra: string) =>
+      `/turnos/nuevo?${extra}${day ? `&fecha=${day}` : ""}${week ? "&vista=semana" : ""}`;
 
     return (
       <div className="mx-auto max-w-2xl space-y-6">
@@ -51,6 +53,7 @@ export default async function NewAppointmentPage({
 
         <form className="flex gap-2">
           {day && <input type="hidden" name="fecha" value={day} />}
+          {week && <input type="hidden" name="vista" value="semana" />}
           <label htmlFor="buscar-paciente" className="sr-only">Buscar paciente</label>
           <input
             id="buscar-paciente"
@@ -114,6 +117,7 @@ export default async function NewAppointmentPage({
         professionals={professionals}
         accounts={accounts}
         canSeeCosts={ctx.canManageCurrentBranch}
+        returnView={week ? "semana" : undefined}
         defaults={{
           scheduled_at: start,
           duration_minutes: "30",

@@ -16,6 +16,7 @@ import {
 import { Kpi } from "@/components/kpi";
 import { IconWhatsApp } from "@/components/icons";
 import { MonthCalendar, monthGrid, type DayCount } from "@/components/month-calendar";
+import { WeekCalendar, weekDays, type WeekAppt } from "@/components/week-calendar";
 import { setAppointmentStatus } from "./actions";
 import type { AppointmentStatus } from "@/lib/types";
 
@@ -59,17 +60,22 @@ function durationLabel(m: number) {
   return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60}` : ""}`;
 }
 
-export default async function AgendaPage({ searchParams }: { searchParams: Promise<{ fecha?: string }> }) {
+export default async function AgendaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ fecha?: string; vista?: string }>;
+}) {
   const ctx = await getContext();
   if (!ctx?.currentBranch) {
     return <p className="text-sm text-muted">No tenés sucursales asignadas.</p>;
   }
 
-  const { fecha } = await searchParams;
+  const { fecha, vista } = await searchParams;
+  const view: "mes" | "semana" = vista === "semana" ? "semana" : "mes";
   const today = todayISO();
   const day = fecha && ISO_DATE.test(fecha) ? fecha : today;
   const month = day.slice(0, 7);
-  const grid = monthGrid(month);
+  const grid = view === "semana" ? weekDays(day) : monthGrid(month);
   const gridStart = dayRange(grid[0]).start;
   const gridEnd = dayRange(grid[grid.length - 1]).end;
   const { start, end } = dayRange(day);
@@ -78,13 +84,19 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
 
   const [{ data: monthAppts }, { data: dayAppts }, { data: due }, { data: birthdays }, { data: pastPending }] =
     await Promise.all([
+      // Mes: solo cuántos turnos hay por día. Semana: el detalle de cada turno.
       supabase
         .from("appointments")
-        .select("scheduled_at, status")
+        .select(
+          view === "semana"
+            ? "id, scheduled_at, duration_minutes, status, amount_paid, patient:patients(first_name, last_name), professional:professionals(full_name), items:appointment_items(treatment:treatments(name))"
+            : "scheduled_at, status",
+        )
         .eq("branch_id", branchId)
         .gte("scheduled_at", gridStart)
         .lt("scheduled_at", gridEnd)
         .neq("status", "cancelled")
+        .order("scheduled_at")
         .limit(3000),
       supabase
         .from("appointments")
@@ -109,7 +121,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
 
   // Turnos por día para el calendario
   const counts: Record<string, DayCount> = {};
-  for (const a of monthAppts ?? []) {
+  for (const a of (monthAppts ?? []) as unknown as { scheduled_at: string; status: string }[]) {
     const k = localDay(a.scheduled_at);
     const c = (counts[k] ??= { total: 0, done: 0, pending: 0, noShow: 0 });
     c.total++;
@@ -150,6 +162,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
   const reminderTpl = (ctx.org.settings.reminder_message as string | undefined) || DEFAULT_REMINDER;
   const birthdayTpl = (ctx.org.settings.birthday_message as string | undefined) || DEFAULT_BIRTHDAY;
   const canRemind = day >= today;
+  const viewParam = view === "semana" ? "&vista=semana" : "";
 
   const notices: React.ReactNode[] = [];
   if (bdays.length) {
@@ -196,11 +209,11 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
         <span className="font-semibold">
           {pastCount === 1 ? "Hay 1 turno de días anteriores sin registrar" : `Hay ${pastCount} turnos de días anteriores sin registrar`}
         </span>
-        <span className="text-muted">. Marcalos como realizados o «No vino»: </span>
+        <span className="text-muted">. Cobralos o marcalos «No vino»: </span>
         {pastDays.slice(0, 4).map((d, i) => (
           <span key={d}>
             {i > 0 && ", "}
-            <Link href={`/?fecha=${d}`} className="link" scroll={false}>
+            <Link href={`/?fecha=${d}${viewParam}`} className="link" scroll={false}>
               {shortDate(d)}
             </Link>
           </span>
@@ -216,10 +229,19 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
           <h1>Agenda</h1>
           <p className="page-sub">{ctx.currentBranch.name}</p>
         </div>
-        <Link href={`/turnos/nuevo?fecha=${day}`} className="btn btn-primary">Nuevo turno</Link>
+        <Link href={`/turnos/nuevo?fecha=${day}${viewParam}`} className="btn btn-primary">Nuevo turno</Link>
       </div>
 
-      <MonthCalendar month={month} selected={day} today={today} counts={counts} />
+      {view === "semana" ? (
+        <WeekCalendar
+          day={day}
+          today={today}
+          appts={(monthAppts ?? []) as unknown as WeekAppt[]}
+          currency={ctx.org.currency}
+        />
+      ) : (
+        <MonthCalendar month={month} selected={day} today={today} counts={counts} />
+      )}
 
       <section className="space-y-4" aria-label="Turnos del día">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -263,7 +285,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
         {rows.length === 0 ? (
           <div className="card text-sm text-muted">
             No hay turnos este día.{" "}
-            <Link href={`/turnos/nuevo?fecha=${day}`} className="link">Agendar un turno</Link>
+            <Link href={`/turnos/nuevo?fecha=${day}${viewParam}`} className="link">Agendar un turno</Link>
           </div>
         ) : (
           <ol className="card divide-y divide-line p-0">
@@ -340,12 +362,15 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
                         Recordar
                       </a>
                     )}
-                    <Link
-                      href={`/turnos/${r.id}`}
-                      className={`btn btn-sm ${r.status === "scheduled" && day <= today ? "btn-primary" : ""}`}
-                    >
-                      {r.status === "scheduled" && day <= today ? "Registrar" : "Editar"}
-                    </Link>
+                    {r.status === "scheduled" && day <= today ? (
+                      <Link href={`/turnos/${r.id}?cobrar=1${viewParam}`} className="btn btn-sm btn-primary">
+                        Cobrar
+                      </Link>
+                    ) : (
+                      <Link href={`/turnos/${r.id}${viewParam ? "?vista=semana" : ""}`} className="btn btn-sm">
+                        {r.status === "completed" ? "Ver cobro" : "Editar"}
+                      </Link>
+                    )}
                     {r.status === "scheduled" && day <= today && (
                       <form action={setAppointmentStatus}>
                         <input type="hidden" name="id" value={r.id} />

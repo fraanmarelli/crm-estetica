@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { BRANCH_COOKIE, getContext, requireBranchContext, requireManagerContext } from "@/lib/context";
-import { localInputToISO } from "@/lib/format";
+import { TZ, localInputToISO } from "@/lib/format";
 import type {
   ActionState,
   AppointmentItemInput,
@@ -289,7 +289,10 @@ export async function saveAppointment(_prev: ActionState, formData: FormData): P
 
   revalidatePath("/");
   revalidatePath(`/pacientes/${patientId}`);
-  redirect(`/pacientes/${patientId}`);
+  // Vuelve a la agenda, en el día del turno
+  const day = new Date(scheduledAt).toLocaleDateString("en-CA", { timeZone: TZ });
+  const view = str(formData, "return_view") === "semana" ? "&vista=semana" : "";
+  redirect(`/?fecha=${day}${view}`);
 }
 
 export async function setAppointmentStatus(formData: FormData) {
