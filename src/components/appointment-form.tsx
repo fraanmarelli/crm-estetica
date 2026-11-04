@@ -209,7 +209,7 @@ export function AppointmentForm({
           </select>
         </div>
           </div>
-          <details className="rounded-xl border border-line px-3 py-2">
+          <details className="rounded-xl bg-subtle px-3 py-2">
             <summary className="cursor-pointer text-sm font-semibold text-muted">Cambiar fecha u horario</summary>
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
         <div>
@@ -421,7 +421,7 @@ export function AppointmentForm({
             ),
           )}
 
-          <dl className="grid gap-1 rounded-xl border border-line p-3 text-sm sm:max-w-md">
+          <dl className="grid gap-1 rounded-xl bg-subtle p-3 text-sm sm:max-w-md">
             <div className="flex justify-between gap-4">
               <dt className="text-muted">Total de los tratamientos</dt>
               <dd className="num">{money(itemsTotal)}</dd>

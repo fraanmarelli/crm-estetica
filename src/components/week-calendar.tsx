@@ -193,7 +193,7 @@ export function WeekCalendar({
           const list = (byDay.get(d) ?? []).sort((a, b) => a.start - b.start);
           const selected = d === day;
           return (
-            <li key={d} className={`rounded-xl border ${selected ? "border-chrome" : "border-line"}`}>
+            <li key={d} className={`overflow-hidden rounded-xl ${selected ? "ring-2 ring-chrome" : "bg-subtle/60"}`}>
               <Link
                 href={href(d)}
                 scroll={false}

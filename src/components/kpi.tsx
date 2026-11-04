@@ -23,7 +23,7 @@ export function Kpi({
       {hint && <span className="kpi-hint">{hint}</span>}
     </>
   );
-  const cls = `kpi ${accent ? "kpi-accent" : ""} ${href ? "transition-colors hover:border-brand" : ""}`;
+  const cls = `kpi ${accent ? "kpi-accent" : ""} ${href ? "kpi-link" : ""}`;
   return href ? (
     <Link href={href} className={cls}>
       {body}

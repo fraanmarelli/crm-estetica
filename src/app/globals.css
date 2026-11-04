@@ -34,6 +34,9 @@
   --subtle: #f0eeea;
   --line: #e6e2db;
   --ink: #1f1b16;
+  /* Superficies sin borde: sombra cálida y baja */
+  --shadow-card: 0 1px 2px rgba(60, 44, 20, 0.04), 0 6px 20px -6px rgba(60, 44, 20, 0.1);
+  --shadow-card-hover: 0 2px 4px rgba(60, 44, 20, 0.06), 0 12px 28px -8px rgba(60, 44, 20, 0.16);
   --muted: #6f675c;
 
   --ok: #17734f;
@@ -67,6 +70,8 @@
     --subtle: #25221e;
     --line: #34302a;
     --ink: #f3eee5;
+    --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 8px 24px -8px rgba(0, 0, 0, 0.6);
+    --shadow-card-hover: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 14px 32px -10px rgba(0, 0, 0, 0.7);
     --muted: #a8a093;
     --ok: #5fd0a0;
     --ok-soft: #14291f;
@@ -161,8 +166,9 @@
   /* Superficies: solo lo que es un objeto aparte lleva borde */
   .card {
     background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 14px;
+    border: 0;
+    box-shadow: var(--shadow-card);
+    border-radius: 16px;
     padding: 1rem 1.125rem;
   }
 
@@ -173,8 +179,9 @@
     gap: 0.125rem;
     padding: 1rem 1.125rem;
     background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 14px;
+    border: 0;
+    box-shadow: var(--shadow-card);
+    border-radius: 16px;
     min-width: 0;
   }
   .kpi-label {
@@ -194,8 +201,16 @@
   }
   .kpi-accent {
     background: var(--chrome);
-    border-color: var(--chrome);
     color: var(--chrome-ink);
+  }
+  .kpi-link,
+  .card-link {
+    transition: box-shadow 160ms ease, transform 160ms ease;
+  }
+  .kpi-link:hover,
+  .card-link:hover {
+    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-1px);
   }
   .kpi-accent .kpi-value {
     background: var(--gold-gradient);
@@ -373,6 +388,7 @@
   /* Pasaporte de Belleza: tarjeta con talón troquelado */
   .passport {
     position: relative;
+    box-shadow: var(--shadow-card);
     background: var(--chrome);
     color: var(--chrome-ink);
     border-radius: 16px;

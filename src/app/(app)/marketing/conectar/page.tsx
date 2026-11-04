@@ -49,7 +49,7 @@ export default async function ChooseAdAccountPage({
         {accounts.map((a, i) => (
           <label
             key={a.account_id}
-            className="flex cursor-pointer items-center gap-3 rounded-lg border border-line p-3 hover:bg-subtle"
+            className="flex cursor-pointer items-center gap-3 rounded-xl bg-subtle p-3 hover:brightness-[0.98]"
           >
             <input type="radio" name="account_id" value={a.account_id} required defaultChecked={i === 0} />
             <span className="flex-1">
