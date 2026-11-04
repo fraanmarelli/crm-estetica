@@ -200,10 +200,14 @@ export async function saveAppointment(_prev: ActionState, formData: FormData): P
 
   // Se guarda primero sin marcar como realizado, después tratamientos y cobros, y al final
   // el estado: así las integraciones (planilla, Klaviyo) reciben el turno completo una sola vez.
+  const duration = Math.trunc(Number(str(formData, "duration_minutes") || "30"));
+  if (!Number.isFinite(duration) || duration < 5 || duration > 600) return { error: "Duración inválida." };
+
   const fields = {
     patient_id: patientId,
     professional_id: orNull(str(formData, "professional_id")),
     scheduled_at: scheduledAt,
+    duration_minutes: duration,
     notes: orNull(str(formData, "notes")),
   };
 
@@ -365,14 +369,19 @@ export async function createIntegration(_prev: ActionState, formData: FormData):
   let events = ["appointment.completed", "appointment.updated"];
   let name = str(formData, "name");
 
-  if (type === "google_sheets") {
+  if (type === "google_sheets" || type === "google_calendar") {
     const url = str(formData, "url");
     if (!url.startsWith("https://script.google.com/")) {
       return { error: "La URL tiene que ser la de la aplicación web de Apps Script.", values: valuesOf(formData) };
     }
     if (secret.length < 12) return { error: "El token tiene que tener al menos 12 caracteres.", values: valuesOf(formData) };
     config = { url };
-    name = name || "Google Sheets";
+    if (type === "google_calendar") {
+      events = ["appointment.saved", "appointment.deleted"];
+      name = name || "Google Calendar";
+    } else {
+      name = name || "Google Sheets";
+    }
   } else if (type === "klaviyo") {
     if (!/^pk_[A-Za-z0-9_]{10,}$/.test(secret)) {
       return {
@@ -388,24 +397,35 @@ export async function createIntegration(_prev: ActionState, formData: FormData):
     return { error: "Tipo de integración inválido." };
   }
 
-  const { error } = await supabase.from("integrations").insert({
-    organization_id: ctx.org.id,
-    branch_id: branchId,
-    type,
-    name,
-    config,
-    secret,
-    events,
-  });
+  const { data: created, error } = await supabase
+    .from("integrations")
+    .insert({
+      organization_id: ctx.org.id,
+      branch_id: branchId,
+      type,
+      name,
+      config,
+      secret,
+      events,
+    })
+    .select("id")
+    .single();
   if (error) return { error: `No se pudo guardar: ${error.message}`, values: valuesOf(formData) };
 
+  // El calendario arranca con los turnos de hoy en adelante
+  let synced = 0;
+  if (type === "google_calendar") {
+    const { data: count } = await supabase.rpc("resync_integration", { p_integration: created.id });
+    synced = Number(count ?? 0);
+  }
+
   revalidatePath("/ajustes");
-  return {
-    ok:
-      type === "klaviyo"
-        ? "Klaviyo conectado. Cada tratamiento realizado se envía como evento «Tratamiento realizado»."
-        : "Planilla conectada. Los próximos turnos realizados se copian solos.",
+  const OK_MESSAGE: Record<string, string> = {
+    klaviyo: "Klaviyo conectado. Cada tratamiento realizado se envía como evento «Tratamiento realizado».",
+    google_sheets: "Planilla conectada. Los próximos turnos realizados se copian solos.",
+    google_calendar: `Calendario conectado. ${synced} ${synced === 1 ? "turno" : "turnos"} de hoy en adelante se están cargando; los nuevos y los cambios se pasan solos.`,
   };
+  return { ok: OK_MESSAGE[type] };
 }
 
 export async function toggleIntegration(formData: FormData) {

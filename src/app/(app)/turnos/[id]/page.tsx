@@ -13,6 +13,7 @@ type Appt = {
   patient_id: string;
   professional_id: string | null;
   scheduled_at: string;
+  duration_minutes: number;
   status: AppointmentStatus;
   notes: string | null;
   patient: { first_name: string; last_name: string | null } | null;
@@ -29,7 +30,7 @@ export default async function EditAppointmentPage({ params }: { params: Promise<
   const { data } = await supabase
     .from("appointments")
     .select(
-      "id, branch_id, patient_id, professional_id, scheduled_at, status, notes, patient:patients(first_name, last_name), branch:branches(name), items:appointment_items(treatment_id, zone, quantity, price), payments:appointment_payments(account_id, amount, exchange_rate)",
+      "id, branch_id, patient_id, professional_id, scheduled_at, duration_minutes, status, notes, patient:patients(first_name, last_name), branch:branches(name), items:appointment_items(treatment_id, zone, quantity, price), payments:appointment_payments(account_id, amount, exchange_rate)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -62,7 +63,8 @@ export default async function EditAppointmentPage({ params }: { params: Promise<
       <div>
         <h1>Turno · {appt.patient ? fullName(appt.patient) : "Paciente"}</h1>
         <p className="text-sm text-muted">
-          Para registrarlo como realizado, cambiá el estado a «Realizado» y cargá lo que se hizo y lo cobrado.
+          Para registrarlo como realizado, dejá el estado en «Realizado» y cargá lo que se hizo y cómo pagó. Para
+          reprogramarlo, cambiá la fecha y dejalo «Agendado».
         </p>
       </div>
       <AppointmentForm
@@ -74,7 +76,12 @@ export default async function EditAppointmentPage({ params }: { params: Promise<
         defaults={{
           id: appt.id,
           scheduled_at: isoToLocalInput(appt.scheduled_at),
-          status: appt.status === "scheduled" ? "completed" : appt.status,
+          duration_minutes: String(appt.duration_minutes ?? 30),
+          // Un turno agendado que ya pasó se abre listo para registrarlo como realizado
+          status:
+            appt.status === "scheduled" && new Date(appt.scheduled_at).getTime() <= Date.now() + 60 * 60 * 1000
+              ? "completed"
+              : appt.status,
           professional_id: appt.professional_id ?? "",
           notes: appt.notes ?? "",
           items: appt.items.map((i) => ({

@@ -36,7 +36,10 @@ y entregá archivos completos.
 - `appointment_event_payload()` incluye claves con los títulos de la planilla de Córdoba y una por cuenta de cobro.
 - `recall_queue` (vista) = último tratamiento realizado + recall_days, sin turno futuro, sin opt-out.
 - `loyalty_transactions` = libro mayor de millas (nunca se edita; se corrige con otro movimiento).
-- `event_outbox` + `integrations` = toda automatización saliente (tipos: `google_sheets`, `klaviyo`).
+- `event_outbox` + `integrations` = toda automatización saliente (tipos: `google_sheets`, `klaviyo`,
+  `google_calendar`). Eventos: `appointment.saved` (cualquier cambio), `.completed`, `.updated` (cambio de un
+  realizado), `.deleted`. `integration_refs` guarda el id externo (evento de Google) que devuelve el handler.
+- `appointments.duration_minutes` define el largo del turno (calendario).
 - Marketing: `ad_connections` (una cuenta de Meta por sucursal), `ad_connection_secrets` (tokens, solo
   service role), `ad_insights_daily` (gasto/resultados por campaña y día), `marketing_summary()` cruza con pacientes.
 - Tareas programadas (pg_cron): `dispatch-events` cada minuto, `meta-sync` diario, `weekly-report` los lunes.

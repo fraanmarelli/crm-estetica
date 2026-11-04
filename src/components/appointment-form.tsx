@@ -17,6 +17,7 @@ import type {
 export type AppointmentDefaults = {
   id?: string;
   scheduled_at: string; // formato datetime-local
+  duration_minutes: string;
   status: AppointmentStatus;
   professional_id: string;
   notes: string;
@@ -25,6 +26,8 @@ export type AppointmentDefaults = {
   // Solo para marca y franquiciado
   commission?: string; // "" = automática
 };
+
+const DURATIONS = [15, 20, 30, 45, 60, 90, 120, 180];
 
 const emptyItem = (): AppointmentItemInput => ({ treatment_id: "", zone: "", quantity: "", price: "" });
 const emptyPayment = (): PaymentInput => ({ account_id: "", amount: "", exchange_rate: "" });
@@ -52,6 +55,7 @@ export function AppointmentForm({
 }) {
   const [state, action] = useActionState<ActionState, FormData>(saveAppointment, null);
   const [scheduledAt, setScheduledAt] = useState(defaults.scheduled_at);
+  const [duration, setDuration] = useState(defaults.duration_minutes || "30");
   const [status, setStatus] = useState<AppointmentStatus>(defaults.status);
   const [professionalId, setProfessionalId] = useState(defaults.professional_id);
   const [items, setItems] = useState<AppointmentItemInput[]>(defaults.items.length ? defaults.items : [emptyItem()]);
@@ -100,8 +104,8 @@ export function AppointmentForm({
       <input type="hidden" name="items" value={JSON.stringify(items)} />
       <input type="hidden" name="payments" value={JSON.stringify(completed ? payments : [])} />
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div>
+      <div className="grid gap-4 sm:grid-cols-4">
+        <div className="sm:col-span-1">
           <label className="label" htmlFor="appt-date">Fecha y hora</label>
           <input
             id="appt-date"
@@ -112,6 +116,24 @@ export function AppointmentForm({
             onChange={(e) => setScheduledAt(e.target.value)}
             className="input"
           />
+        </div>
+        <div>
+          <label className="label" htmlFor="appt-duration">Duración</label>
+          <select
+            id="appt-duration"
+            name="duration_minutes"
+            value={duration}
+            onChange={(e) => setDuration(e.target.value)}
+            className="input"
+          >
+            {[...new Set([...DURATIONS, Number(duration)])]
+              .sort((a, b) => a - b)
+              .map((m) => (
+                <option key={m} value={m}>
+                  {m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ""}`}
+                </option>
+              ))}
+          </select>
         </div>
         <div>
           <label className="label" htmlFor="appt-prof">Médico/a</label>

@@ -8,7 +8,7 @@ import { AccountsForm, ProfessionalsForm } from "./team-forms";
 type Integration = {
   id: string;
   name: string;
-  type: "google_sheets" | "klaviyo";
+  type: "google_sheets" | "klaviyo" | "google_calendar";
   is_active: boolean;
   config: { url?: string; list_id?: string };
   branch: { name: string } | null;
@@ -23,7 +23,7 @@ type OutboxRow = {
   created_at: string;
 };
 
-const TYPE_LABEL = { google_sheets: "Google Sheets", klaviyo: "Klaviyo" };
+const TYPE_LABEL = { google_sheets: "Google Sheets", klaviyo: "Klaviyo", google_calendar: "Google Calendar" };
 
 export default async function SettingsPage() {
   const ctx = await requireManagerContext();
@@ -61,7 +61,7 @@ export default async function SettingsPage() {
       <div className="page-head">
         <div>
           <h1>Ajustes</h1>
-          <p className="page-sub">{ctx.currentBranch.name}: médicos, cuentas de cobro y conexiones</p>
+          <p className="page-sub">{ctx.currentBranch.name}: médicos, cuentas de cobro y conexiones (Google Calendar, Klaviyo, planilla)</p>
         </div>
       </div>
 
@@ -102,7 +102,7 @@ export default async function SettingsPage() {
                     <span className="font-normal text-muted">· {i.branch?.name ?? "Todas las sucursales"}</span>
                   </p>
                   <p className="max-w-md truncate text-xs text-muted">
-                    {i.type === "google_sheets" ? i.config.url : i.config.list_id ? `Lista ${i.config.list_id}` : i.name}
+                    {i.type !== "klaviyo" ? i.config.url : i.config.list_id ? `Lista ${i.config.list_id}` : i.name}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

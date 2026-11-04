@@ -15,34 +15,46 @@ type OutboxEvent = {
   payload: Record<string, unknown>;
 };
 
-type Handler = (event: OutboxEvent) => Promise<void>;
+// Un handler puede devolver el id que creó del otro lado (ej. evento de Google Calendar)
+type HandlerResult = { external_id: string | null };
+type Handler = (event: OutboxEvent) => Promise<void | HandlerResult>;
+
+async function postToAppsScript(event: OutboxEvent, extra: Record<string, unknown> = {}) {
+  const url = String(event.config.url ?? "");
+  if (!url.startsWith("https://script.google.com/")) {
+    throw new Error("config.url debe ser la URL de la aplicación web de Apps Script");
+  }
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token: event.secret, evento: event.event_type, ...event.payload, ...extra }),
+    redirect: "follow",
+    signal: AbortSignal.timeout(20_000),
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0, 300)}`);
+  let body: { ok?: boolean; error?: string; external_id?: string | null };
+  try {
+    body = JSON.parse(text);
+  } catch {
+    throw new Error(`Respuesta no JSON de Apps Script: ${text.slice(0, 300)}`);
+  }
+  if (!body.ok) throw new Error(body.error ?? "Apps Script respondió ok=false");
+  return body;
+}
 
 const HANDLERS: Record<string, Handler> = {
   // Google Sheets vía Apps Script (Code.gs)
   google_sheets: async (event) => {
-    const url = String(event.config.url ?? "");
-    if (!url.startsWith("https://script.google.com/")) {
-      throw new Error("config.url debe ser la URL de la aplicación web de Apps Script");
-    }
+    await postToAppsScript(event);
+  },
 
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: event.secret, evento: event.event_type, ...event.payload }),
-      redirect: "follow",
-      signal: AbortSignal.timeout(20_000),
-    });
-
-    const text = await res.text();
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0, 300)}`);
-
-    let body: { ok?: boolean; error?: string };
-    try {
-      body = JSON.parse(text);
-    } catch {
-      throw new Error(`Respuesta no JSON de Apps Script: ${text.slice(0, 300)}`);
-    }
-    if (!body.ok) throw new Error(body.error ?? "Apps Script respondió ok=false");
+  // Google Calendar vía Apps Script (Calendario.gs): devuelve el id del evento
+  google_calendar: async (event) => {
+    const appUrl = (Deno.env.get("APP_URL") ?? "").replace(/\/$/, "");
+    const id = String(event.payload.id_crm ?? "");
+    const body = await postToAppsScript(event, appUrl && id ? { link: `${appUrl}/turnos/${id}` } : {});
+    return { external_id: body.external_id ?? null };
   },
 
   // Klaviyo: un evento "Tratamiento realizado" por cada ítem del turno, con la fecha en que
@@ -186,7 +198,8 @@ Deno.serve(async (req) => {
     { auth: { persistSession: false } },
   );
 
-  const { data, error } = await supabase.rpc("claim_outbox_events", { p_limit: 25 });
+  // De a 10: cada llamada a Apps Script tarda 1 a 3 segundos
+  const { data, error } = await supabase.rpc("claim_outbox_events", { p_limit: 10 });
   if (error) {
     return Response.json({ ok: false, error: error.message }, { status: 500 });
   }
@@ -200,7 +213,10 @@ Deno.serve(async (req) => {
     const handler = HANDLERS[event.integration_type];
     try {
       if (!handler) throw new Error(`Sin handler para "${event.integration_type}"`);
-      await handler(event);
+      const result = await handler(event);
+      if (result && "external_id" in result) {
+        await supabase.rpc("save_integration_ref", { p_outbox_id: event.id, p_external_id: result.external_id });
+      }
       await supabase.rpc("finish_outbox_event", { p_id: event.id, p_ok: true });
       sent++;
     } catch (err) {

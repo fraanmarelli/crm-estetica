@@ -24,7 +24,7 @@ Los permisos los controla la base de datos (RLS), no la pantalla.
 
 | Pantalla | Quién | Qué hace |
 |---|---|---|
-| **Hoy** | Todos | Turnos del día, cobrado, pacientes para recontactar |
+| **Agenda** | Todos | Calendario del mes; al tocar un día: turnos, cobrado, cumpleaños, primeras visitas, notas de la paciente, botón para recordar el turno por WhatsApp |
 | **Pacientes** | Todos | Alta (detecta duplicados en toda la marca; origen obligatorio), ficha e historial |
 | **Turno** | Todos | Agendar y registrar como realizado: tratamiento, cantidad de insumo, precio cobrado (manual) y cobro dividido en varias cuentas |
 | **Recall** | Todos | A quién le toca repetir, botón de WhatsApp con el mensaje armado, registrar respuesta |
@@ -49,9 +49,10 @@ Los permisos los controla la base de datos (RLS), no la pantalla.
    4. `supabase/migrations/20261103000300_marketing_cron.sql`
    5. `supabase/migrations/20261103000400_insumos_costos_klaviyo.sql`
    6. `supabase/migrations/20261103000500_cobros_comisiones.sql`
-   7. `supabase/seed.sql` (siempre al final)
+   7. `supabase/migrations/20261104000600_agenda_google_calendar.sql`
+   8. `supabase/seed.sql` (siempre al final)
 
-   O todo junto: el archivo `instalacion-crm.sql` que arma Claude con estos siete en orden.
+   O todo junto: el archivo `instalacion-crm.sql` que arma Claude con todos en orden.
 3. **Authentication → Sign In / Providers → Email:** desactivá **"Allow new users to sign up"**.
 
 ### 2. Usuarios
@@ -162,12 +163,30 @@ tratamiento realizado llega a Klaviyo como evento «Tratamiento realizado» con 
 `proximo_vencimiento`. En Klaviyo se arma un flow por tratamiento (disparador: ese evento; filtro por tratamiento;
 espera; mail). Solo se envían pacientes con email y que aceptaron recibir comunicaciones.
 
-### 11. Google Sheets (opcional)
+### 11. Google Calendar (opcional)
+
+Cada turno que se crea o edita en el CRM se crea o actualiza en el calendario de Google de la sucursal. Si se
+cancela o se borra, se borra el evento. Los realizados quedan en verde y los ausentes en rojo. Los cambios hechos
+a mano en Google no vuelven al CRM.
+
+1. Con la cuenta de Google de la sucursal: [script.google.com](https://script.google.com) → **Nuevo proyecto**.
+   Pegá `google-apps-script/Calendario.gs`. En `CONFIG` cambiá `TOKEN` (una clave larga) y, si querés un
+   calendario aparte, pegá su ID en `CALENDAR_ID`.
+2. Elegí `probarEvento` → **Ejecutar** → aceptá los permisos. Tiene que aparecer un evento dentro de una hora.
+3. **Implementar → Nueva implementación → Aplicación web**, «Ejecutar como: yo», «Quién tiene acceso: cualquier
+   usuario». Copiá la URL `/exec`.
+4. CRM → **Ajustes → Conectar → Google Calendar**: pegá la URL y el token. Los turnos de hoy en adelante se
+   cargan solos en unos minutos.
+
+Requiere la función `dispatch-events` y los secretos del paso 4. Para que el evento tenga el link al turno,
+agregá `APP_URL` en Supabase → Edge Functions → Secrets.
+
+### 12. Google Sheets (opcional)
 
 1. Configurá `google-apps-script/Code.gs` en la planilla (instrucciones dentro del archivo).
 2. CRM → **Ajustes** → pegá la URL de Apps Script y el token.
 
-### 12. Mail semanal
+### 13. Mail semanal
 
 1. Creá una cuenta en [resend.com](https://resend.com) (gratis hasta 3.000 mails/mes) y **verificá un dominio**
    (te da registros DNS para pegar donde compraste el dominio). Sin dominio verificado solo puede enviarte a vos.

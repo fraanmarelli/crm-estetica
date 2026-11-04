@@ -25,6 +25,7 @@ export function IntegrationForm({
           <label className="label" htmlFor="int-type">Qué querés conectar</label>
           <select id="int-type" name="type" value={type} onChange={(e) => setType(e.target.value)} className="input">
             <option value="klaviyo">Klaviyo (email marketing)</option>
+            <option value="google_calendar">Google Calendar (agenda de turnos)</option>
             <option value="google_sheets">Google Sheets (copia de turnos)</option>
           </select>
         </div>
@@ -87,6 +88,11 @@ export function IntegrationForm({
           <div>
             <label className="label" htmlFor="int-token">Token (el mismo que CONFIG.TOKEN del script)</label>
             <input id="int-token" name="secret" required autoComplete="off" defaultValue={v.secret} className="input" />
+            <p className="mt-1 text-xs text-muted">
+              {type === "google_calendar"
+                ? "Script: google-apps-script/Calendario.gs. Se crea, edita y borra un evento por cada turno."
+                : "Script: google-apps-script/Code.gs. Se agrega una fila por cada turno realizado."}
+            </p>
           </div>
         </>
       )}
