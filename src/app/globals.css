@@ -192,9 +192,12 @@
     font-size: 0.8rem;
     color: var(--muted);
   }
+  /* Números en la letra de la interfaz: en la serif del logo el 0 parece una O */
   .kpi-value {
-    font-family: var(--font-display);
-    font-size: 2.1rem;
+    font-family: var(--font-ui);
+    font-size: 2rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
     line-height: 1.1;
     font-variant-numeric: tabular-nums lining-nums;
     overflow-wrap: anywhere;
@@ -257,6 +260,26 @@
   .card-link:hover {
     box-shadow: var(--shadow-card-hover);
     transform: translateY(-1px);
+  }
+  /* Agenda en el celular: los tres indicadores en una fila, compactos */
+  @media (max-width: 639px) {
+    .kpi-row .kpi {
+      padding: 0.75rem 0.8rem;
+    }
+    .kpi-row {
+      grid-template-columns: 0.8fr 1.6fr 1fr;
+    }
+    .kpi-row .kpi-value {
+      font-size: 1.25rem;
+      white-space: nowrap;
+      overflow-wrap: normal;
+    }
+    .kpi-row .kpi-label {
+      font-size: 0.72rem;
+    }
+    .kpi-row .kpi-hint {
+      display: none;
+    }
   }
   .kpi-accent .kpi-value {
     background: var(--gold-gradient);

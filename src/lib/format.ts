@@ -44,7 +44,8 @@ export function fmtDate(value: string | null | undefined): string {
 }
 
 export function fmtTime(value: string): string {
-  return new Date(value).toLocaleTimeString("es-AR", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
+  // Siempre 24 h (10:30, 14:00): en algunos servidores es-AR sale con "a. m."
+  return new Date(value).toLocaleTimeString("es-AR", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 }
 
 export function fmtDateTime(value: string | null | undefined): string {
@@ -85,7 +86,7 @@ export const DEFAULT_RECALL_MESSAGE =
 
 export const STATUS_LABEL: Record<AppointmentStatus, string> = {
   scheduled: "Agendado",
-  completed: "Realizado",
+  completed: "Atendida",
   no_show: "No vino",
   cancelled: "Cancelado",
 };

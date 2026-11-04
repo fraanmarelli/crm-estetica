@@ -175,13 +175,13 @@ export function WeekCalendar({
       <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
         {[
           ["Turnos", String(active.length), pending.length ? `${pending.length} por atender` : "Ninguno pendiente"],
-          ["Realizados", String(done.length), active.length ? `${Math.round((done.length / active.length) * 100)}% de la semana` : ""],
+          ["Atendidas", String(done.length), active.length ? `${Math.round((done.length / active.length) * 100)}% de la semana` : ""],
           ["Cobrado", fmtMoney(revenue, currency), deposits ? `+ ${fmtMoney(deposits, currency)} en señas` : ""],
           ["No vinieron", String(noShow.length), noShow.length ? "Conviene recontactarlas" : "Sin ausentes"],
         ].map(([label, value, hint]) => (
           <div key={label} className="rounded-xl bg-subtle px-3 py-2">
             <dt className="text-xs text-muted">{label}</dt>
-            <dd className="font-display text-xl leading-tight num">{value}</dd>
+            <dd className="text-xl font-semibold leading-tight num">{value}</dd>
             {hint && <dd className="text-xs text-muted">{hint}</dd>}
           </div>
         ))}
@@ -214,7 +214,7 @@ export function WeekCalendar({
                   {list.map((a) => (
                     <li key={a.id}>
                       <Link href={apptHref(a, d)} className="flex items-start gap-3 px-3 py-2 hover:bg-subtle">
-                        <span className="w-11 shrink-0 font-display text-brand num">{a.time}</span>
+                        <span className="w-11 shrink-0 font-semibold text-brand num">{a.time}</span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-semibold">
                             {a.patient ? fullName(a.patient) : "Paciente"}
@@ -258,7 +258,7 @@ export function WeekCalendar({
                     {WEEKDAYS[i]}
                   </span>
                   <span
-                    className={`block font-display text-lg leading-tight num ${
+                    className={`block text-lg font-semibold leading-tight num ${
                       selected ? "gold-text" : d === today ? "text-brand" : ""
                     }`}
                   >

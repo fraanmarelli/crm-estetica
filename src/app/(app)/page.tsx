@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AutoRefresh } from "@/components/auto-refresh";
-import { TransferStatus, loadTransferChecks, type TransferCheck } from "@/components/transfer-status";
+import { DayList, shortDate, type DayRow } from "@/components/day-list";
+import { loadTransferChecks } from "@/components/transfer-status";
 import { createClient } from "@/lib/supabase/server";
 import { getContext } from "@/lib/context";
 import {
@@ -8,39 +9,15 @@ import {
   dayRange,
   fillTemplate,
   fmtMoney,
-  fmtTime,
   fullName,
-  STATUS_CLASS,
-  STATUS_LABEL,
   todayISO,
   whatsappLink,
 } from "@/lib/format";
 import { Kpi } from "@/components/kpi";
-import { IconWhatsApp } from "@/components/icons";
 import { MonthCalendar, monthGrid, type DayCount } from "@/components/month-calendar";
 import { WeekCalendar, weekDays, type WeekAppt } from "@/components/week-calendar";
-import { setAppointmentStatus } from "./actions";
-import type { AppointmentStatus } from "@/lib/types";
 
-type Row = {
-  id: string;
-  scheduled_at: string;
-  duration_minutes: number;
-  status: AppointmentStatus;
-  amount_paid: number | null;
-  amount_usd: number | null;
-  patient: {
-    id: string;
-    first_name: string;
-    last_name: string | null;
-    phone: string | null;
-    notes: string | null;
-    consent_data_at: string | null;
-  } | null;
-  professional: { full_name: string } | null;
-  items: { zone: string | null; treatment: { name: string } | null }[];
-  checks: TransferCheck[];
-};
+type Row = DayRow;
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const DEFAULT_REMINDER =
@@ -59,15 +36,6 @@ function longDate(isoDate: string, withYear = false) {
     ...(withYear ? { year: "numeric" } : {}),
   });
   return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
-function shortDate(isoDate: string) {
-  const d = new Date(`${isoDate}T12:00:00-03:00`);
-  return d.toLocaleDateString("es-AR", { timeZone: TZ, weekday: "long", day: "numeric", month: "numeric" });
-}
-
-function durationLabel(m: number) {
-  return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60}` : ""}`;
 }
 
 export default async function AgendaPage({
@@ -175,7 +143,8 @@ export default async function AgendaPage({
       .limit(1000);
     for (const p of prior ?? []) returning.add(p.patient_id as string);
   }
-  const firstVisits = active.filter((r) => r.patient && !returning.has(r.patient.id));
+  // Solo las que todavía no se atendieron (y con ficha completa: las incompletas ya tienen su aviso)
+  const firstVisits = pending.filter((r) => r.patient && r.patient.consent_data_at && !returning.has(r.patient.id));
 
   const pastDays = [...new Set((pastPending ?? []).map((a) => localDay(a.scheduled_at)))];
   const pastCount = pastPending?.length ?? 0;
@@ -255,6 +224,8 @@ export default async function AgendaPage({
     );
   }
 
+
+  // Un turno: hora grande y legible, paciente y qué se hace, y a la derecha el estado o las acciones
   return (
     <div className="space-y-6">
       {waitingTransfer && <AutoRefresh />}
@@ -308,7 +279,7 @@ export default async function AgendaPage({
           {day === today && <span className="badge badge-amber">Hoy</span>}
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="kpi-row grid grid-cols-3 gap-2 sm:gap-3">
           <Kpi
             label="Turnos"
             value={String(active.length)}
@@ -317,14 +288,14 @@ export default async function AgendaPage({
                 ? "Sin turnos"
                 : [
                     pending.length && `${pending.length} por atender`,
-                    done.length && `${done.length} realizados`,
+                    done.length && `${done.length} atendidas`,
                     noShows.length && `${noShows.length} no vinieron`,
                   ]
                     .filter(Boolean)
                     .join(" · ")
             }
           />
-          <Kpi label="Cobrado" value={fmtMoney(revenue, ctx.org.currency)} hint={`${done.length} realizados`} />
+          <Kpi label="Cobrado" value={fmtMoney(revenue, ctx.org.currency)} hint={done.length === 1 ? "1 atendida" : `${done.length} atendidas`} />
           <Kpi
             label="Para recontactar"
             value={String(dueCount)}
@@ -347,115 +318,17 @@ export default async function AgendaPage({
             <Link href={`/turnos/nuevo?fecha=${day}${viewParam}`} className="link">Agendar un turno</Link>
           </div>
         ) : (
-          <ol className="card divide-y divide-line p-0">
-            {rows.map((r) => {
-              const p = r.patient;
-              const time = fmtTime(r.scheduled_at);
-              const reminder =
-                p?.phone && r.status === "scheduled" && canRemind
-                  ? whatsappLink(
-                      p.phone,
-                      fillTemplate(reminderTpl, {
-                        nombre: p.first_name,
-                        sucursal: branchLabel,
-                        dia: shortDate(day),
-                        hora: time,
-                      }),
-                    )
-                  : null;
-              return (
-                <li
-                  key={r.id}
-                  className={`grid grid-cols-[4.5rem_1fr] gap-x-4 gap-y-2 px-4 py-3 sm:grid-cols-[4.5rem_1fr_auto] sm:items-center ${
-                    r.status === "cancelled" ? "opacity-50" : ""
-                  }`}
-                >
-                  <div>
-                    <span className="block font-display text-xl leading-tight text-brand num">{time}</span>
-                    <span className="text-xs text-muted">{durationLabel(r.duration_minutes)}</span>
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      {p ? (
-                        <Link href={`/pacientes/${p.id}`} className="font-semibold hover:text-brand">
-                          {fullName(p)}
-                        </Link>
-                      ) : (
-                        <span className="font-semibold">Paciente</span>
-                      )}
-                      {/* Si tiene la ficha incompleta, ese aviso ya dice que es nueva */}
-                      {p && p.consent_data_at && !returning.has(p.id) && r.status !== "cancelled" && (
-                        <span className="badge badge-amber">Primera vez</span>
-                      )}
-                      {p && !p.consent_data_at && r.status !== "cancelled" && (
-                        <Link
-                          href={`/pacientes/${p.id}/completar?volver=${encodeURIComponent(`/?fecha=${day}${viewParam}`)}`}
-                          className="badge badge-amber hover:underline"
-                        >
-                          Ficha incompleta · completar
-                        </Link>
-                      )}
-                      {r.status === "scheduled" && (Number(r.amount_paid) > 0 || Number(r.amount_usd) > 0) && (
-                        <span className="badge badge-green">
-                          Señó{" "}
-                          {Number(r.amount_paid) > 0
-                            ? fmtMoney(r.amount_paid, ctx.org.currency)
-                            : fmtMoney(r.amount_usd, "USD")}
-                        </span>
-                      )}
-                    </div>
-                    <p className="truncate text-sm text-muted">
-                      {r.items
-                        .map((i) => [i.treatment?.name, i.zone].filter(Boolean).join(" - "))
-                        .join(", ") || "Sin tratamiento cargado"}
-                      {r.professional ? ` con ${r.professional.full_name}` : ""}
-                    </p>
-                    {r.checks?.length > 0 && (
-                      <div className="mt-1">
-                        <TransferStatus checks={r.checks} compact />
-                      </div>
-                    )}
-                    {p?.notes && (
-                      <p className="mt-0.5 line-clamp-2 text-xs text-ink">
-                        <span className="font-semibold">Nota:</span> {p.notes}
-                      </p>
-                    )}
-                  </div>
-                  <div className="col-start-2 flex flex-wrap items-center gap-2 sm:col-start-3 sm:justify-end">
-                    <span className={STATUS_CLASS[r.status]}>{STATUS_LABEL[r.status]}</span>
-                    {reminder && (
-                      <a
-                        href={reminder}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn btn-sm"
-                        aria-label={`Recordar turno a ${p ? fullName(p) : "la paciente"} por WhatsApp`}
-                      >
-                        <IconWhatsApp className="h-4 w-4" />
-                        Recordar
-                      </a>
-                    )}
-                    {r.status === "scheduled" && day <= today ? (
-                      <Link href={`/turnos/${r.id}?cobrar=1${viewParam}`} className="btn btn-sm btn-primary">
-                        Cobrar
-                      </Link>
-                    ) : (
-                      <Link href={`/turnos/${r.id}${viewParam ? "?vista=semana" : ""}`} className="btn btn-sm">
-                        {r.status === "completed" ? "Ver cobro" : "Editar"}
-                      </Link>
-                    )}
-                    {r.status === "scheduled" && day <= today && (
-                      <form action={setAppointmentStatus}>
-                        <input type="hidden" name="id" value={r.id} />
-                        <input type="hidden" name="status" value="no_show" />
-                        <button className="btn btn-sm">No vino</button>
-                      </form>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
+          <DayList
+            rows={rows}
+            returningIds={[...returning]}
+            day={day}
+            today={today}
+            viewParam={viewParam}
+            canRemind={canRemind}
+            reminderTpl={reminderTpl}
+            branchLabel={branchLabel}
+            currency={ctx.org.currency}
+          />
         )}
       </section>
     </div>
