@@ -3,6 +3,8 @@
 import { useActionState, useMemo, useState } from "react";
 import { createPromotion } from "./actions";
 import { SubmitButton } from "@/components/submit-button";
+import { DateField } from "@/components/date-fields";
+import { MoneyInput } from "@/components/money-input";
 import type { ActionState } from "@/lib/types";
 
 type TreatmentOption = { id: string; name: string; category: string | null };
@@ -75,19 +77,11 @@ function PromoFormInner({
         </div>
         <div>
           <label className="label" htmlFor="promo-price">Precio total</label>
-          <input
-            id="promo-price"
-            name="price"
-            required
-            defaultValue={v.price}
-            inputMode="numeric"
-            placeholder="$"
-            className="input num"
-          />
+          <MoneyInput id="promo-price" name="price" required defaultValue={v.price} placeholder="$" />
         </div>
         <div>
           <label className="label" htmlFor="promo-until">Vence (opcional)</label>
-          <input id="promo-until" name="valid_until" type="date" defaultValue={v.valid_until} className="input" />
+          <DateField id="promo-until" name="valid_until" defaultValue={v.valid_until} />
         </div>
       </div>
 

@@ -3,7 +3,8 @@
 import { useActionState, useMemo, useState } from "react";
 import { saveAppointment } from "@/app/(app)/actions";
 import { SubmitButton } from "@/components/submit-button";
-import { STATUS_LABEL, pluralEs } from "@/lib/format";
+import { DateTimeField } from "@/components/date-fields";
+import { STATUS_LABEL, groupThousands, moneyInputValue, pluralEs } from "@/lib/format";
 import type {
   ActionState,
   AppointmentItemInput,
@@ -28,9 +29,30 @@ export type AppointmentDefaults = {
   commission?: string; // "" = automática
 };
 
+// Un renglón de "Tratamientos": un tratamiento suelto o una promo entera (un solo precio).
+// Al guardar, la promo se convierte en sus tratamientos (para recall, insumos y Klaviyo)
+// con el precio repartido entre ellos.
+type Row = {
+  treatment_id: string;
+  zone: string;
+  quantity: string;
+  price: string;
+  promotion_id: string;
+  promotion_name: string;
+  promo_items: { treatment_id: string; zone: string }[];
+};
+
 const DURATIONS = [15, 20, 30, 45, 60, 90, 120, 180];
 
-const emptyItem = (): AppointmentItemInput => ({ treatment_id: "", zone: "", quantity: "", price: "" });
+const emptyRow = (): Row => ({
+  treatment_id: "",
+  zone: "",
+  quantity: "",
+  price: "",
+  promotion_id: "",
+  promotion_name: "",
+  promo_items: [],
+});
 const emptyPayment = (): PaymentInput => ({ account_id: "", amount: "", exchange_rate: "" });
 const toNum = (s: string) => {
   const n = Number(String(s).replace(/\./g, "").replace(",", "."));
@@ -38,6 +60,69 @@ const toNum = (s: string) => {
 };
 const money = (v: number, currency = "ARS") =>
   v.toLocaleString("es-AR", { style: "currency", currency, maximumFractionDigits: 0 });
+// Para el servidor: sin puntos de miles y con coma decimal (así lo lee numOrNull)
+const forServer = (n: number) => String(n).replace(".", ",");
+
+// Ítems guardados → renglones (los de una misma promo vuelven a ser uno)
+function toRows(items: AppointmentItemInput[]): Row[] {
+  const rows: Row[] = [];
+  const byPromo = new Map<string, Row>();
+  for (const it of items) {
+    if (it.promotion_id) {
+      const existing = byPromo.get(it.promotion_id);
+      if (existing) {
+        existing.price = moneyInputValue(toNum(existing.price) + toNum(it.price));
+        existing.promo_items.push({ treatment_id: it.treatment_id, zone: it.zone });
+        existing.quantity = "";
+        continue;
+      }
+      const row: Row = {
+        ...emptyRow(),
+        promotion_id: it.promotion_id,
+        promotion_name: it.promotion_name ?? "Promo",
+        price: moneyInputValue(it.price),
+        quantity: it.quantity,
+        promo_items: [{ treatment_id: it.treatment_id, zone: it.zone }],
+      };
+      byPromo.set(it.promotion_id, row);
+      rows.push(row);
+    } else {
+      rows.push({ ...emptyRow(), ...it, price: moneyInputValue(it.price), promotion_id: "", promotion_name: "" });
+    }
+  }
+  return rows;
+}
+
+// Renglones → ítems que se guardan
+function toItems(rows: Row[]): AppointmentItemInput[] {
+  const out: AppointmentItemInput[] = [];
+  for (const r of rows) {
+    if (r.promotion_id) {
+      const list = r.promo_items;
+      if (!list.length) continue;
+      const total = toNum(r.price);
+      const hasPrice = r.price.trim() !== "";
+      const share = Math.floor(total / list.length);
+      list.forEach((it, i) => {
+        out.push({
+          treatment_id: it.treatment_id,
+          zone: it.zone,
+          quantity: list.length === 1 ? r.quantity : "",
+          price: hasPrice ? forServer(i === list.length - 1 ? total - share * (list.length - 1) : share) : "",
+          promotion_id: r.promotion_id,
+        });
+      });
+    } else if (r.treatment_id) {
+      out.push({
+        treatment_id: r.treatment_id,
+        zone: r.zone,
+        quantity: r.quantity,
+        price: r.price.trim() === "" ? "" : forServer(toNum(r.price)),
+      });
+    }
+  }
+  return out;
+}
 
 export function AppointmentForm({
   patientId,
@@ -62,19 +147,31 @@ export function AppointmentForm({
   // Vista de la agenda a la que volver después de guardar ("semana" o "mes")
   returnView?: string;
 }) {
+  const fmtPayment = (p: PaymentInput): PaymentInput => ({
+    ...p,
+    amount: moneyInputValue(p.amount),
+    exchange_rate: moneyInputValue(p.exchange_rate),
+  });
   const [state, action] = useActionState<ActionState, FormData>(saveAppointment, null);
   const [scheduledAt, setScheduledAt] = useState(defaults.scheduled_at);
   const [duration, setDuration] = useState(defaults.duration_minutes || "30");
   const [status, setStatus] = useState<AppointmentStatus>(defaults.status);
   const [professionalId, setProfessionalId] = useState(defaults.professional_id);
-  const [items, setItems] = useState<AppointmentItemInput[]>(defaults.items.length ? defaults.items : [emptyItem()]);
+  const [rows, setRows] = useState<Row[]>(() => {
+    const r = toRows(defaults.items);
+    return r.length ? r : [emptyRow()];
+  });
   const initialDeposit = defaults.payments.find((p) => p.is_deposit) ?? null;
   const initialRest = defaults.payments.filter((p) => !p.is_deposit);
   const [hasDeposit, setHasDeposit] = useState(Boolean(initialDeposit));
-  const [deposit, setDeposit] = useState<PaymentInput>(initialDeposit ?? { ...emptyPayment(), is_deposit: true });
-  const [payments, setPayments] = useState<PaymentInput[]>(initialRest.length ? initialRest : [emptyPayment()]);
+  const [deposit, setDeposit] = useState<PaymentInput>(
+    initialDeposit ? fmtPayment(initialDeposit) : { ...emptyPayment(), is_deposit: true },
+  );
+  const [payments, setPayments] = useState<PaymentInput[]>(
+    initialRest.length ? initialRest.map(fmtPayment) : [emptyPayment()],
+  );
   const [notes, setNotes] = useState(defaults.notes);
-  const [commission, setCommission] = useState(defaults.commission ?? "");
+  const [commission, setCommission] = useState(moneyInputValue(defaults.commission ?? ""));
 
   const byCategory = useMemo(() => {
     const groups = new Map<string, Treatment[]>();
@@ -84,9 +181,10 @@ export function AppointmentForm({
     }
     return [...groups.entries()];
   }, [treatments]);
+  const treatmentName = (id: string) => treatments.find((t) => t.id === id)?.name ?? "Tratamiento";
 
   const accountById = (id: string) => accounts.find((a) => a.id === id);
-  const itemsTotal = items.reduce((s, i) => s + toNum(i.price), 0);
+  const itemsTotal = rows.reduce((s, r) => s + toNum(r.price), 0);
 
   // Cada parte del cobro en pesos; los dólares cuentan solo si tienen cotización
   function inPesos(list: PaymentInput[]) {
@@ -122,40 +220,31 @@ export function AppointmentForm({
       deposit: Boolean(p.is_deposit),
     }));
 
-  function updateItem(index: number, patch: Partial<AppointmentItemInput>) {
-    setItems((prev) => prev.map((it, i) => (i === index ? { ...it, ...patch } : it)));
+  function updateRow(index: number, patch: Partial<Row>) {
+    setRows((prev) => prev.map((r, i) => (i === index ? { ...r, ...patch } : r)));
   }
 
-  // Aplica una promo: suma sus tratamientos con el precio repartido (se puede ajustar a mano)
-  function applyPromo(promoId: string) {
-    const promo = promotions.find((p) => p.id === promoId);
-    if (!promo) return;
-    const list = [...promo.items].sort((a, b) => a.sort_order - b.sort_order);
-    const share = Math.floor(promo.price / list.length);
-    const added: AppointmentItemInput[] = list.map((it, i) => ({
-      treatment_id: it.treatment_id,
-      zone: it.zone ?? "",
-      quantity: "",
-      price: String(i === list.length - 1 ? promo.price - share * (list.length - 1) : share),
-      promotion_id: promo.id,
-      promotion_name: promo.name,
-    }));
-    setItems((prev) => [...prev.filter((it) => it.treatment_id), ...added]);
+  // Elegir en el selector: un tratamiento o una promo (valor "promo:<id>")
+  function pick(index: number, value: string) {
+    if (value.startsWith("promo:")) {
+      const promo = promotions.find((p) => p.id === value.slice(6));
+      if (!promo) return;
+      const list = [...promo.items].sort((a, b) => a.sort_order - b.sort_order);
+      updateRow(index, {
+        treatment_id: "",
+        zone: "",
+        quantity: "",
+        promotion_id: promo.id,
+        promotion_name: promo.name,
+        promo_items: list.map((it) => ({ treatment_id: it.treatment_id, zone: it.zone ?? "" })),
+        price: moneyInputValue(promo.price),
+      });
+    } else {
+      updateRow(index, { treatment_id: value, promotion_id: "", promotion_name: "", promo_items: [] });
+    }
   }
 
   const completed = status === "completed";
-
-  // Promos aplicadas en este turno, con lo cargado en sus tratamientos
-  const promoSummary = [...new Set(items.map((i) => i.promotion_id).filter(Boolean))].map((id) => {
-    const promo = promotions.find((p) => p.id === id);
-    const rows = items.filter((i) => i.promotion_id === id);
-    return {
-      id: id as string,
-      name: promo?.name ?? rows[0]?.promotion_name ?? "Promo",
-      price: promo?.price ?? rows.reduce((s, i) => s + toNum(i.price), 0),
-      charged: rows.reduce((s, i) => s + toNum(i.price), 0),
-    };
-  });
 
   // Una línea de cobro (cuenta + monto + cotización si es en dólares)
   function paymentRow(
@@ -186,20 +275,20 @@ export function AppointmentForm({
         </select>
         <input
           value={p.amount}
-          onChange={(e) => onChange({ amount: e.target.value })}
+          onChange={(e) => onChange({ amount: groupThousands(e.target.value) })}
           placeholder={usd ? "Monto en US$" : "Monto"}
           aria-label="Monto"
-          inputMode="numeric"
-          className="input"
+          inputMode="decimal"
+          className="input num"
         />
         {usd && (
           <input
             value={p.exchange_rate}
-            onChange={(e) => onChange({ exchange_rate: e.target.value })}
+            onChange={(e) => onChange({ exchange_rate: groupThousands(e.target.value) })}
             placeholder="Cotización (opcional)"
             aria-label="Cotización"
-            inputMode="numeric"
-            className="input"
+            inputMode="decimal"
+            className="input num"
           />
         )}
         <button type="button" className="btn" onClick={onRemove} aria-label="Quitar">
@@ -209,12 +298,45 @@ export function AppointmentForm({
     );
   }
 
+  const durationSelect = (
+    <select
+      id="appt-duration"
+      name="duration_minutes"
+      value={duration}
+      onChange={(e) => setDuration(e.target.value)}
+      className="input"
+    >
+      {[...new Set([...DURATIONS, Number(duration)])]
+        .sort((a, b) => a - b)
+        .map((m) => (
+          <option key={m} value={m}>
+            {m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ""}`}
+          </option>
+        ))}
+    </select>
+  );
+
+  const professionalSelect = (
+    <select
+      id="appt-prof"
+      name="professional_id"
+      value={professionalId}
+      onChange={(e) => setProfessionalId(e.target.value)}
+      className="input"
+    >
+      <option value="">—</option>
+      {professionals.map((p) => (
+        <option key={p.id} value={p.id}>{p.full_name}</option>
+      ))}
+    </select>
+  );
+
   return (
     <form action={action} className="card space-y-6">
       {defaults.id && <input type="hidden" name="id" value={defaults.id} />}
       <input type="hidden" name="patient_id" value={patientId} />
       {returnView && <input type="hidden" name="return_view" value={returnView} />}
-      <input type="hidden" name="items" value={JSON.stringify(items)} />
+      <input type="hidden" name="items" value={JSON.stringify(toItems(rows))} />
       <input
         type="hidden"
         name="payments"
@@ -225,223 +347,155 @@ export function AppointmentForm({
         <>
           <input type="hidden" name="status" value="completed" />
           <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className="label" htmlFor="appt-prof">Atendió</label>
-          <select
-            id="appt-prof"
-            name="professional_id"
-            value={professionalId}
-            onChange={(e) => setProfessionalId(e.target.value)}
-            className="input"
-          >
-            <option value="">—</option>
-            {professionals.map((p) => (
-              <option key={p.id} value={p.id}>{p.full_name}</option>
-            ))}
-          </select>
-        </div>
+            <div>
+              <label className="label" htmlFor="appt-prof">Atendió</label>
+              {professionalSelect}
+            </div>
           </div>
           <details className="rounded-xl bg-subtle px-3 py-2">
             <summary className="cursor-pointer text-sm font-semibold text-muted">Cambiar fecha u horario</summary>
-            <div className="mt-3 grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className="label" htmlFor="appt-date">Fecha y hora</label>
-          <input
-            id="appt-date"
-            type="datetime-local"
-            name="scheduled_at"
-            required
-            value={scheduledAt}
-            onChange={(e) => setScheduledAt(e.target.value)}
-            className="input"
-          />
-        </div>
-        <div>
-          <label className="label" htmlFor="appt-duration">Duración</label>
-          <select
-            id="appt-duration"
-            name="duration_minutes"
-            value={duration}
-            onChange={(e) => setDuration(e.target.value)}
-            className="input"
-          >
-            {[...new Set([...DURATIONS, Number(duration)])]
-              .sort((a, b) => a - b)
-              .map((m) => (
-                <option key={m} value={m}>
-                  {m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ""}`}
-                </option>
-              ))}
-          </select>
-        </div>
+            <div className="mt-3 grid gap-4 sm:grid-cols-[2fr_1fr]">
+              <div>
+                <label className="label" htmlFor="appt-date">Fecha y hora</label>
+                <DateTimeField id="appt-date" name="scheduled_at" value={scheduledAt} onChange={setScheduledAt} />
+              </div>
+              <div>
+                <label className="label" htmlFor="appt-duration">Duración</label>
+                {durationSelect}
+              </div>
             </div>
           </details>
         </>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-4">
-        <div>
-          <label className="label" htmlFor="appt-date">Fecha y hora</label>
-          <input
-            id="appt-date"
-            type="datetime-local"
-            name="scheduled_at"
-            required
-            value={scheduledAt}
-            onChange={(e) => setScheduledAt(e.target.value)}
-            className="input"
-          />
-        </div>
-        <div>
-          <label className="label" htmlFor="appt-duration">Duración</label>
-          <select
-            id="appt-duration"
-            name="duration_minutes"
-            value={duration}
-            onChange={(e) => setDuration(e.target.value)}
-            className="input"
-          >
-            {[...new Set([...DURATIONS, Number(duration)])]
-              .sort((a, b) => a - b)
-              .map((m) => (
-                <option key={m} value={m}>
-                  {m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ""}`}
-                </option>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1.2fr_1.2fr]">
+          <div className="sm:col-span-2 lg:col-span-1">
+            <label className="label" htmlFor="appt-date">Fecha y hora</label>
+            <DateTimeField id="appt-date" name="scheduled_at" value={scheduledAt} onChange={setScheduledAt} />
+          </div>
+          <div>
+            <label className="label" htmlFor="appt-duration">Duración</label>
+            {durationSelect}
+          </div>
+          <div>
+            <label className="label" htmlFor="appt-prof">Médico/a</label>
+            {professionalSelect}
+          </div>
+          <div>
+            <label className="label" htmlFor="appt-status">Estado</label>
+            <select
+              id="appt-status"
+              name="status"
+              value={status}
+              onChange={(e) => setStatus(e.target.value as AppointmentStatus)}
+              className="input"
+            >
+              {(Object.keys(STATUS_LABEL) as AppointmentStatus[]).map((s) => (
+                <option key={s} value={s}>{STATUS_LABEL[s]}</option>
               ))}
-          </select>
-        </div>
-        <div>
-          <label className="label" htmlFor="appt-prof">Médico/a</label>
-          <select
-            id="appt-prof"
-            name="professional_id"
-            value={professionalId}
-            onChange={(e) => setProfessionalId(e.target.value)}
-            className="input"
-          >
-            <option value="">—</option>
-            {professionals.map((p) => (
-              <option key={p.id} value={p.id}>{p.full_name}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="label" htmlFor="appt-status">Estado</label>
-          <select
-            id="appt-status"
-            name="status"
-            value={status}
-            onChange={(e) => setStatus(e.target.value as AppointmentStatus)}
-            className="input"
-          >
-            {(Object.keys(STATUS_LABEL) as AppointmentStatus[]).map((s) => (
-              <option key={s} value={s}>{STATUS_LABEL[s]}</option>
-            ))}
-          </select>
-        </div>
+            </select>
+          </div>
         </div>
       )}
 
       <section className="space-y-2">
         <div className="flex items-center justify-between">
           <h2>{mode === "checkout" ? "Qué se hizo" : "Tratamientos"}</h2>
-          <div className="flex flex-wrap justify-end gap-2">
-            {promotions.length > 0 && (
-              <select
-                value=""
-                onChange={(e) => applyPromo(e.target.value)}
-                className="input input-sm w-auto"
-                aria-label="Aplicar promo"
-              >
-                <option value="">Aplicar promo</option>
-                {promotions.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} · {money(p.price)}
-                  </option>
-                ))}
-              </select>
-            )}
-            <button type="button" className="btn btn-sm" onClick={() => setItems((p) => [...p, emptyItem()])}>
-              Agregar tratamiento
-            </button>
-          </div>
+          <button type="button" className="btn btn-sm" onClick={() => setRows((p) => [...p, emptyRow()])}>
+            Agregar tratamiento
+          </button>
         </div>
-        {items.map((item, index) => {
-          const t = treatments.find((x) => x.id === item.treatment_id);
+        {rows.map((row, index) => {
+          const t = treatments.find((x) => x.id === row.treatment_id);
+          const isPromo = Boolean(row.promotion_id);
+          const singlePromoTreatment =
+            isPromo && row.promo_items.length === 1 ? treatments.find((x) => x.id === row.promo_items[0].treatment_id) : null;
+          const supply = isPromo ? singlePromoTreatment?.supply : t?.supply;
+          const showQuantity = !isPromo || row.promo_items.length === 1;
+          // Si la promo ya no está vigente (turno viejo), igual se muestra en el selector
+          const promoMissing = isPromo && !promotions.some((p) => p.id === row.promotion_id);
           return (
             <div key={index} className="space-y-1 rounded-xl bg-subtle p-2">
-              {item.promotion_id && (
-                <div className="flex items-center gap-2 px-1 text-xs">
-                  <span className="badge badge-gold">Promo</span>
-                  <span className="font-semibold">{item.promotion_name}</span>
-                  <button
-                    type="button"
-                    className="ml-auto text-muted underline-offset-2 hover:underline"
-                    onClick={() => updateItem(index, { promotion_id: "", promotion_name: "" })}
-                  >
-                    Sacar de la promo
-                  </button>
-                </div>
+              <div
+                className={`grid gap-2 ${
+                  isPromo
+                    ? showQuantity
+                      ? "sm:grid-cols-[3.3fr_1fr_1fr_auto]"
+                      : "sm:grid-cols-[4.3fr_1fr_auto]"
+                    : "sm:grid-cols-[2fr_1.3fr_1fr_1fr_auto]"
+                }`}
+              >
+                <select
+                  value={isPromo ? `promo:${row.promotion_id}` : row.treatment_id}
+                  onChange={(e) => pick(index, e.target.value)}
+                  className="input"
+                  aria-label="Tratamiento o promo"
+                >
+                  <option value="">Elegí un tratamiento o una promo</option>
+                  {(promotions.length > 0 || promoMissing) && (
+                    <optgroup label="Promos">
+                      {promoMissing && <option value={`promo:${row.promotion_id}`}>{row.promotion_name}</option>}
+                      {promotions.map((p) => (
+                        <option key={p.id} value={`promo:${p.id}`}>
+                          {p.name} · {money(p.price)}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {byCategory.map(([category, list]) => (
+                    <optgroup key={category} label={category}>
+                      {list.map((tr) => (
+                        <option key={tr.id} value={tr.id}>{tr.name}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+                {!isPromo && (
+                  <input
+                    value={row.zone}
+                    onChange={(e) => updateRow(index, { zone: e.target.value })}
+                    placeholder="Zona"
+                    aria-label="Zona"
+                    className="input"
+                  />
+                )}
+                {showQuantity && (
+                  <input
+                    value={row.quantity}
+                    onChange={(e) => updateRow(index, { quantity: e.target.value })}
+                    placeholder={supply ? `Cantidad (${pluralEs(supply.unit)})` : "Cantidad"}
+                    aria-label="Cantidad de insumo usada"
+                    inputMode="decimal"
+                    className="input"
+                  />
+                )}
+                <input
+                  value={row.price}
+                  onChange={(e) => updateRow(index, { price: groupThousands(e.target.value) })}
+                  placeholder="Precio cobrado"
+                  aria-label="Precio cobrado"
+                  inputMode="decimal"
+                  className="input num"
+                />
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => setRows((p) => (p.length === 1 ? [emptyRow()] : p.filter((_, i) => i !== index)))}
+                  aria-label="Quitar tratamiento"
+                >
+                  ✕
+                </button>
+              </div>
+              {isPromo && row.promo_items.length > 0 && (
+                <p className="px-1 text-xs text-muted">
+                  Incluye{" "}
+                  {row.promo_items
+                    .map((it) => `${treatmentName(it.treatment_id)}${it.zone ? ` (${it.zone})` : ""}`)
+                    .join(" + ")}
+                </p>
               )}
-            <div className="grid gap-2 sm:grid-cols-[2fr_1.3fr_1fr_1fr_auto]">
-              <select
-                value={item.treatment_id}
-                onChange={(e) => updateItem(index, { treatment_id: e.target.value })}
-                className="input"
-                aria-label="Tratamiento"
-              >
-                <option value="">Elegí un tratamiento</option>
-                {byCategory.map(([category, list]) => (
-                  <optgroup key={category} label={category}>
-                    {list.map((tr) => (
-                      <option key={tr.id} value={tr.id}>{tr.name}</option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-              <input
-                value={item.zone}
-                onChange={(e) => updateItem(index, { zone: e.target.value })}
-                placeholder="Zona"
-                aria-label="Zona"
-                className="input"
-              />
-              <input
-                value={item.quantity}
-                onChange={(e) => updateItem(index, { quantity: e.target.value })}
-                placeholder={t?.supply ? `Cantidad (${pluralEs(t.supply.unit)})` : "Cantidad"}
-                aria-label="Cantidad de insumo usada"
-                inputMode="decimal"
-                className="input"
-              />
-              <input
-                value={item.price}
-                onChange={(e) => updateItem(index, { price: e.target.value })}
-                placeholder="Precio cobrado"
-                aria-label="Precio cobrado"
-                inputMode="numeric"
-                className="input"
-              />
-              <button
-                type="button"
-                className="btn"
-                onClick={() => setItems((p) => (p.length === 1 ? [emptyItem()] : p.filter((_, i) => i !== index)))}
-                aria-label="Quitar tratamiento"
-              >
-                ✕
-              </button>
-            </div>
             </div>
           );
         })}
-        {promoSummary.map((p) => (
-          <p key={p.id} className="text-xs text-muted">
-            {p.name}: precio de la promo <b className="num text-ink">{money(p.price)}</b>
-            {Math.abs(p.charged - p.price) >= 1 && (
-              <> · cargado <b className="num text-ink">{money(p.charged)}</b></>
-            )}
-            . Podés ajustar el precio de cada tratamiento.
-          </p>
-        ))}
       </section>
 
       {!completed && status !== "cancelled" && (
@@ -550,11 +604,11 @@ export function AppointmentForm({
             <input
               name="commission"
               value={commission}
-              onChange={(e) => setCommission(e.target.value)}
+              onChange={(e) => setCommission(groupThousands(e.target.value))}
               placeholder="Automática"
               aria-label="Comisión médica"
-              inputMode="numeric"
-              className="input"
+              inputMode="decimal"
+              className="input num"
             />
             <p className="text-xs text-muted">
               Vacío = se calcula sola con el porcentaje del médico. Escribí un monto solo si este turno se liquida

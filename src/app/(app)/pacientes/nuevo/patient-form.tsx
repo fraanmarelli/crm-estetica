@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import { createPatient, type PatientActionState } from "../../actions";
 import { SubmitButton } from "@/components/submit-button";
+import { DateField } from "@/components/date-fields";
 import { PATIENT_SOURCES } from "@/lib/format";
 
 export function NewPatientForm({ next }: { next: { turno: string; fecha: string; vista: string } }) {
@@ -78,7 +79,7 @@ export function NewPatientForm({ next }: { next: { turno: string; fecha: string;
         </div>
         <div className={quick ? "hidden" : ""}>
           <label className="label">Fecha de nacimiento</label>
-          <input name="birth_date" type="date" defaultValue={v.birth_date} className="input" />
+          <DateField name="birth_date" defaultValue={v.birth_date} birthday />
         </div>
         <div>
           <label className="label">¿Cómo nos conoció? *</label>

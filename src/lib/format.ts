@@ -155,3 +155,22 @@ export function pluralEs(word: string): string {
   if (!word) return word;
   return /[aeiouáéó]$/i.test(word) ? `${word}s` : `${word}es`;
 }
+
+// Montos mientras se escriben: punto cada 3 cifras y coma para decimales (10.000.000 / 1.450,50).
+// Los parsers del servidor ya sacan los puntos y cambian la coma por punto.
+export function groupThousands(raw: string): string {
+  const clean = String(raw ?? "").replace(/[^\d,]/g, "");
+  if (!clean) return "";
+  const [intPart, ...rest] = clean.split(",");
+  const digits = intPart.replace(/^0+(?=\d)/, "");
+  const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return rest.length ? `${grouped || "0"},${rest.join("").slice(0, 2)}` : grouped;
+}
+
+// Número guardado (ej. 1450.5) a como se muestra en un campo (1.450,5)
+export function moneyInputValue(n: number | string | null | undefined): string {
+  if (n === null || n === undefined || n === "") return "";
+  const [i, d] = String(n).split(".");
+  const dec = d && Number(d) !== 0 ? `,${d.replace(/0+$/, "")}` : "";
+  return groupThousands(i) + dec;
+}

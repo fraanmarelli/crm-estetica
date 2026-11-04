@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { saveSupplyCosts } from "./actions";
 import { SubmitButton } from "@/components/submit-button";
-import { pluralEs } from "@/lib/format";
+import { groupThousands, moneyInputValue, pluralEs } from "@/lib/format";
 import type { ActionState, Supply } from "@/lib/types";
 
 const money = (v: number | null) =>
@@ -12,7 +12,7 @@ const money = (v: number | null) =>
 export function SupplyCostsForm({ supplies, canEdit }: { supplies: Supply[]; canEdit: boolean }) {
   const [state, action] = useActionState<ActionState, FormData>(saveSupplyCosts, null);
   const [values, setValues] = useState(() =>
-    Object.fromEntries(supplies.map((s) => [s.id, { unit_cost: s.unit_cost?.toString() ?? "", unit: s.unit }])),
+    Object.fromEntries(supplies.map((s) => [s.id, { unit_cost: moneyInputValue(s.unit_cost), unit: s.unit }])),
   );
   const rows = JSON.stringify(Object.entries(values).map(([id, v]) => ({ id, ...v })));
   const missing = supplies.filter((s) => s.unit_cost === null).length;
@@ -55,7 +55,7 @@ export function SupplyCostsForm({ supplies, canEdit }: { supplies: Supply[]; can
                     <input
                       inputMode="numeric"
                       value={values[s.id].unit_cost}
-                      onChange={(e) => setValues((v) => ({ ...v, [s.id]: { ...v[s.id], unit_cost: e.target.value } }))}
+                      onChange={(e) => setValues((v) => ({ ...v, [s.id]: { ...v[s.id], unit_cost: groupThousands(e.target.value) } }))}
                       placeholder={`$ por ${s.unit}`}
                       aria-label={`Costo de ${s.name}`}
                       className="input num"

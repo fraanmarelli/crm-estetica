@@ -31,6 +31,8 @@
 
   --canvas: #f6f5f3;
   --surface: #ffffff;
+  /* Fondo de los campos de los formularios */
+  --field: #ffffff;
   --subtle: #f0eeea;
   --line: #e6e2db;
   --ink: #1f1b16;
@@ -65,14 +67,16 @@
     --chrome-ink: #efe8da;
     --chrome-muted: #a69d8e;
     --chrome-line: #26221e;
-    --canvas: #141210;
-    --surface: #1c1a17;
-    --subtle: #25221e;
-    --line: #34302a;
-    --ink: #f3eee5;
-    --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 8px 24px -8px rgba(0, 0, 0, 0.6);
-    --shadow-card-hover: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 14px 32px -10px rgba(0, 0, 0, 0.7);
-    --muted: #a8a093;
+    /* Oscuro: fondo bien negro y tarjetas claramente más claras, para que se lean de un vistazo */
+    --canvas: #0d0c0b;
+    --surface: #1f1c19;
+    --field: #141210;
+    --subtle: #2a2723;
+    --line: #3d3832;
+    --ink: #f6f1e8;
+    --shadow-card: 0 0 0 1px rgba(255, 240, 215, 0.07), 0 10px 28px -10px rgba(0, 0, 0, 0.8);
+    --shadow-card-hover: 0 0 0 1px rgba(255, 240, 215, 0.12), 0 14px 32px -10px rgba(0, 0, 0, 0.85);
+    --muted: #bdb3a4;
     --ok: #5fd0a0;
     --ok-soft: #14291f;
     --ok-line: #23503b;
@@ -203,6 +207,20 @@
     background: var(--chrome);
     color: var(--chrome-ink);
   }
+  /* Selector nativo en pantallas táctiles, propio en la compu (ver date-fields.tsx).
+     Los nativos ocultos no llevan "required": un campo oculto obligatorio frena el envío. */
+  .touch-only {
+    display: none;
+  }
+  @media (pointer: coarse) {
+    .touch-only {
+      display: block;
+    }
+    .pointer-only {
+      display: none !important;
+    }
+  }
+
   /* Sección plegable (details) con resumen a la vista */
   .fold-summary {
     display: flex;
@@ -252,7 +270,7 @@
   .input {
     width: 100%;
     border: 1px solid var(--line);
-    background: var(--surface);
+    background: var(--field);
     color: var(--ink);
     border-radius: 10px;
     padding: 0.55rem 0.75rem;

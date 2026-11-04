@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { completeIntake, type IntakeState } from "./actions";
 import { SubmitButton } from "@/components/submit-button";
+import { DateField } from "@/components/date-fields";
 
 export function IntakeForm({
   token,
@@ -53,7 +54,7 @@ export function IntakeForm({
           </div>
           <div>
             <label className="label" htmlFor="i-nac">Fecha de nacimiento</label>
-            <input id="i-nac" name="birth_date" type="date" autoComplete="bday" defaultValue={v.birth_date} className={field} />
+            <DateField id="i-nac" name="birth_date" autoComplete="bday" defaultValue={v.birth_date} className={field} birthday />
           </div>
           <div className="sm:col-span-2">
             <label className="label" htmlFor="i-mail">Email</label>

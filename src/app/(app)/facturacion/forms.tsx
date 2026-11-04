@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { assignHolders, createHolder, updateHolder } from "./actions";
 import { SubmitButton } from "@/components/submit-button";
+import { MoneyInput } from "@/components/money-input";
 import type { ActionState } from "@/lib/types";
 
 export type HolderFields = {
@@ -43,13 +44,11 @@ export function HolderForm({ holder, compact = false }: { holder?: HolderFields;
         </div>
         <div>
           <label className="label" htmlFor={`h-limit-${id}`}>Tope 12 meses</label>
-          <input
+          <MoneyInput
             id={`h-limit-${id}`}
             name="annual_limit"
             defaultValue={fmtPlain(holder?.annual_limit ?? null)}
-            inputMode="numeric"
             placeholder="$ de su categoría"
-            className="input num"
           />
         </div>
         <div>

@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { updatePatient } from "../../actions";
 import { SubmitButton } from "@/components/submit-button";
+import { DateField } from "@/components/date-fields";
 import { PATIENT_SOURCES } from "@/lib/format";
 import type { ActionState, Patient } from "@/lib/types";
 
@@ -63,7 +64,7 @@ export function PatientEditForm({
         </div>
         <div>
           <label className="label">Nacimiento</label>
-          <input name="birth_date" type="date" defaultValue={v.birth_date} className="input" />
+          <DateField name="birth_date" defaultValue={v.birth_date} birthday />
         </div>
         <div>
           <label className="label">Origen</label>

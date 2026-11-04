@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { createSupply } from "./actions";
 import { SubmitButton } from "@/components/submit-button";
+import { MoneyInput } from "@/components/money-input";
 import type { ActionState } from "@/lib/types";
 
 export function NewSupplyForm() {
@@ -20,7 +21,7 @@ export function NewSupplyForm() {
         </div>
         <div>
           <label className="label" htmlFor="supply-cost">Costo</label>
-          <input id="supply-cost" name="unit_cost" inputMode="numeric" placeholder="$" className="input" />
+          <MoneyInput id="supply-cost" name="unit_cost" placeholder="$" className="input" />
         </div>
       </div>
       {state?.error && <p className="alert-error">{state.error}</p>}

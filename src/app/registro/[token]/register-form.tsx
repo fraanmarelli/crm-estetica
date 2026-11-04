@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { registerPatient, type RegisterState } from "./actions";
 import { SubmitButton } from "@/components/submit-button";
+import { DateField } from "@/components/date-fields";
 import { PATIENT_SOURCES } from "@/lib/format";
 
 export function RegisterForm({ token, clinic, onClinicDevice }: { token: string; clinic: string; onClinicDevice: boolean }) {
@@ -56,7 +57,7 @@ export function RegisterForm({ token, clinic, onClinicDevice }: { token: string;
           </div>
           <div>
             <label className="label" htmlFor="f-nac">Fecha de nacimiento</label>
-            <input id="f-nac" name="birth_date" type="date" autoComplete="bday" defaultValue={v.birth_date} className={field} />
+            <DateField id="f-nac" name="birth_date" autoComplete="bday" defaultValue={v.birth_date} className={field} birthday />
           </div>
           <div className="sm:col-span-2">
             <label className="label" htmlFor="f-dom">Domicilio</label>

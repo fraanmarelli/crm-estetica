@@ -26,6 +26,12 @@ const valuesOf = (fd: FormData): Record<string, string> => {
   });
   return out;
 };
+const qtyOrNull = (v: string) => {
+  const t = v.trim().replace(",", ".");
+  if (t === "") return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+};
 const numOrNull = (v: string) => {
   if (v === "") return null;
   const n = Number(v.replace(/\./g, "").replace(",", "."));
@@ -264,7 +270,8 @@ export async function saveAppointment(_prev: ActionState, formData: FormData): P
         appointment_id: appointmentId,
         treatment_id: i.treatment_id,
         zone: orNull(i.zone ?? ""),
-        quantity: numOrNull(i.quantity ?? ""),
+        // Cantidad de insumo: acepta 0,5 o 0.5 (acá el punto es decimal, no de miles)
+        quantity: qtyOrNull(i.quantity ?? ""),
         price: numOrNull(i.price ?? ""),
         // La base verifica que la promo sea de la red o de esta sucursal
         promotion_id: orNull(i.promotion_id ?? ""),
