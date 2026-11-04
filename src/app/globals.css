@@ -203,6 +203,25 @@
     background: var(--chrome);
     color: var(--chrome-ink);
   }
+  /* Sección plegable (details) con resumen a la vista */
+  .fold-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    cursor: pointer;
+    list-style: none;
+  }
+  .fold-summary::-webkit-details-marker {
+    display: none;
+  }
+  .fold-chevron {
+    transition: transform 150ms;
+  }
+  .fold[open] .fold-chevron {
+    transform: rotate(180deg);
+  }
+
   .kpi-link,
   .card-link {
     transition: box-shadow 160ms ease, transform 160ms ease;

@@ -80,50 +80,67 @@ export default async function SettingsPage({
   const list = (integrations ?? []) as unknown as Integration[];
   const errors = (problems ?? []) as OutboxRow[];
 
+  const profList = (profs ?? []) as { id: string; full_name: string; commission_pct: number; is_active: boolean }[];
+  const accountList = (accounts ?? []) as { id: string; name: string; currency: "ARS" | "USD"; is_active: boolean }[];
+  const activeProfs = profList.filter((p) => p.is_active);
+  const connectedCount = pesoAccounts.filter((a) => mpConnections.some((c) => c.account_id === a.id)).length;
+  const mpErrors = mpConnections.filter((c) => c.last_error).length;
+
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
+    <div className="mx-auto max-w-4xl space-y-4">
       <div className="page-head">
         <div>
           <h1>Ajustes</h1>
-          <p className="page-sub">{ctx.currentBranch.name}: médicos, cuentas de cobro y conexiones (Google Calendar, Klaviyo, planilla)</p>
+          <p className="page-sub">{ctx.currentBranch.name}. Tocá una sección para abrirla.</p>
         </div>
       </div>
 
-      <section className="card space-y-4">
-        <div>
-          <h2>Médicos y comisión</h2>
-          <p className="text-sm text-muted">
-            La comisión se calcula sola en cada turno: porcentaje sobre lo cobrado. Se puede cambiar a mano en un turno
-            puntual. Recepción no ve estos porcentajes.
-          </p>
-        </div>
-        <ProfessionalsForm
-          professionals={(profs ?? []) as { id: string; full_name: string; commission_pct: number; is_active: boolean }[]}
-        />
-      </section>
+      <Fold
+        title="Médicos y comisión"
+        summary={
+          activeProfs.length
+            ? activeProfs.map((p) => `${p.full_name} ${p.commission_pct ?? 0}%`).join(" · ")
+            : "Todavía no hay médicos cargados"
+        }
+        open={activeProfs.length === 0}
+      >
+        <p className="text-sm text-muted">
+          La comisión se calcula sola en cada turno: porcentaje sobre lo cobrado. Se puede cambiar a mano en un turno
+          puntual. Recepción no ve estos porcentajes.
+        </p>
+        <ProfessionalsForm professionals={profList} />
+      </Fold>
 
-      <section className="card space-y-4">
-        <div>
-          <h2>Cuentas de cobro</h2>
-          <p className="text-sm text-muted">
-            Las opciones que aparecen al registrar cómo pagó cada paciente. El titular de cada cuenta y los topes del
-            monotributo se cargan en <Link href="/facturacion" className="link">Facturación</Link>.
-          </p>
-        </div>
-        <AccountsForm
-          accounts={(accounts ?? []) as { id: string; name: string; currency: "ARS" | "USD"; is_active: boolean }[]}
-        />
-      </section>
+      <Fold
+        title="Cuentas de cobro"
+        summary={`${accountList.filter((a) => a.is_active).length} cuentas activas`}
+        open={accountList.length === 0}
+      >
+        <p className="text-sm text-muted">
+          Las opciones que aparecen al registrar cómo pagó cada paciente. El titular de cada cuenta y los topes del
+          monotributo se cargan en <Link href="/facturacion" className="link">Facturación</Link>.
+        </p>
+        <AccountsForm accounts={accountList} />
+      </Fold>
 
-      <section id="mp" className="card space-y-4">
-        <div>
-          <h2>Verificar transferencias de Mercado Pago</h2>
-          <p className="text-sm text-muted">
-            Conectá cada cuenta de Mercado Pago del local. Cuando se carga un cobro o una seña en esa cuenta, el CRM se
-            fija solo si la plata llegó: monto exacto y, si la paciente tiene DNI cargado, que la haya mandado ella.
-            Tarda uno o dos minutos. Es solo lectura: el CRM no puede mover plata.
-          </p>
-        </div>
+      <Fold
+        id="mp"
+        title="Verificar transferencias de Mercado Pago"
+        summary={
+          mpErrors
+            ? `${mpErrors === 1 ? "Una cuenta tiene" : `${mpErrors} cuentas tienen`} un error`
+            : connectedCount
+              ? `${connectedCount} ${connectedCount === 1 ? "cuenta conectada" : "cuentas conectadas"}`
+              : "Ninguna cuenta conectada"
+        }
+        tone={mpErrors ? "bad" : undefined}
+        open={Boolean(sp.mp || sp.mp_error || mpErrors)}
+      >
+        <p className="text-sm text-muted">
+          Conectá cada cuenta de Mercado Pago del local. Cuando se carga un cobro o una seña en esa cuenta, el CRM se fija
+          solo si la plata llegó: monto exacto y, si la paciente tiene DNI cargado, que la haya mandado ella. Tarda uno o
+          dos minutos. Es solo lectura: el CRM no puede mover plata.
+        </p>
         {sp.mp === "ok" && <p className="alert-ok">Cuenta de Mercado Pago conectada.</p>}
         {sp.mp_error && <p className="alert-error">{sp.mp_error}</p>}
         {!mpConfigured() ? (
@@ -167,16 +184,20 @@ export default async function SettingsPage({
           Al conectar, iniciá sesión con la cuenta de Mercado Pago de esa persona (por ejemplo, la de Marian para «MP
           Marian»). Las transferencias a bancos y los cobros con posnet no se pueden verificar así.
         </p>
-      </section>
+      </Fold>
 
-      <section className="card space-y-4">
-        <h2>Conexiones</h2>
-        {list.length === 0 ? (
-          <p className="text-sm text-muted">Todavía no hay nada conectado.</p>
-        ) : (
-          <ul className="divide-y divide-line rounded-xl border border-line">
+      <Fold
+        title="Planilla, calendario y Klaviyo"
+        summary={
+          list.length
+            ? list.map((i) => `${TYPE_LABEL[i.type]}${i.is_active ? "" : " (pausada)"}`).join(" · ")
+            : "Nada conectado todavía"
+        }
+      >
+        {list.length > 0 && (
+          <ul className="divide-y divide-line">
             {list.map((i) => (
-              <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
+              <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
                 <div className="min-w-0">
                   <p className="font-semibold">
                     {TYPE_LABEL[i.type]}{" "}
@@ -200,27 +221,31 @@ export default async function SettingsPage({
             ))}
           </ul>
         )}
-      </section>
+        <details className="rounded-xl bg-subtle px-3 py-2" open={list.length === 0}>
+          <summary className="cursor-pointer text-sm font-semibold">Conectar algo nuevo</summary>
+          <div className="mt-3">
+            <IntegrationForm branches={ctx.branches} isNetwork={ctx.isNetwork} currentBranch={ctx.currentBranch} />
+          </div>
+        </details>
+        <details className="rounded-xl bg-subtle px-3 py-2">
+          <summary className="cursor-pointer text-sm font-semibold">Cómo usar Klaviyo para los recordatorios</summary>
+          <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-muted">
+            <li>Cada tratamiento realizado llega a Klaviyo como evento «Tratamiento realizado», con el tratamiento y su fecha de vencimiento.</li>
+            <li>En Klaviyo creá un flow por tratamiento: disparador «Tratamiento realizado», filtro «tratamiento = Botox», espera de 110 días y el mail.</li>
+            <li>Agregá el filtro «no hizo Tratamiento realizado desde que empezó el flow» para no escribirle a quien ya volvió.</li>
+            <li>Solo se envían pacientes que aceptaron recibir mails y tienen email cargado.</li>
+          </ol>
+        </details>
+      </Fold>
 
-      <section className="card space-y-4">
-        <h2>Conectar</h2>
-        <IntegrationForm branches={ctx.branches} isNetwork={ctx.isNetwork} currentBranch={ctx.currentBranch} />
-      </section>
-
-      <section className="card space-y-3">
-        <h2>Cómo usar Klaviyo para los recordatorios</h2>
-        <ol className="list-decimal space-y-1 pl-5 text-sm text-muted">
-          <li>Cada tratamiento realizado llega a Klaviyo como evento «Tratamiento realizado», con el tratamiento y su fecha de vencimiento.</li>
-          <li>En Klaviyo creá un flow por tratamiento: disparador «Tratamiento realizado», filtro «tratamiento = Botox», espera de 110 días y el mail.</li>
-          <li>Agregá el filtro «no hizo Tratamiento realizado desde que empezó el flow» para no escribirle a quien ya volvió.</li>
-          <li>Solo se envían pacientes que aceptaron recibir mails y tienen email cargado.</li>
-        </ol>
-      </section>
-
-      <section className="card space-y-3">
-        <h2>Errores de envío</h2>
+      <Fold
+        title="Errores de envío"
+        summary={errors.length ? `${errors.length} con problemas` : "Sin errores"}
+        tone={errors.length ? "bad" : undefined}
+        open={errors.length > 0}
+      >
         {errors.length === 0 ? (
-          <p className="text-sm text-muted">Sin errores.</p>
+          <p className="text-sm text-muted">Todo lo que se mandó a la planilla, el calendario y Klaviyo llegó bien.</p>
         ) : (
           <ul className="space-y-2 text-sm">
             {errors.map((e) => (
@@ -236,7 +261,39 @@ export default async function SettingsPage({
             ))}
           </ul>
         )}
-      </section>
+      </Fold>
     </div>
+  );
+}
+
+// Sección plegable: el título y un resumen a la vista, el detalle adentro
+function Fold({
+  id,
+  title,
+  summary,
+  tone,
+  open = false,
+  children,
+}: {
+  id?: string;
+  title: string;
+  summary: string;
+  tone?: "bad";
+  open?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <details id={id} className="card fold" open={open}>
+      <summary className="fold-summary">
+        <div className="min-w-0">
+          <h2>{title}</h2>
+          <p className={`truncate text-sm ${tone === "bad" ? "text-bad" : "text-muted"}`}>{summary}</p>
+        </div>
+        <svg viewBox="0 0 24 24" className="fold-chevron h-5 w-5 shrink-0 text-muted" fill="none" stroke="currentColor" strokeWidth={1.75} aria-hidden="true">
+          <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </summary>
+      <div className="mt-4 space-y-4">{children}</div>
+    </details>
   );
 }
