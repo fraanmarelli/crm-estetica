@@ -4,7 +4,7 @@ import { META_GRAPH_VERSION, appUrl } from "@/lib/meta";
 
 // Leads de los formularios instantáneos de Meta: conexión de la página, webhook y lectura.
 export const META_LEADS_COOKIE = "crm_meta_leads_oauth";
-export const LEAD_SCOPES = ["pages_show_list", "pages_read_engagement", "pages_manage_metadata", "leads_retrieval", "ads_management"];
+export const LEAD_SCOPES = ["pages_show_list", "pages_read_engagement", "pages_manage_metadata", "pages_manage_ads", "leads_retrieval", "ads_management"];
 
 export function leadsConfigured(): boolean {
   return Boolean(process.env.META_APP_ID && process.env.META_APP_SECRET && process.env.SUPABASE_SERVICE_ROLE_KEY);
