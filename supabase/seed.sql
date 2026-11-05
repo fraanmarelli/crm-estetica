@@ -24,6 +24,9 @@ values (
 on conflict (slug) do update
   set settings = public.organizations.settings || jsonb_build_object('brand', excluded.settings->'brand');
 
+-- Las cuentas de cobro de estas sucursales se cargan más abajo (Córdoba con las de su planilla)
+alter table public.branches disable trigger branches_seed_accounts;
+
 insert into public.branches (organization_id, name, address, phone, whatsapp)
 values
   ('00000000-0000-0000-0000-00000000d0b0', 'Ramos Mejía',          'Av. de Mayo 652, Ramos Mejía',              '1164801662',  '5491164801662'),
@@ -126,3 +129,5 @@ select b.organization_id, b.id, v.name, v.currency, v.sort_order
  where b.organization_id = '00000000-0000-0000-0000-00000000d0b0' and b.name <> 'Córdoba'
    and not exists (select 1 from public.payment_accounts pa where pa.branch_id = b.id)
 on conflict (branch_id, name) do nothing;
+
+alter table public.branches enable trigger branches_seed_accounts;

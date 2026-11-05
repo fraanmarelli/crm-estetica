@@ -64,6 +64,12 @@ y entregá archivos completos.
   = `patients.consent_data_at is null`. Se completa en `/pacientes/[id]/completar`: a mano (el form pide el
   consentimiento) o con un link personal `/ficha/[patient_intakes.token]` (público, un uso, 7 días; el servidor
   valida el token y recién ahí usa `createAdminClient()`; solo completa campos, no borra). Agenda y cobro avisan.
+- Equipo: `member_invites` (link personal `/invitacion/[token]`, 7 días, un uso; sin mail de Supabase: se manda
+  por WhatsApp/mail desde el CRM). Al aceptar, el servidor valida el token y con service role crea el usuario
+  (o suma el acceso si el mail ya tenía cuenta), la membresía y vincula `professionals.user_id`. `can_manage_role()`:
+  marca invita marca/franquiciado/equipo; franquiciado, recepción y profesionales de su sucursal.
+  `team_members()`, `branch_owners()`, `remove_membership()`. Sucursal nueva (marca, en /marca) arranca con cuentas
+  de cobro genéricas por trigger (`seed_branch_accounts`).
 - Búsqueda de pacientes: `applyPatientSearch()` (cada palabra en nombre, apellido, celular o DNI) + `LiveSearch`
   (filtra mientras se escribe actualizando `?q=`).
 - Marketing: `ad_connections` (una cuenta de Meta por sucursal), `ad_connection_secrets` (tokens, solo
@@ -97,7 +103,6 @@ y entregá archivos completos.
 - **"Conectar con Google"** (OAuth) para Calendar y Sheets en vez de Apps Script: un botón, el CRM crea el
   calendario de la sucursal solo. Requiere proyecto en Google Cloud y verificación de la app por Google.
 - **Exportar a Excel** los turnos/cobros por período, para sucursales que no necesitan sincronizar una planilla.
-- ABM de profesionales y de usuarios (invitar por email) desde la app.
 - Importar pacientes/turnos históricos desde la planilla (CSV) usando `external_ref` (no se re-sincronizan).
 - Editar el mensaje de recall y los `recall_days` desde Ajustes.
 - Recordatorio previo al vencimiento del token de Meta (mail al franquiciado).

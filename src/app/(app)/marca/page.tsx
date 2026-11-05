@@ -2,6 +2,9 @@ import { createClient } from "@/lib/supabase/server";
 import { requireNetworkContext } from "@/lib/context";
 import { fmtMoney, todayISO } from "@/lib/format";
 import { Kpi } from "@/components/kpi";
+import { InviteForm } from "../equipo/invite-form";
+import { TeamPanel } from "../equipo/team-panel";
+import { BranchForm } from "./branch-form";
 
 type Stat = {
   branch_id: string;
@@ -25,7 +28,7 @@ export default async function NetworkPage() {
   const current = monthStart(0);
   const previous = monthStart(-1);
 
-  const [{ data: stats }, { data: due }, { count: patientsCount }] = await Promise.all([
+  const [{ data: stats }, { data: due }, { count: patientsCount }, { data: ownerData }] = await Promise.all([
     supabase
       .from("branch_monthly_stats")
       .select("branch_id, month, completed, no_shows, cancelled, revenue, unique_patients")
@@ -33,7 +36,9 @@ export default async function NetworkPage() {
       .in("month", [current, previous]),
     supabase.from("recall_due_by_branch").select("branch_id, due_count").eq("organization_id", ctx.org.id),
     supabase.from("patients").select("id", { count: "exact", head: true }).eq("organization_id", ctx.org.id),
+    supabase.rpc("branch_owners", { p_org: ctx.org.id }),
   ]);
+  const owners = (ownerData ?? []) as { branch_id: string; email: string }[];
 
   const list = (stats ?? []) as Stat[];
   const get = (branchId: string, month: string) =>
@@ -70,7 +75,7 @@ export default async function NetworkPage() {
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi label="Facturado" value={fmtMoney(totals.revenue, ctx.org.currency)} hint={`${variation(totals.revenue, totals.prevRevenue)} contra el mes anterior`} accent />
-        <Kpi label="Turnos realizados" value={String(totals.completed)} />
+        <Kpi label="Turnos atendidos" value={String(totals.completed)} />
         <Kpi label="Pacientes registradas" value={String(patientsCount ?? 0)} />
         <Kpi label="Recall vencido" value={String(totals.due)} hint="Pacientes sin recontactar" />
       </div>
@@ -80,7 +85,7 @@ export default async function NetworkPage() {
           <thead>
             <tr>
               <th>Sucursal</th>
-              <th>Realizados</th>
+              <th>Atendidas</th>
               <th>No vino</th>
               <th>Pacientes únicas</th>
               <th>Facturado</th>
@@ -110,6 +115,53 @@ export default async function NetworkPage() {
       <p className="text-xs text-muted">
         Una sucursal sin turnos cargados aparece en cero: es la señal de que no está usando el sistema.
       </p>
+
+      <section className="card space-y-4">
+        <div>
+          <h2>Sucursales y franquiciados</h2>
+          <p className="text-sm text-muted">
+            Creá una sucursal y dale acceso a su franquiciado/a. Después, el franquiciado invita a su equipo desde
+            Ajustes.
+          </p>
+        </div>
+        <ul className="divide-y divide-line">
+          {ctx.branches.map((b) => {
+            const list = owners.filter((o) => o.branch_id === b.id).map((o) => o.email);
+            return (
+              <li key={b.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
+                <span className="font-semibold">{b.name}</span>
+                <span className={list.length ? "text-muted" : "text-warn"}>
+                  {list.length ? list.join(", ") : "Sin franquiciado/a con acceso"}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+        <div className="grid gap-6 border-t border-line pt-4 lg:grid-cols-2">
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold">Dar acceso de franquiciado/a</h3>
+            <InviteForm roles={["branch_admin"]} branches={ctx.branches} orgName={ctx.org.name} />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold">Nueva sucursal</h3>
+            <BranchForm />
+          </div>
+        </div>
+      </section>
+
+      <section className="card space-y-4">
+        <div>
+          <h2>Equipo de la marca</h2>
+          <p className="text-sm text-muted">Personas que ven todas las sucursales, con costos incluidos.</p>
+        </div>
+        <TeamPanel
+          orgId={ctx.org.id}
+          orgName={ctx.org.name}
+          branchId={null}
+          roles={["network_admin", "network_owner"]}
+          currentUserId={ctx.userId}
+        />
+      </section>
     </div>
   );
 }

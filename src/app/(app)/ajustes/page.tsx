@@ -5,6 +5,7 @@ import { fmtDateTime, fmtTime } from "@/lib/format";
 import { mpConfigured } from "@/lib/mercadopago";
 import { toggleIntegration } from "../actions";
 import { disconnectMp } from "./actions";
+import { TeamPanel } from "../equipo/team-panel";
 import { IntegrationForm } from "./integration-form";
 import { AccountsForm, ProfessionalsForm } from "./team-forms";
 
@@ -94,6 +95,24 @@ export default async function SettingsPage({
           <p className="page-sub">{ctx.currentBranch.name}. Tocá una sección para abrirla.</p>
         </div>
       </div>
+
+      <Fold
+        id="equipo"
+        title="Equipo"
+        summary={
+          ctx.isNetwork
+            ? "Quién entra al CRM en esta sucursal: franquiciado/a, recepción y profesionales"
+            : "Quién entra al CRM: recepción y profesionales"
+        }
+      >
+        <TeamPanel
+          orgId={ctx.org.id}
+          orgName={ctx.org.name}
+          branchId={ctx.currentBranch.id}
+          roles={ctx.isNetwork ? ["branch_admin", "reception", "professional"] : ["reception", "professional"]}
+          currentUserId={ctx.userId}
+        />
+      </Fold>
 
       <Fold
         title="Médicos y comisión"
