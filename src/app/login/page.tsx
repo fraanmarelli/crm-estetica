@@ -7,7 +7,7 @@ export default function LoginPage() {
   const [state, action, pending] = useActionState(signIn, null);
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
+    <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-4">
       <form action={action} className="card w-full max-w-sm space-y-4 p-6">
         <div>
           <h1>Ingresar</h1>
@@ -26,6 +26,10 @@ export default function LoginPage() {
           {pending ? "Ingresando..." : "Ingresar"}
         </button>
       </form>
+      <p className="flex gap-4 text-xs text-muted">
+        <a href="/privacidad" className="hover:text-ink">Privacidad</a>
+        <a href="/borrado-de-datos" className="hover:text-ink">Borrado de datos</a>
+      </p>
     </main>
   );
 }

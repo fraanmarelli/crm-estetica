@@ -2,8 +2,9 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // /registro/<token> = formulario donde la paciente carga sus datos (sin sesión, valida el token)
+// /privacidad y /borrado-de-datos = páginas legales que pide Meta
 // /api/meta/leads/webhook = avisos de Meta (se validan con la firma de la app, no con sesión)
-const PUBLIC_PATHS = ["/login", "/registro/", "/ficha/", "/invitacion/", "/api/meta/leads/webhook"];
+const PUBLIC_PATHS = ["/login", "/registro/", "/ficha/", "/invitacion/", "/api/meta/leads/webhook", "/privacidad", "/borrado-de-datos"];
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });

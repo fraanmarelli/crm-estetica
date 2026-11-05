@@ -521,3 +521,21 @@
     color: #1f1b16;
   }
 }
+
+/* Páginas legales */
+@layer components {
+  .legal h2 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-top: 1.75rem;
+  }
+  .legal ul,
+  .legal ol {
+    padding-left: 1.25rem;
+    display: grid;
+    gap: 0.4rem;
+  }
+  .legal ul { list-style: disc; }
+  .legal ol { list-style: decimal; }
+  .legal a { text-decoration: underline; text-underline-offset: 2px; }
+}
