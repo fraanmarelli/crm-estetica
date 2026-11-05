@@ -117,7 +117,7 @@ export default async function LeadsPage({
                       ? `Último error: ${p.last_error}`
                       : p.last_lead_at
                         ? `Último lead ${ago(p.last_lead_at)}`
-                        : "Los formularios nuevos llegan solos, en segundos."}
+                        : "Los formularios nuevos llegan solos (se revisa cada 5 minutos)."}
                   </p>
                 </div>
                 <form action={disconnectLeadPage}>

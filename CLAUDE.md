@@ -75,6 +75,8 @@ y entregá archivos completos.
   sucursal) + `lead_page_secrets` (token, solo service role). Webhook público `/api/meta/leads/webhook` (firma
   `X-Hub-Signature-256` con `META_APP_SECRET`) trae el lead con el token de la página. "Darle turno" crea la paciente
   desde la carga rápida con `lead_id` y lo marca booked. Al conectar se importan los últimos 30 días.
+  Respaldo: `leads-sync` (cron cada 5 min) busca leads nuevos por página desde `lead_pages.last_synced_at`
+  (Meta no entrega webhooks reales con la app sin publicar).
 - Búsqueda de pacientes: `applyPatientSearch()` (cada palabra en nombre, apellido, celular o DNI) + `LiveSearch`
   (filtra mientras se escribe actualizando `?q=`).
 - Marketing: `ad_connections` (una cuenta de Meta por sucursal), `ad_connection_secrets` (tokens, solo

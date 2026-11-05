@@ -251,6 +251,10 @@ el archivo). Se usa la misma app de Meta del paso 8.
 5. En el CRM, el franquiciado (o la marca) entra a **Leads → Conectar con Facebook** y elige la página. Se traen
    los formularios de los últimos 30 días.
 6. Para probar: [Herramienta de prueba de anuncios para clientes potenciales](https://developers.facebook.com/tools/lead-ads-testing).
+7. **Mientras la app de Meta no esté publicada**, Meta no manda los avisos de formularios reales (solo los de
+   prueba). Por eso la función `leads-sync` (Edge Functions → Via editor, pegar
+   `supabase/functions/leads-sync/index.ts`, **Verify JWT** apagado) revisa cada 5 minutos con la migración
+   `20261105000300_leads_sync.sql`. Con la app publicada, el webhook los trae al instante.
 
 Para páginas que no administran los usuarios de la app (otras franquicias), Meta pide revisar la app antes de dar
 `leads_retrieval` en modo avanzado.

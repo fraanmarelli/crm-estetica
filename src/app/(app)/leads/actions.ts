@@ -46,6 +46,8 @@ export async function finalizeLeadPage(formData: FormData) {
           page_name: page.name,
           connected_by: ctx.userId,
           last_error: null,
+          // La revisión cada 5 minutos sigue desde acá (lo anterior lo trae la importación de abajo)
+          last_synced_at: new Date().toISOString(),
         },
         { onConflict: "page_id" },
       )
