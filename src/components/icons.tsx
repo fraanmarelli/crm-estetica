@@ -117,3 +117,12 @@ export const IconPromo = (p: Props) => (
     <circle cx="8.5" cy="8.5" r="1.5" />
   </Svg>
 );
+
+// Formulario recibido (bandeja con una flecha que entra)
+export const IconLeads = (p: Props) => (
+  <Svg {...p}>
+    <path d="M4 13.5V18a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4.5" />
+    <path d="M4 13.5h4.2l1.3 2.5h5l1.3-2.5H20" />
+    <path d="M12 3.5v8M8.8 8.5 12 11.7l3.2-3.2" />
+  </Svg>
+);

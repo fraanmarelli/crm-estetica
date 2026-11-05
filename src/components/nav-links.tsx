@@ -13,6 +13,7 @@ import {
   IconSupplies,
   IconBilling,
   IconPromo,
+  IconLeads,
 } from "@/components/icons";
 
 export type NavItem = { href: string; label: string; icon: keyof typeof ICONS };
@@ -28,6 +29,7 @@ const ICONS = {
   supplies: IconSupplies,
   billing: IconBilling,
   promos: IconPromo,
+  leads: IconLeads,
 };
 
 function isActive(pathname: string, href: string) {

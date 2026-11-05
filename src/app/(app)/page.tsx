@@ -67,6 +67,7 @@ export default async function AgendaPage({
     { data: birthdays },
     { data: pastPending },
     { data: holderData },
+    { count: newLeads },
   ] = await Promise.all([
       // Mes: solo cuántos turnos hay por día. Semana: el detalle de cada turno.
       supabase
@@ -105,6 +106,8 @@ export default async function AgendaPage({
       ctx.canManageCurrentBranch
         ? supabase.rpc("holder_status", { p_branch: branchId })
         : Promise.resolve({ data: null }),
+      // Si la tabla todavía no existe (falta la migración), devuelve error y count null: no rompe nada
+      supabase.from("leads").select("id", { count: "exact", head: true }).eq("branch_id", branchId).eq("status", "new"),
     ]);
 
   // Turnos por día para el calendario
@@ -192,6 +195,16 @@ export default async function AgendaPage({
             </li>
           ))}
         </ul>
+      </li>,
+    );
+  }
+  if (newLeads && day === today) {
+    notices.push(
+      <li key="leads">
+        <Link href="/leads" className="font-semibold hover:text-brand">
+          {newLeads === 1 ? "1 lead de los anuncios sin contactar" : `${newLeads} leads de los anuncios sin contactar`}
+        </Link>
+        <span className="text-muted">: cuanto antes se le escribe, más chances de que saque turno.</span>
       </li>,
     );
   }

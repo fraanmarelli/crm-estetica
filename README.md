@@ -234,6 +234,27 @@ Qué ve recepción: en la agenda y en el turno, debajo de la paciente, «✓ MP 
 verificada», «… esperando la transferencia» (la página se actualiza sola), «! revisar» o «✕ no llegó».
 Las transferencias a bancos y los cobros con posnet no se pueden verificar así.
 
+### 15. Leads de los anuncios con formulario (Meta)
+
+Cada formulario que completa alguien en un anuncio de Meta llega solo a **Leads** (no hace falta descargar
+el archivo). Se usa la misma app de Meta del paso 8.
+
+1. **Permisos de la app** (developers.facebook.com → tu app): `leads_retrieval`, `pages_show_list`,
+   `pages_read_engagement`, `pages_manage_metadata`, `ads_management`. Si la app usa *Facebook Login for
+   Business*, creá una configuración nueva con esos permisos y poné su ID en Vercel como `META_LEADS_CONFIG_ID`.
+2. **Webhook**: en la app → Webhooks → objeto **Page** → URL `https://TU-URL-DE-VERCEL/api/meta/leads/webhook`,
+   token de verificación = el valor de `META_WEBHOOK_VERIFY_TOKEN` → Verificar y guardar → suscribir el campo
+   **leadgen**.
+3. **Vercel**: `META_WEBHOOK_VERIFY_TOKEN` (una clave larga cualquiera). Redeploy.
+4. **Business Suite** → Configuración → Integraciones → **Acceso a clientes potenciales**: si está restringido,
+   dale acceso a la app.
+5. En el CRM, el franquiciado (o la marca) entra a **Leads → Conectar con Facebook** y elige la página. Se traen
+   los formularios de los últimos 30 días.
+6. Para probar: [Herramienta de prueba de anuncios para clientes potenciales](https://developers.facebook.com/tools/lead-ads-testing).
+
+Para páginas que no administran los usuarios de la app (otras franquicias), Meta pide revisar la app antes de dar
+`leads_retrieval` en modo avanzado.
+
 ## Cómo se calcula el retorno de la publicidad
 
 - **Pacientes nuevas de redes:** dadas de alta en el período que respondieron Instagram o Facebook en

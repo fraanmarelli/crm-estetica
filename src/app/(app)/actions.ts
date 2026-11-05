@@ -119,6 +119,13 @@ export async function createPatient(_prev: PatientActionState, formData: FormDat
     return { error: `No se pudo guardar: ${error.message}`, values: valuesOf(formData) };
   }
 
+  // Si venía de un lead de Meta: queda vinculado y como "sacó turno" (RLS: leads de sus sucursales)
+  const leadId = str(formData, "lead_id");
+  if (leadId) {
+    await supabase.from("leads").update({ patient_id: data.id, status: "booked" }).eq("id", leadId);
+    revalidatePath("/leads");
+  }
+
   // Si venía de "Nuevo turno", sigue directo a cargarle el turno
   if (str(formData, "next_turno") === "1") {
     const fecha = str(formData, "next_fecha");

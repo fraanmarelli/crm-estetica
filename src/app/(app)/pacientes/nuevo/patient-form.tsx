@@ -7,9 +7,18 @@ import { SubmitButton } from "@/components/submit-button";
 import { DateField } from "@/components/date-fields";
 import { PATIENT_SOURCES } from "@/lib/format";
 
-export function NewPatientForm({ next }: { next: { turno: string; fecha: string; vista: string } }) {
+export function NewPatientForm({
+  next,
+  prefill,
+  leadId,
+}: {
+  next: { turno: string; fecha: string; vista: string };
+  /** Datos precargados (ej. de un lead de Meta) */
+  prefill?: Record<string, string>;
+  leadId?: string;
+}) {
   const [state, action] = useActionState<PatientActionState, FormData>(createPatient, null);
-  const v = state?.values ?? {};
+  const v = state?.values ?? prefill ?? {};
   const hasDupes = Boolean(state?.duplicates?.length);
   // Rápida: solo lo necesario para dar el turno; el resto lo completa ella después
   const [quick, setQuick] = useState(v.quick ? v.quick === "1" : next.turno === "1");
@@ -18,6 +27,7 @@ export function NewPatientForm({ next }: { next: { turno: string; fecha: string;
     // La key fuerza a recargar los valores escritos si hubo un error
     <form key={JSON.stringify(v)} action={action} className="card space-y-4">
       {next.turno && <input type="hidden" name="next_turno" value="1" />}
+      {leadId && <input type="hidden" name="lead_id" value={leadId} />}
       {next.fecha && <input type="hidden" name="next_fecha" value={next.fecha} />}
       {next.vista && <input type="hidden" name="next_vista" value={next.vista} />}
       <input type="hidden" name="quick" value={quick ? "1" : ""} />

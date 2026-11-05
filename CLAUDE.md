@@ -70,6 +70,11 @@ y entregá archivos completos.
   marca invita marca/franquiciado/equipo; franquiciado, recepción y profesionales de su sucursal.
   `team_members()`, `branch_owners()`, `remove_membership()`. Sucursal nueva (marca, en /marca) arranca con cuentas
   de cobro genéricas por trigger (`seed_branch_accounts`).
+- Leads de Meta (formularios instantáneos): `leads` (no son pacientes; status new/contacted/booked/lost;
+  `prepare_lead()` normaliza el celular y vincula `patient_id` si ya existe). `lead_pages` (página de Facebook por
+  sucursal) + `lead_page_secrets` (token, solo service role). Webhook público `/api/meta/leads/webhook` (firma
+  `X-Hub-Signature-256` con `META_APP_SECRET`) trae el lead con el token de la página. "Darle turno" crea la paciente
+  desde la carga rápida con `lead_id` y lo marca booked. Al conectar se importan los últimos 30 días.
 - Búsqueda de pacientes: `applyPatientSearch()` (cada palabra en nombre, apellido, celular o DNI) + `LiveSearch`
   (filtra mientras se escribe actualizando `?q=`).
 - Marketing: `ad_connections` (una cuenta de Meta por sucursal), `ad_connection_secrets` (tokens, solo
