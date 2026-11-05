@@ -34,6 +34,7 @@ export async function finalizeLeadPage(formData: FormData) {
   if (!page) redirect(`/leads?error=${encodeURIComponent("Elegí una de las páginas de la lista.")}`);
 
   let imported = 0;
+  let importError: string | null = null;
   try {
     await subscribePage(page.id, page.access_token);
     const { data: saved, error } = await admin
@@ -59,7 +60,12 @@ export async function finalizeLeadPage(formData: FormData) {
       .upsert({ lead_page_id: saved.id, page_token: page.access_token, updated_at: new Date().toISOString() });
 
     // Los formularios de los últimos 30 días, para no perder los que ya llegaron
-    const recent = await recentLeads(page.id, page.access_token, 30).catch(() => []);
+    let recent: Awaited<ReturnType<typeof recentLeads>> = [];
+    try {
+      recent = await recentLeads(page.id, page.access_token, 30);
+    } catch (err) {
+      importError = err instanceof Error ? err.message.slice(0, 300) : "Error al leer los formularios";
+    }
     for (let i = 0; i < recent.length; i += 200) {
       const batch = recent.slice(i, i + 200).map((l) => ({
         ...l,
@@ -71,12 +77,21 @@ export async function finalizeLeadPage(formData: FormData) {
         .upsert(batch, { onConflict: "organization_id,external_id", ignoreDuplicates: true });
       if (!insErr) imported += batch.length;
     }
+    if (importError) {
+      // Se muestra en Leads y la revisión automática vuelve a intentar los últimos 30 días
+      await admin.from("lead_pages").update({ last_error: importError, last_synced_at: null }).eq("id", saved.id);
+    }
   } catch (err) {
     redirect(`/leads?error=${encodeURIComponent(`Meta respondió: ${err instanceof Error ? err.message : "error"}`)}`);
   } finally {
     await admin.from("lead_oauth_pending").delete().eq("id", pendingId);
   }
   revalidatePath("/leads");
+  if (importError) {
+    redirect(
+      `/leads?error=${encodeURIComponent(`Página «${page.name}» conectada, pero Meta no dejó leer los formularios: ${importError}`)}`,
+    );
+  }
   redirect(`/leads?ok=${encodeURIComponent(`Página «${page.name}» conectada. ${imported} leads de los últimos 30 días importados.`)}`);
 }
 

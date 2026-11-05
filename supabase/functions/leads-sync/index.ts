@@ -6,7 +6,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const GRAPH = `https://graph.facebook.com/${Deno.env.get("META_GRAPH_VERSION") ?? "v23.0"}`;
 const OVERLAP_MS = 15 * 60 * 1000; // vuelve a mirar 15 minutos para atrás (Meta a veces demora)
-const FIRST_LOOKBACK_MS = 24 * 60 * 60 * 1000;
+const FIRST_LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000; // primera vez (o después de un error al conectar): 30 días
 const LEAD_FIELDS = "id,created_time,field_data,ad_id,ad_name,campaign_id,campaign_name,form_id,platform";
 
 type MetaLead = {
