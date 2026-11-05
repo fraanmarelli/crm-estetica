@@ -275,6 +275,7 @@ export async function saveAppointment(_prev: ActionState, formData: FormData): P
         price: numOrNull(i.price ?? ""),
         // La base verifica que la promo sea de la red o de esta sucursal
         promotion_id: orNull(i.promotion_id ?? ""),
+        lot_code: orNull(String(i.lot_code ?? "").trim().toUpperCase().slice(0, 60)),
       })),
     );
     if (error) {

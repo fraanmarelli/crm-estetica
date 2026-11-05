@@ -40,6 +40,8 @@ type Row = {
   promotion_id: string;
   promotion_name: string;
   promo_items: { treatment_id: string; zone: string }[];
+  // Lote del insumo (jeringa, vial): en una promo, vale para sus tratamientos con insumo
+  lot_code: string;
 };
 
 const DURATIONS = [15, 20, 30, 45, 60, 90, 120, 180];
@@ -52,6 +54,7 @@ const emptyRow = (): Row => ({
   promotion_id: "",
   promotion_name: "",
   promo_items: [],
+  lot_code: "",
 });
 const emptyPayment = (): PaymentInput => ({ account_id: "", amount: "", exchange_rate: "" });
 const toNum = (s: string) => {
@@ -74,6 +77,7 @@ function toRows(items: AppointmentItemInput[]): Row[] {
         existing.price = moneyInputValue(toNum(existing.price) + toNum(it.price));
         existing.promo_items.push({ treatment_id: it.treatment_id, zone: it.zone });
         existing.quantity = "";
+        existing.lot_code = existing.lot_code || (it.lot_code ?? "");
         continue;
       }
       const row: Row = {
@@ -83,18 +87,26 @@ function toRows(items: AppointmentItemInput[]): Row[] {
         price: moneyInputValue(it.price),
         quantity: it.quantity,
         promo_items: [{ treatment_id: it.treatment_id, zone: it.zone }],
+        lot_code: it.lot_code ?? "",
       };
       byPromo.set(it.promotion_id, row);
       rows.push(row);
     } else {
-      rows.push({ ...emptyRow(), ...it, price: moneyInputValue(it.price), promotion_id: "", promotion_name: "" });
+      rows.push({
+        ...emptyRow(),
+        ...it,
+        price: moneyInputValue(it.price),
+        promotion_id: "",
+        promotion_name: "",
+        lot_code: it.lot_code ?? "",
+      });
     }
   }
   return rows;
 }
 
 // Renglones → ítems que se guardan
-function toItems(rows: Row[]): AppointmentItemInput[] {
+function toItems(rows: Row[], hasSupply: (treatmentId: string) => boolean): AppointmentItemInput[] {
   const out: AppointmentItemInput[] = [];
   for (const r of rows) {
     if (r.promotion_id) {
@@ -110,6 +122,7 @@ function toItems(rows: Row[]): AppointmentItemInput[] {
           quantity: list.length === 1 ? r.quantity : "",
           price: hasPrice ? forServer(i === list.length - 1 ? total - share * (list.length - 1) : share) : "",
           promotion_id: r.promotion_id,
+          lot_code: list.length === 1 || hasSupply(it.treatment_id) ? r.lot_code : "",
         });
       });
     } else if (r.treatment_id) {
@@ -118,6 +131,7 @@ function toItems(rows: Row[]): AppointmentItemInput[] {
         zone: r.zone,
         quantity: r.quantity,
         price: r.price.trim() === "" ? "" : forServer(toNum(r.price)),
+        lot_code: r.lot_code,
       });
     }
   }
@@ -130,6 +144,7 @@ export function AppointmentForm({
   professionals,
   accounts,
   promotions = [],
+  lastLots = {},
   canSeeCosts,
   defaults,
   mode = "full",
@@ -140,6 +155,8 @@ export function AppointmentForm({
   professionals: Professional[];
   accounts: PaymentAccount[];
   promotions?: Promotion[];
+  /** Último lote usado en la sucursal por tratamiento, para proponerlo */
+  lastLots?: Record<string, string>;
   canSeeCosts: boolean;
   defaults: AppointmentDefaults;
   // "checkout" = registrar que se atendió y cobrar: estado fijo en realizado, fecha plegada
@@ -230,6 +247,7 @@ export function AppointmentForm({
       const promo = promotions.find((p) => p.id === value.slice(6));
       if (!promo) return;
       const list = [...promo.items].sort((a, b) => a.sort_order - b.sort_order);
+      const withLot = list.find((it) => lastLots[it.treatment_id]);
       updateRow(index, {
         treatment_id: "",
         zone: "",
@@ -238,9 +256,16 @@ export function AppointmentForm({
         promotion_name: promo.name,
         promo_items: list.map((it) => ({ treatment_id: it.treatment_id, zone: it.zone ?? "" })),
         price: moneyInputValue(promo.price),
+        lot_code: withLot ? lastLots[withLot.treatment_id] : "",
       });
     } else {
-      updateRow(index, { treatment_id: value, promotion_id: "", promotion_name: "", promo_items: [] });
+      updateRow(index, {
+        treatment_id: value,
+        promotion_id: "",
+        promotion_name: "",
+        promo_items: [],
+        lot_code: lastLots[value] ?? "",
+      });
     }
   }
 
@@ -346,7 +371,11 @@ export function AppointmentForm({
       {defaults.id && <input type="hidden" name="id" value={defaults.id} />}
       <input type="hidden" name="patient_id" value={patientId} />
       {returnView && <input type="hidden" name="return_view" value={returnView} />}
-      <input type="hidden" name="items" value={JSON.stringify(toItems(rows))} />
+      <input
+        type="hidden"
+        name="items"
+        value={JSON.stringify(toItems(rows, (id) => Boolean(treatments.find((t) => t.id === id)?.supply)))}
+      />
       <input
         type="hidden"
         name="payments"
@@ -421,6 +450,19 @@ export function AppointmentForm({
             isPromo && row.promo_items.length === 1 ? treatments.find((x) => x.id === row.promo_items[0].treatment_id) : null;
           const supply = isPromo ? singlePromoTreatment?.supply : t?.supply;
           const showQuantity = !isPromo || row.promo_items.length === 1;
+          // Lote: si el tratamiento (o alguno de la promo) usa un insumo
+          const showLot = isPromo
+            ? row.promo_items.some((it) => treatments.find((x) => x.id === it.treatment_id)?.supply)
+            : Boolean(t?.supply);
+          const fields = (isPromo ? 0 : 1) + (showQuantity ? 1 : 0) + (showLot ? 1 : 0) + 1;
+          const gridCls =
+            fields === 1
+              ? "grid-cols-1 sm:max-w-[12rem]"
+              : fields === 2
+                ? "grid-cols-2"
+                : fields === 3
+                  ? "grid-cols-2 sm:grid-cols-3"
+                  : "grid-cols-2 sm:grid-cols-4";
           // Si la promo ya no está vigente (turno viejo), igual se muestra en el selector
           const promoMissing = isPromo && !promotions.some((p) => p.id === row.promotion_id);
           return (
@@ -471,7 +513,7 @@ export function AppointmentForm({
                     .join(" + ")}
                 </p>
               )}
-              <div className={`grid gap-2 ${isPromo ? (showQuantity ? "grid-cols-2" : "grid-cols-1 sm:max-w-[12rem]") : "grid-cols-2 sm:grid-cols-3"}`}>
+              <div className={`grid gap-2 ${gridCls}`}>
                 {!isPromo && (
                   <div>
                     <label className="mb-1 block text-xs text-muted" htmlFor={`zone-${index}`}>Zona</label>
@@ -499,7 +541,20 @@ export function AppointmentForm({
                     />
                   </div>
                 )}
-                <div className={!isPromo ? "col-span-2 sm:col-span-1" : ""}>
+                {showLot && (
+                  <div>
+                    <label className="mb-1 block text-xs text-muted" htmlFor={`lot-${index}`}>Lote</label>
+                    <input
+                      id={`lot-${index}`}
+                      value={row.lot_code}
+                      onChange={(e) => updateRow(index, { lot_code: e.target.value.toUpperCase().slice(0, 60) })}
+                      placeholder="Del envase"
+                      autoComplete="off"
+                      className="input num uppercase"
+                    />
+                  </div>
+                )}
+                <div className={fields % 2 === 1 && fields > 1 ? "col-span-2 sm:col-span-1" : ""}>
                   <label className="mb-1 block text-xs text-muted" htmlFor={`price-${index}`}>Precio cobrado</label>
                   <div className="relative">
                     <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted">$</span>
