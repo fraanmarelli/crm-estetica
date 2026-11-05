@@ -12,6 +12,60 @@ const str = (fd: FormData, k: string) => {
   return typeof v === "string" ? v.trim() : "";
 };
 
+type LeadPageRow = { id: string; page_id: string; page_name: string | null; organization_id: string; branch_id: string };
+type ImportResult = { found: number; added: number; forms: number; error: string | null };
+
+const ACCESS_HINT =
+  "Si en Meta ves leads, revisá en business.facebook.com → Configuración → Integraciones → Acceso a clientes potenciales que la app «CRM Estética» (o tu usuario) tenga acceso a esta página.";
+
+// Trae los leads de los últimos 30 días y guarda los que falten (no duplica: único por id de Meta)
+async function importRecentLeads(page: LeadPageRow, token: string): Promise<ImportResult> {
+  const admin = createAdminClient();
+  let found: Awaited<ReturnType<typeof recentLeads>>;
+  try {
+    found = await recentLeads(page.page_id, token, 30);
+  } catch (err) {
+    const error = err instanceof Error ? err.message.slice(0, 300) : "Error al leer los formularios";
+    // Queda a la vista y la revisión automática vuelve a intentar los últimos 30 días
+    await admin.from("lead_pages").update({ last_error: error, last_synced_at: null }).eq("id", page.id);
+    return { found: 0, added: 0, forms: 0, error };
+  }
+  let added = 0;
+  for (let i = 0; i < found.leads.length; i += 200) {
+    const batch = found.leads.slice(i, i + 200).map((l) => ({
+      ...l,
+      organization_id: page.organization_id,
+      branch_id: page.branch_id,
+    }));
+    const { data, error } = await admin
+      .from("leads")
+      .upsert(batch, { onConflict: "organization_id,external_id", ignoreDuplicates: true })
+      .select("id");
+    if (error) {
+      const msg = `No se pudieron guardar los leads: ${error.message}`.slice(0, 300);
+      await admin.from("lead_pages").update({ last_error: msg }).eq("id", page.id);
+      return { found: found.leads.length, added, forms: found.forms, error: msg };
+    }
+    added += data?.length ?? 0;
+  }
+  await admin.from("lead_pages").update({ last_error: null }).eq("id", page.id);
+  return { found: found.leads.length, added, forms: found.forms, error: null };
+}
+
+function importMessage(r: ImportResult): { ok?: string; error?: string } {
+  if (r.error) return { error: `Meta no dejó leer los formularios: ${r.error}` };
+  if (r.forms === 0) return { error: `Meta no muestra ningún formulario de esta página. ${ACCESS_HINT}` };
+  if (r.found === 0) {
+    return { error: `Se revisaron ${r.forms} formularios y Meta no devolvió leads de los últimos 30 días. ${ACCESS_HINT}` };
+  }
+  return {
+    ok: `${r.added} ${r.added === 1 ? "lead nuevo" : "leads nuevos"} (${r.found} de los últimos 30 días en ${r.forms} ${r.forms === 1 ? "formulario" : "formularios"}).`,
+  };
+}
+
+const leadsUrl = (m: { ok?: string; error?: string }) =>
+  m.error ? `/leads?error=${encodeURIComponent(m.error)}` : `/leads?ok=${encodeURIComponent(m.ok ?? "")}`;
+
 // Elegir la página de Facebook de la sucursal: se guarda, se suscribe al webhook y se traen los últimos 30 días
 export async function finalizeLeadPage(formData: FormData) {
   const ctx = await getContext();
@@ -33,11 +87,10 @@ export async function finalizeLeadPage(formData: FormData) {
   const page = (pending.pages as { id: string; name: string; access_token: string }[]).find((p) => p.id === pageId);
   if (!page) redirect(`/leads?error=${encodeURIComponent("Elegí una de las páginas de la lista.")}`);
 
-  let imported = 0;
-  let importError: string | null = null;
+  let saved: LeadPageRow;
   try {
     await subscribePage(page.id, page.access_token);
-    const { data: saved, error } = await admin
+    const { data, error } = await admin
       .from("lead_pages")
       .upsert(
         {
@@ -52,63 +105,65 @@ export async function finalizeLeadPage(formData: FormData) {
         },
         { onConflict: "page_id" },
       )
-      .select("id")
+      .select("id, page_id, page_name, organization_id, branch_id")
       .single();
     if (error) throw new Error(error.message);
-    await admin
+    saved = data as LeadPageRow;
+    const { error: secretErr } = await admin
       .from("lead_page_secrets")
       .upsert({ lead_page_id: saved.id, page_token: page.access_token, updated_at: new Date().toISOString() });
-
-    // Los formularios de los últimos 30 días, para no perder los que ya llegaron
-    let recent: Awaited<ReturnType<typeof recentLeads>> = [];
-    try {
-      recent = await recentLeads(page.id, page.access_token, 30);
-    } catch (err) {
-      importError = err instanceof Error ? err.message.slice(0, 300) : "Error al leer los formularios";
-    }
-    for (let i = 0; i < recent.length; i += 200) {
-      const batch = recent.slice(i, i + 200).map((l) => ({
-        ...l,
-        organization_id: pending.organization_id,
-        branch_id: pending.branch_id,
-      }));
-      const { error: insErr } = await admin
-        .from("leads")
-        .upsert(batch, { onConflict: "organization_id,external_id", ignoreDuplicates: true });
-      if (!insErr) imported += batch.length;
-    }
-    if (importError) {
-      // Se muestra en Leads y la revisión automática vuelve a intentar los últimos 30 días
-      await admin.from("lead_pages").update({ last_error: importError, last_synced_at: null }).eq("id", saved.id);
-    }
+    if (secretErr) throw new Error(secretErr.message);
   } catch (err) {
-    redirect(`/leads?error=${encodeURIComponent(`Meta respondió: ${err instanceof Error ? err.message : "error"}`)}`);
-  } finally {
     await admin.from("lead_oauth_pending").delete().eq("id", pendingId);
+    redirect(`/leads?error=${encodeURIComponent(`No se pudo conectar: ${err instanceof Error ? err.message : "error"}`)}`);
   }
+  await admin.from("lead_oauth_pending").delete().eq("id", pendingId);
+
+  const result = await importRecentLeads(saved, page.access_token);
   revalidatePath("/leads");
-  if (importError) {
-    redirect(
-      `/leads?error=${encodeURIComponent(`Página «${page.name}» conectada, pero Meta no dejó leer los formularios: ${importError}`)}`,
-    );
-  }
-  redirect(`/leads?ok=${encodeURIComponent(`Página «${page.name}» conectada. ${imported} leads de los últimos 30 días importados.`)}`);
+  revalidatePath("/");
+  const m = importMessage(result);
+  redirect(leadsUrl(m.ok ? { ok: `Página «${page.name}» conectada. ${m.ok}` } : m));
 }
 
-export async function disconnectLeadPage(formData: FormData) {
+export type LeadPageState = { error?: string } | null;
+
+// Página conectada de la sucursal, verificando el permiso en código antes de usar el service role
+async function managedLeadPage(id: string) {
   const ctx = await requireBranchContext();
   const supabase = await createClient();
   const { data: page } = await supabase
     .from("lead_pages")
-    .select("id, page_id, branch_id")
-    .eq("id", str(formData, "id"))
+    .select("id, page_id, page_name, organization_id, branch_id")
+    .eq("id", id)
     .maybeSingle();
-  if (!page || !canManageBranch(ctx, page.branch_id)) return;
+  if (!page || !canManageBranch(ctx, page.branch_id)) return null;
+  return page as LeadPageRow;
+}
+
+// «Volver a importar»: busca de nuevo los últimos 30 días con el token guardado (sin pasar por Facebook)
+export async function reimportLeads(_prev: LeadPageState, formData: FormData): Promise<LeadPageState> {
+  const page = await managedLeadPage(str(formData, "id"));
+  if (!page) return { error: "Solo el franquiciado o la marca pueden importar leads." };
+  const admin = createAdminClient();
+  const { data: secret } = await admin.from("lead_page_secrets").select("page_token").eq("lead_page_id", page.id).maybeSingle();
+  if (!secret?.page_token) return { error: "Falta el permiso de la página. Desconectala y volvé a conectarla." };
+  const result = await importRecentLeads(page, secret.page_token);
+  revalidatePath("/leads");
+  revalidatePath("/");
+  redirect(leadsUrl(importMessage(result)));
+}
+
+export async function disconnectLeadPage(_prev: LeadPageState, formData: FormData): Promise<LeadPageState> {
+  const page = await managedLeadPage(str(formData, "id"));
+  if (!page) return { error: "Solo el franquiciado o la marca pueden desconectar la página." };
   const admin = createAdminClient();
   const { data: secret } = await admin.from("lead_page_secrets").select("page_token").eq("lead_page_id", page.id).maybeSingle();
   if (secret?.page_token) await unsubscribePage(page.page_id, secret.page_token);
-  await admin.from("lead_pages").delete().eq("id", page.id);
+  const { error } = await admin.from("lead_pages").delete().eq("id", page.id);
+  if (error) return { error: `No se pudo desconectar: ${error.message}` };
   revalidatePath("/leads");
+  redirect(`/leads?ok=${encodeURIComponent(`Página «${page.page_name ?? ""}» desconectada. Los leads que ya estaban quedan en la lista.`)}`);
 }
 
 const STATUSES = ["new", "contacted", "booked", "lost"];

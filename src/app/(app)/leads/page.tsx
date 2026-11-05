@@ -3,7 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { requireBranchContext } from "@/lib/context";
 import { fmtDate, fmtTime, todayISO, whatsappLink } from "@/lib/format";
 import { leadsConfigured } from "@/lib/meta-leads";
-import { bookLead, disconnectLeadPage, setLeadStatus } from "./actions";
+import { bookLead, setLeadStatus } from "./actions";
+import { LeadPageActions } from "./page-actions";
 import { LeadWhatsAppButton } from "./whatsapp-button";
 
 type Lead = {
@@ -120,10 +121,7 @@ export default async function LeadsPage({
                         : "Los formularios nuevos llegan solos (se revisa cada 5 minutos)."}
                   </p>
                 </div>
-                <form action={disconnectLeadPage}>
-                  <input type="hidden" name="id" value={p.id} />
-                  <button className="text-xs text-muted hover:text-bad">Desconectar</button>
-                </form>
+                <LeadPageActions id={p.id} name={p.page_name ?? "la página"} />
               </div>
             ))
           ) : (

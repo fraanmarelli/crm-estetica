@@ -16,7 +16,7 @@ export function leadsRedirectUri(requestOrigin: string): string {
 
 async function graph<T>(path: string, params: Record<string, string>, method: "GET" | "POST" = "GET"): Promise<T> {
   const url = `https://graph.facebook.com/${META_GRAPH_VERSION}/${path}?${new URLSearchParams(params)}`;
-  const res = await fetch(url, { method, cache: "no-store" });
+  const res = await fetch(url, { method, cache: "no-store", signal: AbortSignal.timeout(20_000) });
   const body = await res.json();
   if (!res.ok || body.error) throw new Error(body.error?.message ?? `Meta respondió ${res.status}`);
   return body as T;
@@ -40,7 +40,7 @@ export async function unsubscribePage(pageId: string, pageToken: string) {
   try {
     await fetch(
       `https://graph.facebook.com/${META_GRAPH_VERSION}/${pageId}/subscribed_apps?${new URLSearchParams({ access_token: pageToken })}`,
-      { method: "DELETE", cache: "no-store" },
+      { method: "DELETE", cache: "no-store", signal: AbortSignal.timeout(8_000) },
     );
   } catch {
     // Si falla, Meta igual deja de mandar cuando la página no está en el CRM (se ignora)
@@ -59,6 +59,8 @@ type MetaLead = {
   platform?: string;
 };
 const LEAD_FIELDS = "id,created_time,field_data,ad_id,ad_name,campaign_id,campaign_name,form_id,platform";
+// Si quien conectó no tiene acceso a la cuenta publicitaria, Meta no deja leer anuncio/campaña: se piden sin eso
+const BASIC_LEAD_FIELDS = "id,created_time,field_data,ad_id,form_id,platform";
 
 // Campos conocidos del formulario; el resto queda como pregunta/respuesta
 const NAME_KEYS = ["full_name", "nombre_completo", "nombre_y_apellido", "nombre", "first_name"];
@@ -114,7 +116,7 @@ export async function fetchParsedLead(leadgenId: string, pageToken: string) {
   return parseLead(lead, lead.form_id ? await formName(lead.form_id, pageToken) : null);
 }
 
-// Al conectar: trae los leads de los últimos días de todos los formularios de la página
+// Al conectar (o con «Volver a importar»): los leads de los últimos días de todos los formularios de la página
 export async function recentLeads(pageId: string, pageToken: string, days = 30) {
   const since = Math.floor((Date.now() - days * 86_400_000) / 1000);
   const forms = await graph<{ data: { id: string; name: string }[] }>(`${pageId}/leadgen_forms`, {
@@ -122,26 +124,30 @@ export async function recentLeads(pageId: string, pageToken: string, days = 30) 
     limit: "100",
     access_token: pageToken,
   });
-  const out: ReturnType<typeof parseLead>[] = [];
+  const leads: ReturnType<typeof parseLead>[] = [];
   for (const f of forms.data ?? []) {
-    let next: string | null = null;
-    let first = true;
-    while (first || next) {
-      first = false;
-      const body: { data: MetaLead[]; paging?: { next?: string } } = next
-        ? await (await fetch(next, { cache: "no-store" })).json()
-        : await graph(`${f.id}/leads`, {
-            fields: LEAD_FIELDS,
-            limit: "100",
-            filtering: JSON.stringify([{ field: "time_created", operator: "GREATER_THAN", value: since }]),
-            access_token: pageToken,
-          });
-      for (const l of body.data ?? []) out.push(parseLead({ ...l, form_id: l.form_id ?? f.id }, f.name));
-      next = body.paging?.next ?? null;
-      if (out.length > 2000) break;
+    const params = (fields: string) => ({
+      fields,
+      limit: "100",
+      filtering: JSON.stringify([{ field: "time_created", operator: "GREATER_THAN", value: since }]),
+      access_token: pageToken,
+    });
+    let body: { data: MetaLead[]; paging?: { next?: string } };
+    try {
+      body = await graph(`${f.id}/leads`, params(LEAD_FIELDS));
+    } catch {
+      body = await graph(`${f.id}/leads`, params(BASIC_LEAD_FIELDS));
+    }
+    for (;;) {
+      for (const l of body.data ?? []) leads.push(parseLead({ ...l, form_id: l.form_id ?? f.id }, f.name));
+      const next = body.paging?.next;
+      if (!next || leads.length > 2000) break;
+      const res = await fetch(next, { cache: "no-store", signal: AbortSignal.timeout(20_000) });
+      body = await res.json();
+      if (!res.ok) break;
     }
   }
-  return out;
+  return { forms: (forms.data ?? []).length, leads };
 }
 
 // Firma de los avisos de Meta: X-Hub-Signature-256 = sha256 HMAC del cuerpo con el secreto de la app
