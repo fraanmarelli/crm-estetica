@@ -182,15 +182,21 @@ export async function setLeadStatus(formData: FormData) {
   revalidatePath("/");
 }
 
-// Se le escribió por WhatsApp: queda como contactado (si estaba nuevo)
+// Se le escribió por WhatsApp (primera vez o de nuevo): queda quién, cuándo y cuántas veces
 export async function markLeadContacted(id: string) {
   await requireBranchContext();
   const supabase = await createClient();
-  await supabase
-    .from("leads")
-    .update({ status: "contacted", contacted_at: new Date().toISOString() })
-    .eq("id", id)
-    .eq("status", "new");
+  // RLS: solo leads de una sucursal a la que tiene acceso
+  await supabase.rpc("mark_lead_contacted", { p_lead: id });
+  revalidatePath("/leads");
+  revalidatePath("/");
+}
+
+// «Deshacer»: se abrió WhatsApp pero no se mandó el mensaje
+export async function undoLeadContacted(id: string) {
+  await requireBranchContext();
+  const supabase = await createClient();
+  await supabase.rpc("undo_lead_contacted", { p_lead: id });
   revalidatePath("/leads");
   revalidatePath("/");
 }

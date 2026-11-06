@@ -539,3 +539,10 @@
   .legal ol { list-style: decimal; }
   .legal a { text-decoration: underline; text-underline-offset: 2px; }
 }
+
+/* Aviso de «Deshacer»: arriba de la barra de abajo en el celular, al pie en la compu */
+@media (min-width: 1024px) {
+  :root {
+    --undo-offset: 24px;
+  }
+}

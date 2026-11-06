@@ -68,6 +68,7 @@ export default async function AgendaPage({
     { data: pastPending },
     { data: holderData },
     { count: newLeads },
+    { count: followUpLeads },
   ] = await Promise.all([
       // Mes: solo cuántos turnos hay por día. Semana: el detalle de cada turno.
       supabase
@@ -108,6 +109,13 @@ export default async function AgendaPage({
         : Promise.resolve({ data: null }),
       // Si la tabla todavía no existe (falta la migración), devuelve error y count null: no rompe nada
       supabase.from("leads").select("id", { count: "exact", head: true }).eq("branch_id", branchId).eq("status", "new"),
+      // Escritos hace 2 días o más que todavía no sacaron turno
+      supabase
+        .from("leads")
+        .select("id", { count: "exact", head: true })
+        .eq("branch_id", branchId)
+        .eq("status", "contacted")
+        .lt("contacted_at", new Date(Date.now() - 2 * 86_400_000).toISOString()),
     ]);
 
   // Turnos por día para el calendario
@@ -205,6 +213,16 @@ export default async function AgendaPage({
           {newLeads === 1 ? "1 lead de los anuncios sin contactar" : `${newLeads} leads de los anuncios sin contactar`}
         </Link>
         <span className="text-muted">: cuanto antes se le escribe, más chances de que saque turno.</span>
+      </li>,
+    );
+  }
+  if (followUpLeads && day === today) {
+    notices.push(
+      <li key="leads-follow">
+        <Link href="/leads" className="font-semibold hover:text-brand">
+          {followUpLeads === 1 ? "1 lead para volver a escribirle" : `${followUpLeads} leads para volver a escribirles`}
+        </Link>
+        <span className="text-muted">: les escribieron hace 2 días o más y todavía no sacaron turno.</span>
       </li>,
     );
   }

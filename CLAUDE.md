@@ -71,7 +71,9 @@ y entregá archivos completos.
   `team_members()`, `branch_owners()`, `remove_membership()`. Sucursal nueva (marca, en /marca) arranca con cuentas
   de cobro genéricas por trigger (`seed_branch_accounts`).
 - Leads de Meta (formularios instantáneos): `leads` (no son pacientes; status new/contacted/booked/lost;
-  `prepare_lead()` normaliza el celular y vincula `patient_id` si ya existe). `lead_pages` (página de Facebook por
+  `prepare_lead()` normaliza el celular y vincula `patient_id` si ya existe). Pantalla en bloques: Sin contactar →
+  «Escribirle» (`mark_lead_contacted()`: quién, cuándo, `contact_count`; «Deshacer» = `undo_lead_contacted()`) →
+  Escritos · esperando respuesta (a los 2 días sin turno se marca para volver a escribir y avisa la agenda). `lead_pages` (página de Facebook por
   sucursal) + `lead_page_secrets` (token, solo service role). Webhook público `/api/meta/leads/webhook` (firma
   `X-Hub-Signature-256` con `META_APP_SECRET`) trae el lead con el token de la página. "Darle turno" crea la paciente
   desde la carga rápida con `lead_id` y lo marca booked. Al conectar se importan los últimos 30 días.
