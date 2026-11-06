@@ -42,7 +42,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           },
         ] as NavItem[])
       : []),
-    ...(ctx.isNetwork ? ([{ href: "/marca", label: "Red", icon: "brand" }] as NavItem[]) : []),
+    ...(ctx.isNetwork
+      ? ([{ href: "/marca", label: `Sucursales ${ctx.org.name}`, shortLabel: "Sucursales", icon: "brand" }] as NavItem[])
+      : []),
     ...(ctx.canManageCurrentBranch
       ? ([{ href: "/ajustes", label: "Ajustes", icon: "settings", match: ["/promos", "/equipo"] }] as NavItem[])
       : []),

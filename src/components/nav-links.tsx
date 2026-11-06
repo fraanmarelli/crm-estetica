@@ -17,7 +17,8 @@ import {
 } from "@/components/icons";
 
 // match: otras rutas que también marcan este ítem como activo (sus pestañas)
-export type NavItem = { href: string; label: string; icon: keyof typeof ICONS; match?: string[] };
+// shortLabel: el que se ve en la barra de abajo del celular si el nombre es largo
+export type NavItem = { href: string; label: string; shortLabel?: string; icon: keyof typeof ICONS; match?: string[] };
 
 const ICONS = {
   today: IconToday,
@@ -88,7 +89,7 @@ export function BottomNav({ items }: { items: NavItem[] }) {
               }`}
             >
               <Icon className="h-[22px] w-[22px]" />
-              <span className="truncate">{item.label}</span>
+              <span className="truncate">{item.shortLabel ?? item.label}</span>
             </Link>
           );
         })}

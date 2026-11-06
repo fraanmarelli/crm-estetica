@@ -33,7 +33,7 @@ Leyenda: ✅ existe · 🆕 previsto (no programado) · 🔀 se movió de lugar.
 | 2 | Pacientes | `/pacientes` | Buscar, cargar y completar fichas | ✅ | ✅ | ✅ | ✅ |
 | 3 | Contactar | `/leads`, `/recall` | «¿A quién le escribo para que saque turno?» | — | ✅ | ✅ | ✅ |
 | 4 | Números | `/numeros` y pestañas | «¿Cómo viene la sucursal?» | — | — | ✅ | ✅ |
-| 5 | Red | `/marca` | Sucursales, franquiciados y catálogo de la red | — | — | — | ✅ |
+| 5 | Sucursales {marca} | `/marca` | Sucursales, franquiciados y catálogo de la red (en el celular: «Sucursales») | — | — | — | ✅ |
 | 6 | Ajustes | `/ajustes` y pestañas | Configurar la sucursal (una vez) | — | — | ✅ | ✅ |
 
 Profesional: 2 ítems · Recepción: 3 · Franquiciado: 5 · Marca: 6.
@@ -61,7 +61,7 @@ De arriba hacia abajo:
 - Completar ficha ✅ (`/pacientes/[id]/completar`: a mano o QR/link para la paciente).
 - Registro por QR de la sucursal ✅ (`/pacientes/registro`).
 - 🆕 **Consentimiento informado con firma**: va en la ficha (pestaña o sección «Consentimientos») y se
-  pide al completar la ficha. Las cláusulas por tratamiento las define la marca en **Red**.
+  pide al completar la ficha. Las cláusulas por tratamiento las define la marca en **Sucursales**.
 - 🆕 **Importar historial** (CSV): acción secundaria plegada en Pacientes, solo franquiciado y marca.
 - 🆕 **Beauty Millas pública**: link desde la ficha («Mandarle su saldo»).
 
@@ -70,8 +70,9 @@ De arriba hacia abajo:
 Pestañas: **Leads · Recall**.
 
 - **Leads** ✅: Sin contactar → Escritos · esperando respuesta (a los 2 días, «volver a escribir») →
-  historial plegado (sacaron turno · descartados) → este mes por campaña. «Darle turno» crea la paciente.
-  Conexión de la página de Facebook: arriba, solo franquiciado y marca.
+  historial plegado (sacaron turno · descartados) → este mes por campaña → «Conexión con Facebook» plegada
+  al final (volver a importar, desconectar). Sin conectar o con error, el aviso va arriba. «Darle turno» crea
+  la paciente. La conexión la ven solo franquiciado y marca.
 - **Recall** ✅: pacientes a las que les toca volver según el tratamiento, con su WhatsApp.
 - 🆕 **WhatsApp automático** (recall con plantillas aprobadas): se prende en Ajustes; acá solo se ve
   «enviado automático» en cada fila.
@@ -90,7 +91,7 @@ Pestañas: **Ventas · Facturación · Anuncios · Insumos**. Solo franquiciado 
 - **Insumos** ✅ (`/insumos`): costo por insumo y qué usa cada tratamiento (la marca edita, el
   franquiciado consulta).
 
-## 5. Red (`/marca`) — solo marca
+## 5. Sucursales {marca} (`/marca`) — solo marca (ej. «Sucursales Dr Beauty»)
 
 - Sucursales y franquiciados ✅ (crear sucursal, invitar franquiciado), equipo de la marca ✅.
 - Catálogo de tratamientos ✅ y promos de toda la red (se crean en Ajustes → Promos eligiendo «toda la red»).

@@ -222,44 +222,34 @@ export default async function LeadsPage({
         {sp.ok && <p className="alert-ok">{sp.ok}</p>}
         {sp.error && <p className="alert-error">{sp.error}</p>}
 
-        {ctx.canManageCurrentBranch && (
+        {/* Sin conectar o con error: arriba, porque hay algo para hacer. Conectada: plegada al final. */}
+        {ctx.canManageCurrentBranch && connected.length === 0 && (
           <section className="card flex flex-wrap items-center justify-between gap-3 text-sm">
-            {connected.length ? (
-              connected.map((p) => (
-                <div key={p.id} className="flex w-full flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="font-semibold">Página conectada: {p.page_name}</p>
-                    <p className={`text-xs ${p.last_error ? "text-bad" : "text-muted"}`}>
-                      {p.last_error
-                        ? `Último error: ${p.last_error}`
-                        : p.last_lead_at
-                          ? `Último lead ${ago(p.last_lead_at)}`
-                          : "Los formularios nuevos llegan solos (se revisa cada 5 minutos)."}
-                    </p>
-                  </div>
-                  <LeadPageActions id={p.id} name={p.page_name ?? "la página"} />
-                </div>
-              ))
+            <div>
+              <p className="font-semibold">Conectá la página de Facebook de la sucursal</p>
+              <p className="text-xs text-muted">
+                Así cada formulario de los anuncios llega acá solo, sin descargar nada. Se traen también los de los
+                últimos 30 días.
+              </p>
+            </div>
+            {leadsConfigured() ? (
+              <a href={`/api/meta/leads/connect?branch=${branchId}`} className="btn btn-primary">
+                Conectar con Facebook
+              </a>
             ) : (
-              <>
-                <div>
-                  <p className="font-semibold">Conectá la página de Facebook de la sucursal</p>
-                  <p className="text-xs text-muted">
-                    Así cada formulario de los anuncios llega acá solo, sin descargar nada. Se traen también los de los
-                    últimos 30 días.
-                  </p>
-                </div>
-                {leadsConfigured() ? (
-                  <a href={`/api/meta/leads/connect?branch=${branchId}`} className="btn btn-primary">
-                    Conectar con Facebook
-                  </a>
-                ) : (
-                  <span className="text-xs text-muted">Falta configurar la app de Meta en el servidor.</span>
-                )}
-              </>
+              <span className="text-xs text-muted">Falta configurar la app de Meta en el servidor.</span>
             )}
           </section>
         )}
+        {ctx.canManageCurrentBranch &&
+          connected
+            .filter((p) => p.last_error)
+            .map((p) => (
+              <p key={p.id} className="alert-error">
+                No se están trayendo los leads de «{p.page_name}»: {p.last_error}. Abajo, en «Conexión con Facebook»,
+                tocá Desconectar y volvé a conectarla.
+              </p>
+            ))}
 
         <section className="space-y-2">
           <h2>
@@ -360,6 +350,49 @@ export default async function LeadsPage({
               </table>
             </div>
           </section>
+        )}
+        {ctx.canManageCurrentBranch && connected.length > 0 && (
+          <details className="card fold p-0">
+            <summary className="fold-summary px-4 py-3">
+              <span>
+                <span className="block font-semibold">Conexión con Facebook</span>
+                <span className="block text-xs text-muted">
+                  {connected.map((p) => p.page_name).join(", ")} · los formularios nuevos llegan solos
+                </span>
+              </span>
+              <svg
+                viewBox="0 0 24 24"
+                className="fold-chevron h-5 w-5 shrink-0 text-muted"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.75}
+                aria-hidden="true"
+              >
+                <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </summary>
+            <div className="space-y-3 border-t border-line px-4 py-3 text-sm">
+              {connected.map((p) => (
+                <div key={p.id} className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="font-semibold">{p.page_name}</p>
+                    <p className={`text-xs ${p.last_error ? "text-bad" : "text-muted"}`}>
+                      {p.last_error
+                        ? `Último error: ${p.last_error}`
+                        : p.last_lead_at
+                          ? `Último lead ${ago(p.last_lead_at)} · se revisa cada 5 minutos`
+                          : "Se revisa cada 5 minutos."}
+                    </p>
+                  </div>
+                  <LeadPageActions id={p.id} name={p.page_name ?? "la página"} />
+                </div>
+              ))}
+              <p className="text-xs text-muted">
+                No hace falta tocar nada. «Volver a importar» trae de nuevo los últimos 30 días; desconectá solo si
+                cambiás de página o si arriba aparece un error.
+              </p>
+            </div>
+          </details>
         )}
       </div>
     </LeadUndoProvider>
