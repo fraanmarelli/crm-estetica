@@ -72,8 +72,12 @@ De arriba hacia abajo:
 - **Historia clínica** ✅ (en la ficha; solo profesionales, franquiciado y marca; recepción ve la tabla de
   turnos de siempre): resumen por tratamiento (×N · última fecha) y una línea de tiempo con cada sesión atendida
   (fecha grande, profesional, tratamiento con zonas y cantidades, lote) y sus notas, más las notas sueltas.
-  **Notas** ✅: «+ Nota» en cada sesión y «+ Nota» arriba (algo que pasó después: un llamado, un mensaje). Quedan
-  con autora y hora y no se editan. Se escriben desde la ficha, no desde el turno. «Otros turnos» plegado.
+  **Antecedentes** ✅ fijo arriba (alergias en rojo, medicación, condiciones, tratamientos previos; se editan).
+  **Notas** ✅: un solo «+ Nota» arriba que pregunta «¿Sobre qué sesión?» (la última elegida) o «General». Quedan
+  con autora y hora, debajo de su sesión, y no se editan. Se escriben desde la ficha, no desde el turno.
+- **Dos tipos de nota, nada más** ✅: «Para tener en cuenta» (operativa, la ve todo el equipo: franja amarilla
+  arriba de la ficha, en la agenda y en el turno; reemplaza el campo «Notas») e «Historia clínica» (médica).
+  El «Comentario del turno» (columna de la planilla) queda escondido tras «+ Comentario del turno».
 - 🆕 **Fotos antes/después**: en la ficha, dentro de cada sesión de la historia clínica, y para subir en el turno.
 - 🆕 **Consentimiento informado con firma**: va en la ficha (pestaña o sección «Consentimientos») y se
   pide al completar la ficha. Las cláusulas por tratamiento las define la marca en **Sucursales**.

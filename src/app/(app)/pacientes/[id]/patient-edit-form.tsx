@@ -76,10 +76,6 @@ export function PatientEditForm({
           </select>
         </div>
       </div>
-      <div>
-        <label className="label">Notas</label>
-        <textarea name="notes" rows={2} defaultValue={v.notes} className="input" />
-      </div>
       {/* Consentimientos: los mismos dos que firma ella en su link, juntos y alineados */}
       <div className="space-y-2.5 rounded-xl bg-subtle p-3 text-sm">
         {missingConsent && (

@@ -5,19 +5,18 @@ import { addClinicalNote } from "@/app/(app)/actions";
 import { SubmitButton } from "@/components/submit-button";
 import type { ActionState } from "@/lib/types";
 
-// «+ Nota» de la historia clínica: se abre ahí mismo, sin ir al turno. De una sesión o suelta.
+// «+ Nota» de la historia clínica: uno solo, arriba. Se abre ahí mismo, sin ir al turno, y pregunta de qué
+// sesión es (la última ya elegida) o si es general (un llamado, un mensaje).
 export function NoteComposer({
   patientId,
-  appointmentId = null,
+  sessions,
   label = "+ Nota",
   placeholder = "Qué pasó, qué se indicó, próximo paso",
-  primary = false,
 }: {
   patientId: string;
-  appointmentId?: string | null;
+  sessions: { id: string; label: string }[];
   label?: string;
   placeholder?: string;
-  primary?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [state, action] = useActionState<ActionState, FormData>(addClinicalNote, null);
@@ -36,7 +35,7 @@ export function NoteComposer({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={primary ? "btn btn-sm" : "text-xs font-semibold text-brand hover:underline"}
+        className="btn btn-sm"
       >
         {label}
       </button>
@@ -44,9 +43,21 @@ export function NoteComposer({
   }
 
   return (
-    <form ref={formRef} action={action} className="w-full space-y-2">
+    <form ref={formRef} action={action} className="card basis-full space-y-2">
       <input type="hidden" name="patient_id" value={patientId} />
-      {appointmentId && <input type="hidden" name="appointment_id" value={appointmentId} />}
+      <div>
+        <label className="label" htmlFor="note-session">
+          ¿Sobre qué sesión?
+        </label>
+        <select id="note-session" name="appointment_id" defaultValue={sessions[0]?.id ?? ""} className="input">
+          {sessions.map((x) => (
+            <option key={x.id} value={x.id}>
+              {x.label}
+            </option>
+          ))}
+          <option value="">General (un llamado, un mensaje, algo aparte)</option>
+        </select>
+      </div>
       <textarea
         name="body"
         rows={3}

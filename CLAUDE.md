@@ -58,6 +58,8 @@ y entregá archivos completos.
 - Historia clínica: `clinical_notes` (varias por sesión, o sueltas sin turno; con `author_name`; no se editan; sucursal y
   paciente los pone un trigger desde el turno). La ven y escriben profesionales de la sucursal, franquiciado y marca
   (`can_view_clinical()`); recepción no. Se escriben desde la ficha («+ Nota»), no desde el cobro.
+  `clinical_background` = antecedentes por paciente (alergias, medicación, condiciones, tratamientos previos),
+  `can_view_clinical_patient()`. `patients.notes` = «Para tener en cuenta» (operativo, lo ve todo el equipo).
 - Permisos de escritura: turnos, ítems, cobros y millas = `can_operate_branch()` (marca, franquiciado, recepción);
   pacientes = `can_edit_patients()`. Las profesionales solo ven (`ctx.isProfessionalOnly`, `ctx.professionalId`).
 - Cambios para revisar: `change_alerts` (las crean triggers, no la app): cobro de un turno atendido editado por

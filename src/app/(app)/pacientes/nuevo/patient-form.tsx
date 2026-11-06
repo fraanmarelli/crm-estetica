@@ -102,8 +102,14 @@ export function NewPatientForm({
         </div>
       </div>
       <div className={quick ? "hidden" : ""}>
-        <label className="label">Notas</label>
-        <textarea name="notes" rows={2} defaultValue={v.notes} className="input" />
+        <label className="label">Para tener en cuenta</label>
+        <textarea
+          name="notes"
+          rows={2}
+          defaultValue={v.notes}
+          placeholder="Ej. prefiere que le escriban a la tarde. Lo de salud va en la historia clínica."
+          className="input"
+        />
       </div>
 
       <div className={`space-y-2 rounded-lg bg-subtle p-3 text-sm ${quick ? "hidden" : ""}`}>

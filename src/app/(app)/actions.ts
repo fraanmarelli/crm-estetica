@@ -195,7 +195,8 @@ export async function updatePatient(_prev: ActionState, formData: FormData): Pro
       birth_date: orNull(str(formData, "birth_date")),
       address: orNull(str(formData, "address")),
       source: orNull(str(formData, "source")),
-      notes: orNull(str(formData, "notes")),
+      // «Para tener en cuenta» se edita aparte (franja de la ficha); acá solo si viene en el formulario
+      ...(formData.has("notes") ? { notes: orNull(str(formData, "notes")) } : {}),
       consent_marketing_at: wantsMarketing ? (current?.consent_marketing_at ?? now) : null,
       marketing_opt_out_at: wantsOptOut ? (current?.marketing_opt_out_at ?? now) : null,
       // Completar la ficha a mano: el consentimiento de datos se registra una vez y no se borra desde acá
@@ -569,4 +570,43 @@ export async function addClinicalNote(_prev: ActionState, formData: FormData): P
   if (error) return { error: `No se pudo guardar la nota: ${error.message}` };
   revalidatePath(`/pacientes/${patientId}`);
   return { ok: "Nota guardada." };
+}
+
+// «Para tener en cuenta» de la paciente (lo ve todo el equipo). Marca, franquiciado y recepción; la base lo verifica.
+export async function savePatientNotes(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireBranchContext();
+  const supabase = await createClient();
+  const id = str(formData, "patient_id");
+  const { data, error } = await supabase
+    .from("patients")
+    .update({ notes: orNull(str(formData, "notes").slice(0, 1000)) })
+    .eq("id", id)
+    .select("id");
+  if (error) return { error: `No se pudo guardar: ${error.message}` };
+  if (!data?.length) return { error: "No tenés permiso para editar esta paciente." };
+  revalidatePath(`/pacientes/${id}`);
+  return { ok: "Guardado." };
+}
+
+// Antecedentes (historia clínica): profesionales, franquiciado y marca; la base lo verifica (RLS)
+export async function saveClinicalBackground(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const ctx = await requireBranchContext();
+  if (!ctx.canViewClinical) return { error: "Solo las profesionales y el franquiciado editan los antecedentes." };
+  const supabase = await createClient();
+  const patientId = str(formData, "patient_id");
+  const field = (k: string) => orNull(str(formData, k).slice(0, 1000));
+  const { error } = await supabase.from("clinical_background").upsert(
+    {
+      patient_id: patientId,
+      organization_id: ctx.org.id,
+      allergies: field("allergies"),
+      medications: field("medications"),
+      conditions: field("conditions"),
+      previous_treatments: field("previous_treatments"),
+    },
+    { onConflict: "patient_id" },
+  );
+  if (error) return { error: `No se pudieron guardar los antecedentes: ${error.message}` };
+  revalidatePath(`/pacientes/${patientId}`);
+  return { ok: "Antecedentes guardados." };
 }

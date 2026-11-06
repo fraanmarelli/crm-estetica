@@ -4,7 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { requireBranchContext } from "@/lib/context";
 import { fmtDate, fmtDateTime, fmtMoney, fullName, STATUS_CLASS, STATUS_LABEL } from "@/lib/format";
 import type { AppointmentStatus, Patient } from "@/lib/types";
+import { ClinicalBackground, type Background } from "./clinical-background";
 import { NoteComposer } from "./note-composer";
+import { PatientNotes } from "./patient-notes";
 import { PatientEditForm } from "./patient-edit-form";
 import { PointsForm } from "./points-form";
 
@@ -81,7 +83,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
     );
   }
 
-  const [{ data: appts }, { data: balance }, { data: moves }, { data: notesData }] = await Promise.all([
+  const [{ data: appts }, { data: balance }, { data: moves }, { data: notesData }, { data: bgData }] = await Promise.all([
     supabase
       .from("appointments")
       .select(
@@ -104,6 +106,13 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
           .eq("patient_id", id)
           .order("created_at", { ascending: true })
       : Promise.resolve({ data: [] as Note[] }),
+    ctx.canViewClinical
+      ? supabase
+          .from("clinical_background")
+          .select("allergies, medications, conditions, previous_treatments, updated_by_name, updated_at")
+          .eq("patient_id", id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
   const notes = (notesData ?? []) as Note[];
   const notesByAppt = new Map<string, Note[]>();
@@ -170,23 +179,26 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
         )}
       </div>
 
+      <PatientNotes patientId={p.id} notes={p.notes} canEdit={!readOnly} />
+
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         {ctx.canViewClinical ? (
           <section className="space-y-3">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <h2>
                 Historia clínica <span className="num font-normal text-muted">{sessions.length}</span>
               </h2>
-              <div className="flex items-center gap-3">
-                <span className="hidden text-xs text-muted sm:inline">No la ve recepción</span>
-                <NoteComposer
-                  patientId={p.id}
-                  label="+ Nota"
-                  placeholder="Un llamado, un mensaje, algo que pasó después del turno"
-                  primary
-                />
-              </div>
+              <span className="ml-auto hidden text-xs text-muted sm:inline">No la ve recepción</span>
+              <NoteComposer
+                patientId={p.id}
+                sessions={sessions.map((a) => ({
+                  id: a.id,
+                  label: `${a.items.map((i) => i.treatment?.name).filter(Boolean).join(" + ") || "Sesión"} · ${fmtDate(a.scheduled_at)}`,
+                }))}
+              />
             </div>
+
+            <ClinicalBackground patientId={p.id} data={(bgData ?? null) as Background | null} />
 
             {summary.length > 0 && (
               <ul className="flex flex-wrap gap-1.5">
@@ -260,7 +272,6 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
                             ))}
                           </ul>
                         )}
-                        <NoteComposer patientId={p.id} appointmentId={a.id} />
                       </div>
                       {!readOnly && (
                         <div className="col-start-2 mt-2 flex items-center gap-3 sm:col-start-3 sm:mt-0 sm:flex-col sm:items-end sm:gap-1">
@@ -386,7 +397,6 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
                   ["DNI", p.dni],
                   ["Email", p.email],
                   ["Nacimiento", p.birth_date ? fmtDate(`${p.birth_date}T12:00:00-03:00`) : null],
-                  ["Notas", p.notes],
                 ].map(([k, v]) => (
                   <div key={k} className="contents">
                     <dt className="text-muted">{k}</dt>

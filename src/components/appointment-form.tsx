@@ -205,6 +205,7 @@ export function AppointmentForm({
     initialRest.length ? initialRest.map(fmtPayment) : [emptyPayment()],
   );
   const [notes, setNotes] = useState(defaults.notes);
+  const [showComment, setShowComment] = useState(!!defaults.notes);
   const [commission, setCommission] = useState(moneyInputValue(defaults.commission ?? ""));
 
   const byCategory = useMemo(() => {
@@ -718,16 +719,32 @@ export function AppointmentForm({
         </section>
       )}
 
+      {/* Comentario del turno (columna «Comentario» de la planilla): escondido salvo que tenga algo */}
       <div className="border-t border-line pt-5">
-        <label className="label" htmlFor="appt-notes">Comentario</label>
-        <textarea
-          id="appt-notes"
-          name="notes"
-          rows={2}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          className="input"
-        />
+        {showComment ? (
+          <>
+            <label className="label" htmlFor="appt-notes">
+              Comentario del turno <span className="font-normal text-muted">· va a la planilla</span>
+            </label>
+            <textarea
+              id="appt-notes"
+              name="notes"
+              rows={2}
+              value={notes}
+              autoFocus={!defaults.notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Algo de este turno en particular (no de salud)"
+              className="input"
+            />
+          </>
+        ) : (
+          <>
+            <input type="hidden" name="notes" value="" />
+            <button type="button" onClick={() => setShowComment(true)} className="text-sm font-semibold text-muted hover:text-ink">
+              + Comentario del turno
+            </button>
+          </>
+        )}
       </div>
 
       {state?.error && <p className="alert-error">{state.error}</p>}

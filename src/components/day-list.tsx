@@ -127,7 +127,7 @@ export function DayList({
           {r.checks?.length > 0 && <TransferStatus checks={r.checks} compact />}
           {p?.notes && isPending && (
             <p className="line-clamp-2 text-xs">
-              <span className="font-semibold">Nota:</span> {p.notes}
+              <span className="font-semibold">Para tener en cuenta:</span> {p.notes}
             </p>
           )}
         </div>

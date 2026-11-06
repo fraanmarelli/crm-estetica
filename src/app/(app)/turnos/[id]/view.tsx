@@ -19,7 +19,7 @@ type Appt = {
   duration_minutes: number;
   status: AppointmentStatus;
   notes: string | null;
-  patient: { first_name: string; last_name: string | null; consent_data_at: string | null } | null;
+  patient: { first_name: string; last_name: string | null; consent_data_at: string | null; notes: string | null } | null;
   branch: { name: string } | null;
   items: {
     treatment_id: string;
@@ -42,7 +42,7 @@ export async function AppointmentView({ id, sp }: { id: string; sp: { cobrar?: s
   const { data } = await supabase
     .from("appointments")
     .select(
-      `id, branch_id, patient_id, professional_id, scheduled_at, duration_minutes, status, notes, patient:patients(first_name, last_name, consent_data_at), branch:branches(name), items:appointment_items(treatment_id, zone, quantity, price, promotion_id, lot_code, promotion:promotions(name)), payments:appointment_payments(account_id, amount, exchange_rate, is_deposit)`,
+      `id, branch_id, patient_id, professional_id, scheduled_at, duration_minutes, status, notes, patient:patients(first_name, last_name, consent_data_at, notes), branch:branches(name), items:appointment_items(treatment_id, zone, quantity, price, promotion_id, lot_code, promotion:promotions(name)), payments:appointment_payments(account_id, amount, exchange_rate, is_deposit)`,
     )
     .eq("id", id)
     .maybeSingle();
@@ -138,6 +138,12 @@ export async function AppointmentView({ id, sp }: { id: string; sp: { cobrar?: s
           firstName={appt.patient.first_name}
           volver={`/turnos/${appt.id}?cobrar=1${sp.vista === "semana" ? "&vista=semana" : ""}`}
         />
+      )}
+      {appt.patient?.notes && (
+        <p className="rounded-xl border border-warn-line bg-warn-soft px-3.5 py-2.5 text-sm">
+          <span className="font-semibold text-warn">Para tener en cuenta: </span>
+          {appt.patient.notes}
+        </p>
       )}
       {appt.patient && !appt.patient.consent_data_at && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warn-line bg-warn-soft px-4 py-3 text-sm text-warn">
