@@ -25,22 +25,27 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     );
   }
 
+  // Menú según docs/MAPA.md: máximo 5 ítems (6 la marca); lo secundario va en pestañas
   const items: NavItem[] = [
-    { href: "/", label: "Agenda", icon: "today" },
+    { href: "/", label: "Hoy", icon: "today" },
     { href: "/pacientes", label: "Pacientes", icon: "patients" },
-    { href: "/leads", label: "Leads", icon: "leads" },
-    { href: "/recall", label: "Recall", icon: "recall" },
+    ...(ctx.canContactCurrentBranch
+      ? ([{ href: "/leads", label: "Contactar", icon: "leads", match: ["/recall"] }] as NavItem[])
+      : []),
     ...(ctx.canManageCurrentBranch
       ? ([
-          { href: "/numeros", label: "Números", icon: "numbers" },
-          { href: "/facturacion", label: "Facturación", icon: "billing" },
-          { href: "/promos", label: "Promos", icon: "promos" },
-          { href: "/marketing", label: "Marketing", icon: "marketing" },
-          { href: "/insumos", label: "Insumos", icon: "supplies" },
+          {
+            href: "/numeros",
+            label: "Números",
+            icon: "numbers",
+            match: ["/facturacion", "/marketing", "/insumos"],
+          },
         ] as NavItem[])
       : []),
-    ...(ctx.isNetwork ? ([{ href: "/marca", label: "Marca", icon: "brand" }] as NavItem[]) : []),
-    ...(ctx.canManageCurrentBranch ? ([{ href: "/ajustes", label: "Ajustes", icon: "settings" }] as NavItem[]) : []),
+    ...(ctx.isNetwork ? ([{ href: "/marca", label: "Red", icon: "brand" }] as NavItem[]) : []),
+    ...(ctx.canManageCurrentBranch
+      ? ([{ href: "/ajustes", label: "Ajustes", icon: "settings", match: ["/promos", "/equipo"] }] as NavItem[])
+      : []),
   ];
 
   // Colores propios de la organización (si los cargó) pisan los del tema

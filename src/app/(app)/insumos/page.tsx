@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { SectionTabs } from "@/components/section-tabs";
 import { requireManagerContext } from "@/lib/context";
 import type { Supply } from "@/lib/types";
 import { SupplyCostsForm } from "./supply-costs-form";
@@ -26,6 +27,7 @@ export default async function SuppliesPage() {
 
   return (
     <div className="space-y-8">
+      <SectionTabs section="numeros" />
       <div className="page-head">
         <div>
           <h1>Insumos</h1>

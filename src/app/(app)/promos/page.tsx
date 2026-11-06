@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { SectionTabs } from "@/components/section-tabs";
 import { requireManagerContext } from "@/lib/context";
 import { fmtDate, fmtMoney, todayISO } from "@/lib/format";
 import type { Promotion } from "@/lib/types";
@@ -78,6 +79,7 @@ export default async function PromosPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
+      <SectionTabs section="ajustes" />
       <div className="page-head">
         <div>
           <h1>Promos</h1>

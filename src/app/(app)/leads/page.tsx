@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { SectionTabs } from "@/components/section-tabs";
 import { createClient } from "@/lib/supabase/server";
-import { requireBranchContext } from "@/lib/context";
+import { requireContactContext } from "@/lib/context";
 import { fmtDate, fmtTime, todayISO, whatsappLink } from "@/lib/format";
 import { leadsConfigured } from "@/lib/meta-leads";
 import { bookLead, setLeadStatus } from "./actions";
@@ -57,7 +58,7 @@ export default async function LeadsPage({
 }: {
   searchParams: Promise<{ error?: string; ok?: string }>;
 }) {
-  const ctx = await requireBranchContext();
+  const ctx = await requireContactContext();
   const sp = await searchParams;
   const supabase = await createClient();
   const branchId = ctx.currentBranch.id;
@@ -207,6 +208,7 @@ export default async function LeadsPage({
   return (
     <LeadUndoProvider>
       <div className="mx-auto max-w-4xl space-y-6">
+        <SectionTabs section="contactar" />
         <div className="page-head">
           <div>
             <h1>Leads</h1>

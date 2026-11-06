@@ -85,6 +85,13 @@ y entregá archivos completos.
   service role), `ad_insights_daily` (gasto/resultados por campaña y día), `marketing_summary()` cruza con pacientes.
 - Tareas programadas (pg_cron): `dispatch-events` cada minuto, `meta-sync` diario, `weekly-report` los lunes.
 
+## Reglas del producto
+- **Ninguna función nueva se programa sin un lugar aprobado en `docs/MAPA.md`** (menú, pestaña, sección, qué va
+  a la vista y qué plegado). Si un pedido no encaja en el mapa, avisar antes de programarlo y proponer dónde
+  iría (o qué cambiar del mapa) para que se apruebe primero. Al terminar, actualizar el mapa (🆕 → ✅).
+- Menú: máximo 5 ítems (6 para la marca); lo secundario va en pestañas (`SectionTabs`). Cada rol ve solo lo suyo.
+- Funciona sin configurar; lo que se configura una vez va plegado. Los avisos van en «Pendientes» de Hoy.
+
 ## Reglas que no se rompen
 1. **Toda tabla nueva** lleva `organization_id`, y `branch_id` si es de una sucursal, con FK compuesta
    `(branch_id, organization_id) → branches(id, organization_id)`.

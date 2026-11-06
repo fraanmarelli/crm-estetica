@@ -16,7 +16,8 @@ import {
   IconLeads,
 } from "@/components/icons";
 
-export type NavItem = { href: string; label: string; icon: keyof typeof ICONS };
+// match: otras rutas que también marcan este ítem como activo (sus pestañas)
+export type NavItem = { href: string; label: string; icon: keyof typeof ICONS; match?: string[] };
 
 const ICONS = {
   today: IconToday,
@@ -32,8 +33,9 @@ const ICONS = {
   leads: IconLeads,
 };
 
-function isActive(pathname: string, href: string) {
-  return href === "/" ? pathname === "/" : pathname.startsWith(href);
+function isActive(pathname: string, item: NavItem) {
+  if (item.href === "/") return pathname === "/" || pathname.startsWith("/turnos");
+  return [item.href, ...(item.match ?? [])].some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
 // Barra lateral (escritorio)
@@ -43,7 +45,7 @@ export function SideNav({ items }: { items: NavItem[] }) {
     <nav className="flex flex-col gap-0.5">
       {items.map((item) => {
         const Icon = ICONS[item.icon];
-        const active = isActive(pathname, item.href);
+        const active = isActive(pathname, item);
         return (
           <Link
             key={item.href}
@@ -73,9 +75,9 @@ export function BottomNav({ items }: { items: NavItem[] }) {
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
       <div className="mx-auto flex max-w-xl justify-around">
-        {items.slice(0, 5).map((item) => {
+        {items.map((item) => {
           const Icon = ICONS[item.icon];
-          const active = isActive(pathname, item.href);
+          const active = isActive(pathname, item);
           return (
             <Link
               key={item.href}

@@ -67,7 +67,7 @@ export default async function NetworkPage() {
     <div className="space-y-6">
       <div className="page-head">
         <div>
-          <h1>Marca</h1>
+          <h1>Red</h1>
           <p className="page-sub">Todas las sucursales, este mes contra el anterior</p>
         </div>
         <a href="/marketing?vista=marca" className="btn">Ver marketing de la marca</a>

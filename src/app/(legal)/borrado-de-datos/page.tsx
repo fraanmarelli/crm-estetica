@@ -27,7 +27,7 @@ export default function DataDeletionPage() {
       <ol>
         <li>
           En el CRM, entrá a <strong>Leads</strong> y tocá <strong>Desconectar</strong>: se borra en el momento el
-          permiso de acceso a tu página. Lo mismo en <strong>Marketing</strong> para la cuenta publicitaria.
+          permiso de acceso a tu página. Lo mismo en <strong>Números → Anuncios</strong> para la cuenta publicitaria.
         </li>
         <li>
           Opcional: en Facebook, andá a <strong>Configuración y privacidad → Configuración → Integraciones

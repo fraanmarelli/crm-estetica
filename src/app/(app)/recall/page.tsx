@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { SectionTabs } from "@/components/section-tabs";
 import { createClient } from "@/lib/supabase/server";
-import { requireBranchContext } from "@/lib/context";
+import { requireContactContext } from "@/lib/context";
 import {
   DEFAULT_RECALL_MESSAGE,
   daysUntil,
@@ -38,7 +39,7 @@ const WINDOWS = [
 ];
 
 export default async function RecallPage({ searchParams }: { searchParams: Promise<{ ver?: string }> }) {
-  const ctx = await requireBranchContext();
+  const ctx = await requireContactContext();
   const { ver = "vencidos" } = await searchParams;
   const window = WINDOWS.find((w) => w.key === ver) ?? WINDOWS[0];
 
@@ -64,6 +65,7 @@ export default async function RecallPage({ searchParams }: { searchParams: Promi
 
   return (
     <div className="space-y-4">
+      <SectionTabs section="contactar" />
       <div className="page-head">
         <div>
           <h1>Recall</h1>

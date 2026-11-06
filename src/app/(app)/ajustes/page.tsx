@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SectionTabs } from "@/components/section-tabs";
 import { createClient } from "@/lib/supabase/server";
 import { requireManagerContext } from "@/lib/context";
 import { fmtDateTime, fmtTime } from "@/lib/format";
@@ -89,6 +90,7 @@ export default async function SettingsPage({
 
   return (
     <div className="mx-auto max-w-4xl space-y-4">
+      <SectionTabs section="ajustes" />
       <div className="page-head">
         <div>
           <h1>Ajustes</h1>
@@ -137,7 +139,7 @@ export default async function SettingsPage({
       >
         <p className="text-sm text-muted">
           Las opciones que aparecen al registrar cómo pagó cada paciente. El titular de cada cuenta y los topes del
-          monotributo se cargan en <Link href="/facturacion" className="link">Facturación</Link>.
+          monotributo se cargan en <Link href="/facturacion" className="link">Números → Facturación</Link>.
         </p>
         <AccountsForm accounts={accountList} />
       </Fold>

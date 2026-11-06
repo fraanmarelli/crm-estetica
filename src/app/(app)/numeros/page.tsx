@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SectionTabs } from "@/components/section-tabs";
 import { createClient } from "@/lib/supabase/server";
 import { requireManagerContext } from "@/lib/context";
 import { fmtDate, fmtMoney, fmtNumber, isoDaysAgo, pluralEs, todayISO } from "@/lib/format";
@@ -60,9 +61,10 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
 
   return (
     <div className="space-y-8">
+      <SectionTabs section="numeros" />
       <div className="page-head">
         <div>
-          <h1>Números</h1>
+          <h1>Ventas</h1>
           <p className="page-sub">
             {ctx.currentBranch.name}, del {fmtDate(from)} al {fmtDate(to)}
           </p>

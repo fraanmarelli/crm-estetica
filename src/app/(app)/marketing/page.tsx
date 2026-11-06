@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SectionTabs } from "@/components/section-tabs";
 import { createClient } from "@/lib/supabase/server";
 import { requireManagerContext } from "@/lib/context";
 import { metaConfigured } from "@/lib/meta";
@@ -154,9 +155,10 @@ export default async function MarketingPage({
 
     return (
       <div className="space-y-6">
+        <SectionTabs section="numeros" />
         <div className="page-head">
           <div>
-            <h1>Marketing</h1>
+            <h1>Anuncios</h1>
             <p className="page-sub">Toda la marca, últimos {days} días</p>
           </div>
           {tabs}
@@ -241,9 +243,10 @@ export default async function MarketingPage({
 
   return (
     <div className="space-y-6">
+      <SectionTabs section="numeros" />
       <div className="page-head">
         <div>
-          <h1>Marketing</h1>
+          <h1>Anuncios</h1>
           <p className="page-sub">{ctx.currentBranch.name}, últimos {days} días</p>
         </div>
         {tabs}

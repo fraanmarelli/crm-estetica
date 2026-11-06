@@ -17,6 +17,8 @@ export type AppContext = {
   currentBranch: Branch | null;
   // Marca o franquiciado de la sucursal activa: ve marketing y configura
   canManageCurrentBranch: boolean;
+  // Marca, franquiciado o recepción: trabaja Contactar (leads y recall). Profesionales no.
+  canContactCurrentBranch: boolean;
 };
 
 export function canManageBranch(ctx: Pick<AppContext, "isNetwork" | "memberships">, branchId: string): boolean {
@@ -67,6 +69,10 @@ export const getContext = cache(async (): Promise<AppContext | null> => {
   const wanted = cookieStore.get(BRANCH_COOKIE)?.value;
   const currentBranch = list.find((b) => b.id === wanted) ?? list[0] ?? null;
 
+  const canManageCurrentBranch = currentBranch
+    ? canManageBranch({ isNetwork, memberships: own }, currentBranch.id)
+    : false;
+
   return {
     userId,
     email: typeof claims.email === "string" ? claims.email : "",
@@ -76,9 +82,10 @@ export const getContext = cache(async (): Promise<AppContext | null> => {
     roles: own.map((m) => m.role),
     branches: list,
     currentBranch,
-    canManageCurrentBranch: currentBranch
-      ? canManageBranch({ isNetwork, memberships: own }, currentBranch.id)
-      : false,
+    canManageCurrentBranch,
+    canContactCurrentBranch:
+      canManageCurrentBranch ||
+      (!!currentBranch && own.some((m) => m.branch_id === currentBranch.id && m.role === "reception")),
   };
 });
 
@@ -93,6 +100,13 @@ export async function requireBranchContext(): Promise<AppContext & { currentBran
 export async function requireManagerContext(): Promise<AppContext & { currentBranch: Branch }> {
   const ctx = await requireBranchContext();
   if (!ctx.canManageCurrentBranch) redirect("/");
+  return ctx;
+}
+
+// Contactar (leads y recall): marca, franquiciado y recepción
+export async function requireContactContext(): Promise<AppContext & { currentBranch: Branch }> {
+  const ctx = await requireBranchContext();
+  if (!ctx.canContactCurrentBranch) redirect("/");
   return ctx;
 }
 

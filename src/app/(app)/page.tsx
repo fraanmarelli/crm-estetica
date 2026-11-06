@@ -206,7 +206,7 @@ export default async function AgendaPage({
       </li>,
     );
   }
-  if (newLeads && day === today) {
+  if (newLeads && day === today && ctx.canContactCurrentBranch) {
     notices.push(
       <li key="leads">
         <Link href="/leads" className="font-semibold hover:text-brand">
@@ -216,7 +216,7 @@ export default async function AgendaPage({
       </li>,
     );
   }
-  if (followUpLeads && day === today) {
+  if (followUpLeads && day === today && ctx.canContactCurrentBranch) {
     notices.push(
       <li key="leads-follow">
         <Link href="/leads" className="font-semibold hover:text-brand">
@@ -255,6 +255,13 @@ export default async function AgendaPage({
     );
   }
 
+  // Pendientes: del más urgente al menos (docs/MAPA.md); a la vista los primeros, el resto plegado
+  const PRIORITY = ["past", "leads", "leads-follow", "first", "bday"];
+  notices.sort(
+    (a, b) =>
+      PRIORITY.indexOf(String((a as React.ReactElement).key)) - PRIORITY.indexOf(String((b as React.ReactElement).key)),
+  );
+  const VISIBLE_NOTICES = 4;
 
   // Un turno: hora grande y legible, paciente y qué se hace, y a la derecha el estado o las acciones
   return (
@@ -332,14 +339,22 @@ export default async function AgendaPage({
             value={String(dueCount)}
             hint={dueCount ? "Pacientes a las que les toca volver" : "Recall al día"}
             accent={dueCount > 0}
-            href="/recall"
+            href={ctx.canContactCurrentBranch ? "/recall" : undefined}
           />
         </div>
 
         {notices.length > 0 && (
           <div className="card border-warn-line bg-warn-soft">
-            <h3 className="mb-2 text-sm font-semibold text-warn">Para tener en cuenta</h3>
-            <ul className="space-y-3 text-sm">{notices}</ul>
+            <h3 className="mb-2 text-sm font-semibold text-warn">Pendientes</h3>
+            <ul className="space-y-3 text-sm">{notices.slice(0, VISIBLE_NOTICES)}</ul>
+            {notices.length > VISIBLE_NOTICES && (
+              <details className="mt-3">
+                <summary className="cursor-pointer text-sm font-semibold text-warn">
+                  {notices.length - VISIBLE_NOTICES === 1 ? "1 más" : `${notices.length - VISIBLE_NOTICES} más`}
+                </summary>
+                <ul className="mt-3 space-y-3 text-sm">{notices.slice(VISIBLE_NOTICES)}</ul>
+              </details>
+            )}
           </div>
         )}
 

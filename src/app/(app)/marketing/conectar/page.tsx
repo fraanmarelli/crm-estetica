@@ -27,7 +27,7 @@ export default async function ChooseAdAccountPage({
     return (
       <div className="card mx-auto max-w-md space-y-3">
         <h1>La conexión venció</h1>
-        <Link href="/marketing" className="btn">Volver a Marketing</Link>
+        <Link href="/marketing" className="btn">Volver a Anuncios</Link>
       </div>
     );
   }
