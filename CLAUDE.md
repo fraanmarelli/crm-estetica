@@ -126,3 +126,9 @@ y entregá archivos completos.
 - Handler `whatsapp_cloud` en dispatch-events (recall automático con plantillas aprobadas por Meta).
 - Página pública para que la paciente vea sus Beauty Millas.
 - Tipos generados: `npx supabase gen types typescript --project-id <ref> > src/lib/database.types.ts`.
+- Auditoría (nov 2026), para cuando se sumen sucursales (hoy solo Córdoba; turnos por WhatsApp con recepción, sin
+  paquetes ni gift cards, sin superposición de boxes): Supabase Pro + mudar a São Paulo (una sola migración);
+  registro de quién vio/cambió una ficha; pruebas de los cálculos de plata y aviso de errores; confirmación de turnos
+  por WhatsApp y reserva online opcional; ficha clínica (evolución, mapa facial con unidades, fotos antes/después);
+  paquetes y gift cards; stock de insumos con alertas; agenda por box/equipo y lista de espera; encuesta y reseña
+  en Google; reportes de ausencias, retención, ticket promedio, ocupación y valor por paciente; mail semanal (Resend).
