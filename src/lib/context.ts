@@ -31,6 +31,10 @@ export type AppContext = {
   canContactCurrentBranch: boolean;
   // Profesional de la sucursal, franquiciado o marca: ve y escribe la historia clínica. Recepción no.
   canViewClinical: boolean;
+  // Solo profesional en esta sucursal (no opera): ve sus turnos y la historia clínica, no cobra ni edita
+  isProfessionalOnly: boolean;
+  // Su ficha de profesional (o la elegida en «Ver como»)
+  professionalId: string | null;
   // La marca está mirando la app como otro rol (los permisos de la pantalla son los de ese rol)
   viewAs: ViewAs | null;
   realIsNetwork: boolean;
@@ -95,6 +99,26 @@ export const getContext = cache(async (): Promise<AppContext | null> => {
     ? canManageBranch({ isNetwork: effectiveNetwork, memberships: effective }, currentBranch.id)
     : false;
 
+  const canContactCurrentBranch =
+    canManageCurrentBranch ||
+    (!!currentBranch && effective.some((m) => m.branch_id === currentBranch.id && m.role === "reception"));
+  const isProfessionalOnly =
+    !canContactCurrentBranch &&
+    !!currentBranch &&
+    effective.some((m) => m.branch_id === currentBranch.id && m.role === "professional");
+  let professionalId: string | null = viewAs?.role === "professional" ? viewAs.professionalId : null;
+  if (isProfessionalOnly && !viewAs) {
+    const { data: pros } = await supabase
+      .from("professionals")
+      .select("id, branch_id")
+      .eq("user_id", userId)
+      .eq("is_active", true);
+    professionalId =
+      ((pros ?? []) as { id: string; branch_id: string | null }[]).find(
+        (p) => !p.branch_id || p.branch_id === currentBranch!.id,
+      )?.id ?? null;
+  }
+
   return {
     userId,
     email: typeof claims.email === "string" ? claims.email : "",
@@ -105,12 +129,12 @@ export const getContext = cache(async (): Promise<AppContext | null> => {
     branches: list,
     currentBranch,
     canManageCurrentBranch,
-    canContactCurrentBranch:
-      canManageCurrentBranch ||
-      (!!currentBranch && effective.some((m) => m.branch_id === currentBranch.id && m.role === "reception")),
+    canContactCurrentBranch,
     canViewClinical:
       canManageCurrentBranch ||
       (!!currentBranch && effective.some((m) => m.branch_id === currentBranch.id && m.role === "professional")),
+    isProfessionalOnly,
+    professionalId,
     viewAs,
     realIsNetwork: isNetwork,
   };

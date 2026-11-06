@@ -7,7 +7,7 @@ import { fmtDate, fullName } from "@/lib/format";
 import { applyPatientSearch } from "@/lib/patient-search";
 
 export default async function PatientsPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
-  await requireBranchContext();
+  const ctx = await requireBranchContext();
   const { q = "" } = await searchParams;
   const term = q.trim();
   const supabase = await createClient();
@@ -36,10 +36,12 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1>Pacientes</h1>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/pacientes/registro" className="btn">Registro con QR</Link>
-          <Link href="/pacientes/nuevo" className="btn btn-primary">Nueva paciente</Link>
-        </div>
+        {!ctx.isProfessionalOnly && (
+          <div className="flex flex-wrap gap-2">
+            <Link href="/pacientes/registro" className="btn">Registro con QR</Link>
+            <Link href="/pacientes/nuevo" className="btn btn-primary">Nueva paciente</Link>
+          </div>
+        )}
       </div>
 
       <Suspense>
@@ -49,7 +51,11 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
       <div className="card overflow-x-auto p-0">
         {patients.length === 0 ? (
           <p className="p-4 text-sm text-muted">
-            {term ? "Sin resultados. Si es nueva, cargala con «Nueva paciente»." : "Todavía no hay pacientes."}
+            {term
+              ? ctx.isProfessionalOnly
+                ? "Sin resultados."
+                : "Sin resultados. Si es nueva, cargala con «Nueva paciente»."
+              : "Todavía no hay pacientes."}
           </p>
         ) : (
           <table className="table">

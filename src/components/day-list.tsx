@@ -47,6 +47,7 @@ export function DayList({
   branchLabel,
   currency,
   highlightId = null,
+  readOnly = false,
 }: {
   rows: DayRow[];
   returningIds: string[];
@@ -59,6 +60,8 @@ export function DayList({
   currency: string;
   // El turno recién guardado: destello suave al volver a la agenda
   highlightId?: string | null;
+  // Profesional: ve sus turnos y abre la ficha; no cobra, no marca ausencias, no ve montos
+  readOnly?: boolean;
 }) {
   const returning = new Set(returningIds);
   const pending = rows.filter((r) => r.status === "scheduled");
@@ -135,14 +138,14 @@ export function DayList({
                 <path d="m5 12.5 4.5 4.5L19 7.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               Atendida
-              {Number(r.amount_paid) > 0 && (
+              {!readOnly && Number(r.amount_paid) > 0 && (
                 <span className="num font-normal text-muted">· {fmtMoney(r.amount_paid, currency)}</span>
               )}
             </span>
           )}
           {r.status === "no_show" && <span className="text-sm font-semibold text-bad">No vino</span>}
           {r.status === "cancelled" && <span className="text-sm text-muted">Cancelado</span>}
-          {reminder && (
+          {reminder && !readOnly && (
             <a
               href={reminder}
               target="_blank"
@@ -154,7 +157,13 @@ export function DayList({
               <span className="hidden sm:inline">Recordar</span>
             </a>
           )}
-          {isPending && day <= today ? (
+          {readOnly ? (
+            p && (
+              <Link href={`/pacientes/${p.id}`} className="btn btn-sm">
+                Ver ficha
+              </Link>
+            )
+          ) : isPending && day <= today ? (
             <>
               <form action={setAppointmentStatus}>
                 <input type="hidden" name="id" value={r.id} />

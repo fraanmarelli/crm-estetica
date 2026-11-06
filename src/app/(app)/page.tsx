@@ -59,6 +59,8 @@ export default async function AgendaPage({
   const { start, end } = dayRange(day);
   const branchId = ctx.currentBranch.id;
   const supabase = await createClient();
+  // La profesional ve solo sus turnos (sin ficha vinculada no ve ninguno)
+  const onlyPro = ctx.isProfessionalOnly ? (ctx.professionalId ?? "00000000-0000-0000-0000-000000000000") : null;
 
   const [
     { data: monthAppts },
@@ -69,6 +71,7 @@ export default async function AgendaPage({
     { data: holderData },
     { count: newLeads },
     { count: followUpLeads },
+    { data: alertData },
   ] = await Promise.all([
       // Mes: solo cuántos turnos hay por día. Semana: el detalle de cada turno.
       supabase
@@ -79,6 +82,7 @@ export default async function AgendaPage({
             : "scheduled_at, status",
         )
         .eq("branch_id", branchId)
+        .match(onlyPro ? { professional_id: onlyPro } : {})
         .gte("scheduled_at", gridStart)
         .lt("scheduled_at", gridEnd)
         .neq("status", "cancelled")
@@ -90,6 +94,7 @@ export default async function AgendaPage({
           `id, scheduled_at, duration_minutes, status, amount_paid, amount_usd, patient:patients(id, first_name, last_name, phone, notes, consent_data_at), professional:professionals(full_name), items:appointment_items(zone, treatment:treatments(name))`,
         )
         .eq("branch_id", branchId)
+        .match(onlyPro ? { professional_id: onlyPro } : {})
         .gte("scheduled_at", start)
         .lt("scheduled_at", end)
         .order("scheduled_at"),
@@ -116,6 +121,15 @@ export default async function AgendaPage({
         .eq("branch_id", branchId)
         .eq("status", "contacted")
         .lt("contacted_at", new Date(Date.now() - 2 * 86_400_000).toISOString()),
+      // Cambios de recepción sin revisar (solo franquiciado y marca; la base filtra igual)
+      ctx.canManageCurrentBranch
+        ? supabase
+            .from("change_alerts")
+            .select("kind, before, after")
+            .eq("branch_id", branchId)
+            .is("reviewed_at", null)
+            .limit(100)
+        : Promise.resolve({ data: [] }),
     ]);
 
   // Turnos por día para el calendario
@@ -216,6 +230,20 @@ export default async function AgendaPage({
       </li>,
     );
   }
+  // Un cobro guardado sin cambios no cuenta (mismo criterio que Números → Cambios)
+  const changes = ((alertData ?? []) as { kind: string; before: unknown; after: unknown }[]).filter(
+    (a) => a.kind !== "payment_edited" || JSON.stringify(a.before) !== JSON.stringify(a.after),
+  ).length;
+  if (changes && day === today) {
+    notices.push(
+      <li key="changes">
+        <Link href="/cambios" className="font-semibold hover:text-brand">
+          {changes === 1 ? "1 cambio de recepción para revisar" : `${changes} cambios de recepción para revisar`}
+        </Link>
+        <span className="text-muted">: cobros editados después de atender o millas cargadas a mano.</span>
+      </li>,
+    );
+  }
   if (followUpLeads && day === today && ctx.canContactCurrentBranch) {
     notices.push(
       <li key="leads-follow">
@@ -236,7 +264,7 @@ export default async function AgendaPage({
       </li>,
     );
   }
-  if (pastCount && day === today) {
+  if (pastCount && day === today && !ctx.isProfessionalOnly) {
     notices.push(
       <li key="past">
         <span className="font-semibold">
@@ -256,7 +284,7 @@ export default async function AgendaPage({
   }
 
   // Pendientes: del más urgente al menos (docs/MAPA.md); a la vista los primeros, el resto plegado
-  const PRIORITY = ["past", "leads", "leads-follow", "first", "bday"];
+  const PRIORITY = ["past", "changes", "leads", "leads-follow", "first", "bday"];
   notices.sort(
     (a, b) =>
       PRIORITY.indexOf(String((a as React.ReactElement).key)) - PRIORITY.indexOf(String((b as React.ReactElement).key)),
@@ -272,7 +300,9 @@ export default async function AgendaPage({
           <h1>Agenda</h1>
           <p className="page-sub">{ctx.currentBranch.name}</p>
         </div>
-        <Link href={`/turnos/nuevo?fecha=${day}${viewParam}`} className="btn btn-primary">Nuevo turno</Link>
+        {!ctx.isProfessionalOnly && (
+          <Link href={`/turnos/nuevo?fecha=${day}${viewParam}`} className="btn btn-primary">Nuevo turno</Link>
+        )}
       </div>
 
       {billingAlerts.length > 0 && (
@@ -333,7 +363,9 @@ export default async function AgendaPage({
                     .join(" · ")
             }
           />
-          <Kpi label="Cobrado" value={fmtMoney(revenue, ctx.org.currency)} hint={done.length === 1 ? "1 atendida" : `${done.length} atendidas`} />
+          {!ctx.isProfessionalOnly && (
+            <Kpi label="Cobrado" value={fmtMoney(revenue, ctx.org.currency)} hint={done.length === 1 ? "1 atendida" : `${done.length} atendidas`} />
+          )}
           <Kpi
             label="Para recontactar"
             value={String(dueCount)}
@@ -361,7 +393,9 @@ export default async function AgendaPage({
         {rows.length === 0 ? (
           <div className="card text-sm text-muted">
             No hay turnos este día.{" "}
-            <Link href={`/turnos/nuevo?fecha=${day}${viewParam}`} className="link">Agendar un turno</Link>
+            {!ctx.isProfessionalOnly && (
+              <Link href={`/turnos/nuevo?fecha=${day}${viewParam}`} className="link">Agendar un turno</Link>
+            )}
           </div>
         ) : (
           <DayList
@@ -375,6 +409,7 @@ export default async function AgendaPage({
             branchLabel={branchLabel}
             currency={ctx.org.currency}
             highlightId={ultimo ?? null}
+            readOnly={ctx.isProfessionalOnly}
           />
         )}
       </section>

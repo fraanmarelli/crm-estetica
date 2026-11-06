@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { requireBranchContext } from "@/lib/context";
+import { requireContactContext } from "@/lib/context";
 import { NewPatientForm } from "./patient-form";
 
 export default async function NewPatientPage({
@@ -8,7 +8,7 @@ export default async function NewPatientPage({
 }: {
   searchParams: Promise<{ turno?: string; fecha?: string; vista?: string; lead?: string }>;
 }) {
-  const ctx = await requireBranchContext();
+  const ctx = await requireContactContext();
   const sp = await searchParams;
   // Si viene de "Nuevo turno", al guardar sigue directo a darle el turno
   const next = {

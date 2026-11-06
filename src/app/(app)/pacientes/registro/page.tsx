@@ -2,7 +2,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import QRCode from "qrcode";
 import { createClient } from "@/lib/supabase/server";
-import { requireBranchContext } from "@/lib/context";
+import { requireContactContext } from "@/lib/context";
 import { dayRange, fmtTime, fullName, todayISO } from "@/lib/format";
 import { rotateRegisterLink } from "./actions";
 import { AutoRefresh, CopyLink, RotateButton } from "./client-bits";
@@ -20,7 +20,7 @@ export default async function RegisterLinkPage({
 }: {
   searchParams: Promise<{ fecha?: string; vista?: string }>;
 }) {
-  const ctx = await requireBranchContext();
+  const ctx = await requireContactContext();
   const sp = await searchParams;
   const turnParams = `${sp.fecha && /^\d{4}-\d{2}-\d{2}$/.test(sp.fecha) ? `&fecha=${sp.fecha}` : ""}${sp.vista === "semana" ? "&vista=semana" : ""}`;
   const supabase = await createClient();

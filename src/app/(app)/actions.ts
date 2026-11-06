@@ -343,23 +343,6 @@ export async function saveAppointment(_prev: ActionState, formData: FormData): P
   const { error: statusErr } = await supabase.from("appointments").update({ status }).eq("id", appointmentId);
   if (statusErr) return { error: `No se pudo actualizar el estado: ${statusErr.message}` };
 
-  // Nota de la sesión (historia clínica): solo profesional, franquiciado o marca; la base lo verifica (RLS)
-  if (status === "completed" && formData.has("clinical_note")) {
-    const body = str(formData, "clinical_note").slice(0, 4000);
-    const { error } = body
-      ? await supabase
-          .from("clinical_notes")
-          // Sucursal, paciente y organización los completa la base a partir del turno
-          .upsert(
-            { appointment_id: appointmentId, body, organization_id: ctx.org.id, branch_id: ctx.currentBranch.id, patient_id: patientId },
-            { onConflict: "appointment_id" },
-          )
-      : ctx.canManageCurrentBranch
-        ? await supabase.from("clinical_notes").delete().eq("appointment_id", appointmentId)
-        : { error: null };
-    if (error) return { error: `Se guardó el turno, pero no la nota de la sesión: ${error.message}` };
-  }
-
   // Comisión manual (solo marca/franquiciado; la base lo vuelve a verificar)
   if (status === "completed" && formData.has("commission")) {
     const raw = str(formData, "commission");
@@ -565,4 +548,25 @@ export async function createIntakeLink(formData: FormData) {
   if (volver.startsWith("/") && !volver.startsWith("//")) {
     redirect(`/pacientes/${patient.id}/completar?volver=${encodeURIComponent(volver)}`);
   }
+}
+
+// Nota de la historia clínica: de una sesión (appointment_id) o suelta (un llamado, un WhatsApp).
+// Solo profesionales, franquiciado y marca; la base lo verifica (RLS) y las notas no se editan.
+export async function addClinicalNote(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const ctx = await requireBranchContext();
+  if (!ctx.canViewClinical) return { error: "Solo las profesionales y el franquiciado escriben en la historia clínica." };
+  const supabase = await createClient();
+  const patientId = str(formData, "patient_id");
+  const appointmentId = str(formData, "appointment_id");
+  const body = str(formData, "body").slice(0, 4000);
+  if (!body) return { error: "Escribí la nota." };
+  const { error } = await supabase.from("clinical_notes").insert(
+    appointmentId
+      ? // Sucursal, paciente y organización los completa la base a partir del turno
+        { appointment_id: appointmentId, body, organization_id: ctx.org.id, branch_id: ctx.currentBranch.id, patient_id: patientId }
+      : { appointment_id: null, body, organization_id: ctx.org.id, branch_id: ctx.currentBranch.id, patient_id: patientId },
+  );
+  if (error) return { error: `No se pudo guardar la nota: ${error.message}` };
+  revalidatePath(`/pacientes/${patientId}`);
+  return { ok: "Nota guardada." };
 }

@@ -16,6 +16,7 @@ const SECTIONS = {
     { href: "/facturacion", label: "Facturación" },
     { href: "/marketing", label: "Anuncios" },
     { href: "/insumos", label: "Insumos" },
+    { href: "/cambios", label: "Cambios" },
   ],
   ajustes: [
     { href: "/ajustes", label: "General" },

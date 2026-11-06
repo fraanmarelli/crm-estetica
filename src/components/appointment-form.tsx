@@ -163,8 +163,6 @@ export function AppointmentForm({
   promotions = [],
   lastLots = {},
   canSeeCosts,
-  canClinical = false,
-  clinicalNote = "",
   defaults,
   mode = "full",
   returnView,
@@ -177,9 +175,6 @@ export function AppointmentForm({
   /** Último lote usado en la sucursal por tratamiento, para proponerlo */
   lastLots?: Record<string, string>;
   canSeeCosts: boolean;
-  /** Profesional, franquiciado o marca: escribe la nota de la sesión (historia clínica). Recepción no. */
-  canClinical?: boolean;
-  clinicalNote?: string;
   defaults: AppointmentDefaults;
   // "checkout" = registrar que se atendió y cobrar: estado fijo en realizado, fecha plegada
   mode?: "full" | "checkout";
@@ -210,7 +205,6 @@ export function AppointmentForm({
     initialRest.length ? initialRest.map(fmtPayment) : [emptyPayment()],
   );
   const [notes, setNotes] = useState(defaults.notes);
-  const [note, setNote] = useState(clinicalNote);
   const [commission, setCommission] = useState(moneyInputValue(defaults.commission ?? ""));
 
   const byCategory = useMemo(() => {
@@ -603,24 +597,6 @@ export function AppointmentForm({
           <option key={z} value={z} />
         ))}
       </datalist>
-
-      {completed && canClinical && (
-        <section className="space-y-2 border-t border-line pt-5">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-            <h2>Nota de la sesión</h2>
-            <span className="text-xs text-muted">Historia clínica · no la ve recepción</span>
-          </div>
-          <textarea
-            name="clinical_note"
-            rows={3}
-            maxLength={4000}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="Qué se hizo, cómo respondió, indicaciones y próximo paso"
-            className="input"
-          />
-        </section>
-      )}
 
       {!completed && status !== "cancelled" && (
         <section className="space-y-3 border-t border-line pt-5">

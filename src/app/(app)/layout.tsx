@@ -11,7 +11,7 @@ import { IconLogout } from "@/components/icons";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
-export default async function AppLayout({ children }: { children: React.ReactNode }) {
+export default async function AppLayout({ children, modal }: { children: React.ReactNode; modal: React.ReactNode }) {
   const ctx = await getContext();
 
   if (!ctx) {
@@ -73,7 +73,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             href: "/numeros",
             label: "Números",
             icon: "numbers",
-            match: ["/facturacion", "/marketing", "/insumos", "/comisiones"],
+            match: ["/facturacion", "/marketing", "/insumos", "/comisiones", "/cambios"],
           },
         ] as NavItem[])
       : []),
@@ -166,6 +166,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </main>
 
       <BottomNav items={items} />
+      {modal}
       <Suspense fallback={null}>
         <DoneToast />
       </Suspense>

@@ -55,8 +55,14 @@ y entregá archivos completos.
   `google_calendar`). Eventos: `appointment.saved` (cualquier cambio), `.completed`, `.updated` (cambio de un
   realizado), `.deleted`. `integration_refs` guarda el id externo (evento de Google) que devuelve el handler.
 - `appointments.duration_minutes` define el largo del turno (calendario).
-- Historia clínica: `clinical_notes` (una nota por turno atendido; sucursal/paciente los pone un trigger desde el turno).
-  La ven y escriben profesionales de la sucursal, franquiciado y marca (`can_view_clinical()`); recepción no.
+- Historia clínica: `clinical_notes` (varias por sesión, o sueltas sin turno; con `author_name`; no se editan; sucursal y
+  paciente los pone un trigger desde el turno). La ven y escriben profesionales de la sucursal, franquiciado y marca
+  (`can_view_clinical()`); recepción no. Se escriben desde la ficha («+ Nota»), no desde el cobro.
+- Permisos de escritura: turnos, ítems, cobros y millas = `can_operate_branch()` (marca, franquiciado, recepción);
+  pacientes = `can_edit_patients()`. Las profesionales solo ven (`ctx.isProfessionalOnly`, `ctx.professionalId`).
+- Cambios para revisar: `change_alerts` (las crean triggers, no la app): cobro de un turno atendido editado por
+  alguien que no es franquiciado/marca (antes/después agrupado por persona y turno en 3 min), turno atendido que
+  pasa a otro estado, millas a mano. El franquiciado las ve en Números → Cambios y las marca como revisadas.
   `appointment_items.lot_code` (lote, en el cobro) + `lot_trace()` para buscar a quién se le aplicó un lote.
 - Registro de pacientes: link fijo por sucursal `/registro/[branches.intake_token]` (público, sin sesión) que
   solo CREA pacientes (`patients.self_registered_at`). Recepción lo ve en `/pacientes/registro` (QR, link, se

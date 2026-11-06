@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireBranchContext } from "@/lib/context";
 import { fmtDate, fmtDateTime, fmtMoney, fullName, STATUS_CLASS, STATUS_LABEL } from "@/lib/format";
 import type { AppointmentStatus, Patient } from "@/lib/types";
+import { NoteComposer } from "./note-composer";
 import { PatientEditForm } from "./patient-edit-form";
 import { PointsForm } from "./points-form";
 
@@ -24,6 +25,8 @@ type Appt = {
   }[];
 };
 
+type Note = { id: string; appointment_id: string | null; body: string; author_name: string | null; created_at: string };
+
 const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 function dayParts(iso: string) {
   const [y, m, d] = new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }).split("-");
@@ -42,6 +45,13 @@ function groupItems(items: Appt["items"]) {
   }
   return [...groups.values()].map((g) => ({ ...g, detail: g.parts.join(", ") }));
 }
+const noteMeta = (n: Note) =>
+  `${n.author_name ?? "Equipo"} · ${fmtDate(n.created_at)} ${new Date(n.created_at).toLocaleTimeString("es-AR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone: "America/Argentina/Buenos_Aires",
+  })}`;
 const qty = (n: number | null, unit: string | null) =>
   n === null ? null : `${String(n).replace(".", ",")}${unit ? ` ${unit}` : ""}`;
 
@@ -88,12 +98,21 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
       .limit(10),
     // Historia clínica: solo profesionales, franquiciado y marca (la base filtra igual)
     ctx.canViewClinical
-      ? supabase.from("clinical_notes").select("appointment_id, body").eq("patient_id", id)
-      : Promise.resolve({ data: [] as { appointment_id: string; body: string }[] }),
+      ? supabase
+          .from("clinical_notes")
+          .select("id, appointment_id, body, author_name, created_at")
+          .eq("patient_id", id)
+          .order("created_at", { ascending: true })
+      : Promise.resolve({ data: [] as Note[] }),
   ]);
-  const notesByAppt = new Map(
-    ((notesData ?? []) as { appointment_id: string; body: string }[]).map((n) => [n.appointment_id, n.body]),
-  );
+  const notes = (notesData ?? []) as Note[];
+  const notesByAppt = new Map<string, Note[]>();
+  for (const n of notes) {
+    if (!n.appointment_id) continue;
+    notesByAppt.set(n.appointment_id, [...(notesByAppt.get(n.appointment_id) ?? []), n]);
+  }
+  const looseNotes = notes.filter((n) => !n.appointment_id);
+  const readOnly = ctx.isProfessionalOnly;
 
   const history = (appts ?? []) as unknown as Appt[];
   const p = patient as Patient & { home_branch: { name: string } | null };
@@ -110,6 +129,12 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
     }
   }
   const summary = [...byTreatment.values()].sort((x, y) => y.count - x.count);
+  // Línea de tiempo: sesiones atendidas y notas sueltas, la más reciente arriba
+  type Entry = { kind: "session"; at: string; session: Appt } | { kind: "note"; at: string; note: Note };
+  const timeline: Entry[] = [
+    ...sessions.map((a) => ({ kind: "session" as const, at: a.scheduled_at, session: a })),
+    ...looseNotes.map((n) => ({ kind: "note" as const, at: n.created_at, note: n })),
+  ].sort((x, y) => (x.at < y.at ? 1 : -1));
   const totalSpent = history
     .filter((a) => a.status === "completed")
     .reduce((s, a) => s + Number(a.amount_paid ?? 0), 0);
@@ -123,11 +148,14 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
             {p.phone ?? "Sin teléfono"} · Sucursal de origen: {p.home_branch?.name ?? "—"} · Alta {fmtDate(p.created_at)}
           </p>
           <div className="mt-2 flex flex-wrap gap-1">
-            {!p.consent_data_at && (
-              <Link href={`/pacientes/${p.id}/completar`} className="badge badge-amber hover:underline">
-                Ficha incompleta · completar
-              </Link>
-            )}
+            {!p.consent_data_at &&
+              (readOnly ? (
+                <span className="badge badge-amber">Ficha incompleta</span>
+              ) : (
+                <Link href={`/pacientes/${p.id}/completar`} className="badge badge-amber hover:underline">
+                  Ficha incompleta · completar
+                </Link>
+              ))}
             {p.marketing_opt_out_at ? (
               <span className="badge badge-red">No contactar</span>
             ) : p.consent_marketing_at ? (
@@ -137,7 +165,9 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
             )}
           </div>
         </div>
-        <Link href={`/turnos/nuevo?paciente=${p.id}`} className="btn btn-primary">Nuevo turno</Link>
+        {!readOnly && (
+          <Link href={`/turnos/nuevo?paciente=${p.id}`} className="btn btn-primary">Nuevo turno</Link>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
@@ -147,7 +177,15 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
               <h2>
                 Historia clínica <span className="num font-normal text-muted">{sessions.length}</span>
               </h2>
-              <span className="text-xs text-muted">Solo profesionales y franquiciado · no la ve recepción</span>
+              <div className="flex items-center gap-3">
+                <span className="hidden text-xs text-muted sm:inline">No la ve recepción</span>
+                <NoteComposer
+                  patientId={p.id}
+                  label="+ Nota"
+                  placeholder="Un llamado, un mensaje, algo que pasó después del turno"
+                  primary
+                />
+              </div>
             </div>
 
             {summary.length > 0 && (
@@ -163,16 +201,34 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
               </ul>
             )}
 
-            {sessions.length === 0 ? (
-              <div className="card text-sm text-muted">
-                Todavía no tiene sesiones atendidas. Al registrar un turno como atendido se carga lo que se hizo y la
-                nota de la sesión.
+            {sessions.length === 0 && looseNotes.length === 0 ? (
+              <div className="card space-y-2 text-sm text-muted">
+                <p>
+                  Todavía no tiene sesiones atendidas. Cuando se registra un turno como atendido aparece acá con lo
+                  que se hizo; las notas se agregan desde acá.
+                </p>
               </div>
             ) : (
               <ol className="card divide-y divide-line p-0">
-                {sessions.map((a) => {
-                  const d = dayParts(a.scheduled_at);
-                  const note = notesByAppt.get(a.id);
+                {timeline.map((entry) => {
+                  const d = dayParts(entry.at);
+                  if (entry.kind === "note") {
+                    const n = entry.note;
+                    return (
+                      <li key={n.id} className="grid grid-cols-[3.5rem_1fr] gap-x-4 px-4 py-3.5">
+                        <div className="text-center leading-none">
+                          <span className="num block text-lg font-semibold text-muted">{d.day}</span>
+                          <span className="block text-xs uppercase tracking-wide text-muted">{d.month}</span>
+                        </div>
+                        <div className="min-w-0 space-y-1">
+                          <p className="text-xs text-muted">Nota · {noteMeta(n)}</p>
+                          <p className="whitespace-pre-line text-sm">{n.body}</p>
+                        </div>
+                      </li>
+                    );
+                  }
+                  const a = entry.session;
+                  const sessionNotes = notesByAppt.get(a.id) ?? [];
                   return (
                     <li key={a.id} className="grid grid-cols-[3.5rem_1fr] gap-x-4 px-4 py-4 sm:grid-cols-[3.5rem_1fr_auto]">
                       <div className="text-center leading-none">
@@ -194,18 +250,28 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
                             </li>
                           ))}
                         </ul>
-                        {note ? (
-                          <p className="line-clamp-4 whitespace-pre-line border-l-2 border-brand/40 pl-3 text-sm">{note}</p>
-                        ) : (
-                          <p className="text-xs text-muted">Sin nota de la sesión</p>
+                        {sessionNotes.length > 0 && (
+                          <ul className="space-y-2 border-l-2 border-brand/40 pl-3">
+                            {sessionNotes.map((n) => (
+                              <li key={n.id}>
+                                <p className="whitespace-pre-line text-sm">{n.body}</p>
+                                <p className="text-xs text-muted">{noteMeta(n)}</p>
+                              </li>
+                            ))}
+                          </ul>
                         )}
+                        <NoteComposer patientId={p.id} appointmentId={a.id} />
                       </div>
-                      <div className="col-start-2 mt-2 flex items-center gap-3 sm:col-start-3 sm:mt-0 sm:flex-col sm:items-end sm:gap-1">
-                        <span className="num whitespace-nowrap text-sm">{fmtMoney(a.amount_paid, ctx.org.currency)}</span>
-                        <Link href={`/turnos/${a.id}`} className="text-xs font-semibold text-brand hover:underline">
-                          {note ? "Ver o editar" : "Cargar nota"}
-                        </Link>
-                      </div>
+                      {!readOnly && (
+                        <div className="col-start-2 mt-2 flex items-center gap-3 sm:col-start-3 sm:mt-0 sm:flex-col sm:items-end sm:gap-1">
+                          {ctx.canManageCurrentBranch && (
+                            <span className="num whitespace-nowrap text-sm">{fmtMoney(a.amount_paid, ctx.org.currency)}</span>
+                          )}
+                          <Link href={`/turnos/${a.id}`} className="text-xs text-muted hover:text-ink hover:underline">
+                            Ver turno
+                          </Link>
+                        </div>
+                      )}
                     </li>
                   );
                 })}
@@ -302,16 +368,35 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
                 ))}
               </ul>
             )}
-            <div className="passport-stub">
-              <div className="rounded-xl bg-surface p-3 text-ink">
-                <PointsForm patientId={p.id} />
+            {!readOnly && (
+              <div className="passport-stub">
+                <div className="rounded-xl bg-surface p-3 text-ink">
+                  <PointsForm patientId={p.id} />
+                </div>
               </div>
-            </div>
+            )}
           </section>
 
           <section className="card space-y-3">
             <h2>Datos</h2>
-            <PatientEditForm patient={p} />
+            {readOnly ? (
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+                {[
+                  ["Celular", p.phone ? `+${p.phone}` : null],
+                  ["DNI", p.dni],
+                  ["Email", p.email],
+                  ["Nacimiento", p.birth_date ? fmtDate(`${p.birth_date}T12:00:00-03:00`) : null],
+                  ["Notas", p.notes],
+                ].map(([k, v]) => (
+                  <div key={k} className="contents">
+                    <dt className="text-muted">{k}</dt>
+                    <dd className="min-w-0 break-words">{v || "—"}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <PatientEditForm patient={p} />
+            )}
           </section>
         </aside>
       </div>

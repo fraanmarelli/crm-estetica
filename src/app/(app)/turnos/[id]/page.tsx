@@ -1,38 +1,5 @@
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { requireBranchContext } from "@/lib/context";
-import { loadCatalog } from "@/lib/catalog";
-import { fullName, isoToLocalInput } from "@/lib/format";
-import { AppointmentForm } from "@/components/appointment-form";
-import { AutoRefresh } from "@/components/auto-refresh";
-import { IntakePrompt } from "@/components/intake-prompt";
-import { TransferStatus, loadTransferChecks, type TransferCheck } from "@/components/transfer-status";
-import type { AppointmentStatus } from "@/lib/types";
-
-type Appt = {
-  id: string;
-  branch_id: string;
-  patient_id: string;
-  professional_id: string | null;
-  scheduled_at: string;
-  duration_minutes: number;
-  status: AppointmentStatus;
-  notes: string | null;
-  patient: { first_name: string; last_name: string | null; consent_data_at: string | null } | null;
-  branch: { name: string } | null;
-  items: {
-    treatment_id: string;
-    zone: string | null;
-    quantity: number | null;
-    price: number | null;
-    promotion_id: string | null;
-    promotion: { name: string } | null;
-    lot_code: string | null;
-  }[];
-  payments: { account_id: string; amount: number; exchange_rate: number | null; is_deposit: boolean }[];
-  checks: TransferCheck[];
-};
+import { BackLink } from "@/components/back-link";
+import { AppointmentView } from "./view";
 
 export default async function EditAppointmentPage({
   params,
@@ -41,125 +8,12 @@ export default async function EditAppointmentPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ cobrar?: string; vista?: string }>;
 }) {
-  const ctx = await requireBranchContext();
   const { id } = await params;
   const sp = await searchParams;
-  const supabase = await createClient();
-
-  const { data } = await supabase
-    .from("appointments")
-    .select(
-      `id, branch_id, patient_id, professional_id, scheduled_at, duration_minutes, status, notes, patient:patients(first_name, last_name, consent_data_at), branch:branches(name), items:appointment_items(treatment_id, zone, quantity, price, promotion_id, lot_code, promotion:promotions(name)), payments:appointment_payments(account_id, amount, exchange_rate, is_deposit)`,
-    )
-    .eq("id", id)
-    .maybeSingle();
-
-  if (!data) notFound();
-  const appt = data as unknown as Appt;
-  appt.checks = (await loadTransferChecks(supabase, [appt.id])).get(appt.id) ?? [];
-
-  if (appt.branch_id !== ctx.currentBranch.id) {
-    return (
-      <div className="card mx-auto max-w-md space-y-3">
-        <h1>Turno de otra sucursal</h1>
-        <p className="text-sm text-muted">
-          Este turno es de {appt.branch?.name}. Cambiá de sucursal arriba para editarlo.
-        </p>
-        <Link href={`/pacientes/${appt.patient_id}`} className="btn">Volver a la paciente</Link>
-      </div>
-    );
-  }
-
-  const { treatments, professionals, accounts, promotions, lastLots } = await loadCatalog(ctx.org.id, ctx.currentBranch.id);
-  let commission = "";
-  if (ctx.canManageCurrentBranch) {
-    const { data: c } = await supabase.rpc("appointment_commission", { p_appointment: appt.id });
-    if (c?.[0]?.commission_manual && c[0].commission !== null) commission = String(c[0].commission);
-  }
-  // Nota de la sesión: solo profesionales, franquiciado y marca (la base filtra igual)
-  let clinicalNote = "";
-  if (ctx.canViewClinical) {
-    const { data: n } = await supabase.from("clinical_notes").select("body").eq("appointment_id", appt.id).maybeSingle();
-    clinicalNote = n?.body ?? "";
-  }
-  const s = (v: number | string | null) => (v === null ? "" : String(v));
-  const checkout = sp.cobrar === "1" && appt.status !== "cancelled";
-  const name = appt.patient ? fullName(appt.patient) : "Paciente";
-
   return (
-    <div className="mx-auto max-w-4xl space-y-4">
-      <div>
-        <h1>{checkout ? `Cobrar a ${name}` : `Turno · ${name}`}</h1>
-        <p className="page-sub">
-          {checkout
-            ? "Confirmá qué se hizo, la cantidad de insumo, el precio y cómo pagó."
-            : "Para reprogramarlo, cambiá la fecha. Para registrar que se atendió, usá «Cobrar» desde la agenda."}
-        </p>
-      </div>
-      {checkout && appt.patient && !appt.patient.consent_data_at && (
-        <IntakePrompt
-          patientId={appt.patient_id}
-          firstName={appt.patient.first_name}
-          volver={`/turnos/${appt.id}?cobrar=1${sp.vista === "semana" ? "&vista=semana" : ""}`}
-        />
-      )}
-      {appt.patient && !appt.patient.consent_data_at && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warn-line bg-warn-soft px-4 py-3 text-sm text-warn">
-          <span>
-            <b>Ficha incompleta:</b> faltan sus datos y el consentimiento.
-          </span>
-          <Link
-            href={`/pacientes/${appt.patient_id}/completar?volver=${encodeURIComponent(`/turnos/${appt.id}${checkout ? "?cobrar=1" : ""}`)}`}
-            className="btn btn-sm"
-          >
-            Completar ficha
-          </Link>
-        </div>
-      )}
-      {appt.checks?.length > 0 && (
-        <div className="card space-y-2">
-          <h2 className="text-base">Transferencias en Mercado Pago</h2>
-          <TransferStatus checks={appt.checks} />
-          {appt.checks.some((c) => c.status === "pending") && <AutoRefresh />}
-        </div>
-      )}
-      <AppointmentForm
-        patientId={appt.patient_id}
-        treatments={treatments}
-        professionals={professionals}
-        accounts={accounts}
-        promotions={promotions}
-        lastLots={lastLots}
-        canSeeCosts={ctx.canManageCurrentBranch}
-        canClinical={ctx.canViewClinical}
-        clinicalNote={clinicalNote}
-        mode={checkout ? "checkout" : "full"}
-        returnView={sp.vista === "semana" ? "semana" : undefined}
-        defaults={{
-          id: appt.id,
-          scheduled_at: isoToLocalInput(appt.scheduled_at),
-          duration_minutes: String(appt.duration_minutes ?? 30),
-          status: checkout ? "completed" : appt.status,
-          professional_id: appt.professional_id ?? "",
-          notes: appt.notes ?? "",
-          items: appt.items.map((i) => ({
-            treatment_id: i.treatment_id,
-            zone: i.zone ?? "",
-            quantity: s(i.quantity),
-            price: s(i.price),
-            promotion_id: i.promotion_id ?? "",
-            promotion_name: i.promotion?.name ?? "",
-            lot_code: i.lot_code ?? "",
-          })),
-          payments: appt.payments.map((p) => ({
-            account_id: p.account_id,
-            amount: s(p.amount),
-            exchange_rate: s(p.exchange_rate),
-            is_deposit: p.is_deposit,
-          })),
-          commission,
-        }}
-      />
+    <div className="space-y-4">
+      <BackLink fallback="/" />
+      <AppointmentView id={id} sp={sp} />
     </div>
   );
 }

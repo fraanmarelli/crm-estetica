@@ -38,6 +38,9 @@ Leyenda: ✅ existe · 🆕 previsto (no programado) · 🔀 se movió de lugar.
 | 6 | Ajustes | `/ajustes` y pestañas | Configurar la sucursal (una vez) | — | — | ✅ | ✅ |
 
 Profesional: 3 ítems · Recepción: 3 · Franquiciado: 5 · Marca: 6.
+**La profesional solo ve** ✅: en Hoy solo sus turnos y sin cobrar ni montos; la ficha en solo lectura (sin
+editar datos, sin millas, sin nuevo turno); el turno como resumen. Escribe notas en la historia clínica. La base
+lo hace cumplir (turnos, cobros, pacientes y millas: solo marca, franquiciado y recepción).
 **Ver como** ✅ (solo la marca): en la barra lateral (celular: franja bajo la barra de arriba) se elige
 Franquiciado/a, Recepción o una profesional y la app se arma como la ve ese rol, con un aviso arriba.
 El selector de sucursal (arriba) cambia la sucursal de todas las pantallas.
@@ -56,8 +59,9 @@ De arriba hacia abajo:
 4. **Agenda del día o de la semana** ✅: «Por atender» y «Atendidas · No vinieron», con WhatsApp de
    recordatorio, ficha incompleta y estado de la transferencia.
 5. Agendar turno ✅ → `/turnos/nuevo`. Turno → `/turnos/[id]` (cobro, ítems, promo, seña). En cada ítem:
-   zona (con sugerencias), cantidad y **lote** ✅ (propone el último de la sucursal). Al registrarlo atendido:
-   **Nota de la sesión** ✅ (solo profesionales, franquiciado y marca).
+   zona (con sugerencias), cantidad y **lote** ✅ (propone el último de la sucursal). El cobro es solo cobro: las
+   notas clínicas van en la ficha. **En la compu el turno y el nuevo turno se abren como ventana** encima de la
+   agenda o la ficha ✅ (✕, Esc, afuera o atrás la cierran); en el celular, pantalla completa con «← Volver».
 
 ## 2. Pacientes (`/pacientes`)
 
@@ -66,8 +70,10 @@ De arriba hacia abajo:
 - Completar ficha ✅ (`/pacientes/[id]/completar`: a mano o QR/link para la paciente).
 - Registro por QR de la sucursal ✅ (`/pacientes/registro`).
 - **Historia clínica** ✅ (en la ficha; solo profesionales, franquiciado y marca; recepción ve la tabla de
-  turnos de siempre): resumen por tratamiento (×N · última fecha) y cada sesión atendida con fecha grande,
-  profesional, tratamiento con zonas y cantidades, lote y la nota de la sesión. «Otros turnos» plegado.
+  turnos de siempre): resumen por tratamiento (×N · última fecha) y una línea de tiempo con cada sesión atendida
+  (fecha grande, profesional, tratamiento con zonas y cantidades, lote) y sus notas, más las notas sueltas.
+  **Notas** ✅: «+ Nota» en cada sesión y «+ Nota» arriba (algo que pasó después: un llamado, un mensaje). Quedan
+  con autora y hora y no se editan. Se escriben desde la ficha, no desde el turno. «Otros turnos» plegado.
 - 🆕 **Fotos antes/después**: en la ficha, dentro de cada sesión de la historia clínica, y para subir en el turno.
 - 🆕 **Consentimiento informado con firma**: va en la ficha (pestaña o sección «Consentimientos») y se
   pide al completar la ficha. Las cláusulas por tratamiento las define la marca en **Sucursales**.
@@ -88,7 +94,7 @@ Pestañas: **Leads · Recall**.
 
 ## 4. Números (`/numeros` · `/facturacion` · `/marketing` · `/insumos`)
 
-Pestañas: **Ventas · Comisiones · Facturación · Anuncios · Insumos**. Solo franquiciado y marca.
+Pestañas: **Ventas · Comisiones · Facturación · Anuncios · Insumos · Cambios**. Solo franquiciado y marca.
 
 - **Ventas** ✅ (`/numeros`): período, facturado, insumos, comisión, neto; por profesional, cuenta de
   cobro, tratamiento; pacientes que más gastaron.
@@ -98,6 +104,9 @@ Pestañas: **Ventas · Comisiones · Facturación · Anuncios · Insumos**. Solo
 - **Facturación** ✅ (`/facturacion`): titulares del monotributo, lo del mes y 12 meses contra el tope,
   cuentas de cada titular.
   - 🆕 **Facturar en ARCA**: acción por cobro desde acá (no pantalla nueva).
+- **Cambios** ✅ (`/cambios`): lo que hizo recepción (o cualquiera que no sea franquiciado ni marca) y conviene
+  mirar: cobro editado de un turno ya atendido (antes → después por cuenta), turno atendido que pasó a otro
+  estado y millas cargadas a mano. «Revisado» uno o todos; Pendientes de Hoy avisa cuántos hay.
 - **Anuncios** ✅ (`/marketing`): gasto y resultados de Meta cruzados con pacientes.
 - **Insumos** ✅ (`/insumos`): **Buscar lote** ✅ arriba (a qué pacientes se les aplicó; la marca puede buscar
   en toda la red), costo por insumo y qué usa cada tratamiento (la marca edita, el franquiciado consulta).

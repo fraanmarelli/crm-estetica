@@ -3,7 +3,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import QRCode from "qrcode";
 import { createClient } from "@/lib/supabase/server";
-import { requireBranchContext } from "@/lib/context";
+import { requireContactContext } from "@/lib/context";
 import { fmtDate, fullName, whatsappLink } from "@/lib/format";
 import type { Patient } from "@/lib/types";
 import { createIntakeLink } from "../../../actions";
@@ -18,7 +18,7 @@ export default async function CompleteIntakePage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ volver?: string }>;
 }) {
-  const ctx = await requireBranchContext();
+  const ctx = await requireContactContext();
   const { id } = await params;
   const { volver } = await searchParams;
   const back = volver && volver.startsWith("/") && !volver.startsWith("//") ? volver : `/pacientes/${id}`;

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { LiveSearch } from "@/components/live-search";
 import { createClient } from "@/lib/supabase/server";
-import { requireBranchContext } from "@/lib/context";
+import { requireContactContext } from "@/lib/context";
 import { loadCatalog } from "@/lib/catalog";
 import { fmtDate, fullName, isoToLocalInput, todayISO } from "@/lib/format";
 import { applyPatientSearch } from "@/lib/patient-search";
@@ -15,7 +15,7 @@ export default async function NewAppointmentPage({
 }: {
   searchParams: Promise<{ paciente?: string; fecha?: string; q?: string; vista?: string }>;
 }) {
-  const ctx = await requireBranchContext();
+  const ctx = await requireContactContext();
   const { paciente, fecha, q = "", vista } = await searchParams;
   const week = vista === "semana";
   const day = fecha && ISO_DATE.test(fecha) ? fecha : null;
@@ -114,7 +114,6 @@ export default async function NewAppointmentPage({
         promotions={promotions}
         lastLots={lastLots}
         canSeeCosts={ctx.canManageCurrentBranch}
-        canClinical={ctx.canViewClinical}
         returnView={week ? "semana" : undefined}
         defaults={{
           scheduled_at: start,
