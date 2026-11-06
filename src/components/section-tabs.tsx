@@ -11,6 +11,7 @@ const SECTIONS = {
   ],
   numeros: [
     { href: "/numeros", label: "Ventas" },
+    { href: "/comisiones", label: "Comisiones" },
     { href: "/facturacion", label: "Facturación" },
     { href: "/marketing", label: "Anuncios" },
     { href: "/insumos", label: "Insumos" },

@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { BRANCH_COOKIE, getContext, requireBranchContext, requireManagerContext } from "@/lib/context";
+import { BRANCH_COOKIE, VIEW_AS_COOKIE, getContext, requireBranchContext, requireManagerContext } from "@/lib/context";
 import { TZ, localInputToISO } from "@/lib/format";
 import type {
   ActionState,
@@ -47,8 +47,40 @@ export async function setBranch(formData: FormData) {
   if (ctx && ctx.branches.some((b) => b.id === id)) {
     const cookieStore = await cookies();
     cookieStore.set(BRANCH_COOKIE, id, { path: "/", httpOnly: true, sameSite: "lax", maxAge: 60 * 60 * 24 * 365 });
+    // La profesional elegida en «Ver como» es de la otra sucursal: se vuelve a la vista de la marca
+    if (ctx.viewAs?.role === "professional") cookieStore.delete(VIEW_AS_COOKIE);
   }
   revalidatePath("/", "layout");
+}
+
+// «Ver como» (solo la marca): cambia cómo se arma la app, no el usuario ni sus permisos en la base
+export async function setViewAs(formData: FormData) {
+  const ctx = await getContext();
+  if (!ctx?.realIsNetwork || !ctx.currentBranch) redirect("/");
+  const value = str(formData, "view_as");
+  const cookieStore = await cookies();
+  if (value === "branch_admin" || value === "reception") {
+    cookieStore.set(VIEW_AS_COOKIE, value, { path: "/", httpOnly: true, sameSite: "lax", maxAge: 60 * 60 * 8 });
+  } else if (value.startsWith("professional:")) {
+    const supabase = await createClient();
+    const { data: pro } = await supabase
+      .from("professionals")
+      .select("id, branch_id")
+      .eq("id", value.slice("professional:".length))
+      .maybeSingle();
+    if (!pro || (pro.branch_id && pro.branch_id !== ctx.currentBranch.id)) redirect("/");
+    cookieStore.set(VIEW_AS_COOKIE, `professional:${pro.id}`, {
+      path: "/",
+      httpOnly: true,
+      sameSite: "lax",
+      maxAge: 60 * 60 * 8,
+    });
+  } else {
+    cookieStore.delete(VIEW_AS_COOKIE);
+  }
+  revalidatePath("/", "layout");
+  // La pantalla actual puede no existir para ese rol: se arranca desde Hoy
+  redirect("/");
 }
 
 // ---------------------------------------------------------------------

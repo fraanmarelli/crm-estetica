@@ -5,6 +5,16 @@ import { createClient } from "@/lib/supabase/server";
 import type { Branch, Membership, Organization, Role } from "@/lib/types";
 
 export const BRANCH_COOKIE = "crm_branch_id";
+// «Ver como» (solo la marca): muestra la app como la ve otro rol, sin cambiar de usuario
+export const VIEW_AS_COOKIE = "crm_view_as";
+export type ViewAs = { role: "branch_admin" | "reception" | "professional"; professionalId: string | null };
+
+function parseViewAs(raw: string | undefined): ViewAs | null {
+  if (!raw) return null;
+  if (raw === "branch_admin" || raw === "reception") return { role: raw, professionalId: null };
+  const m = /^professional:([0-9a-f-]{36})$/.exec(raw);
+  return m ? { role: "professional", professionalId: m[1] } : null;
+}
 
 export type AppContext = {
   userId: string;
@@ -19,6 +29,9 @@ export type AppContext = {
   canManageCurrentBranch: boolean;
   // Marca, franquiciado o recepción: trabaja Contactar (leads y recall). Profesionales no.
   canContactCurrentBranch: boolean;
+  // La marca está mirando la app como otro rol (los permisos de la pantalla son los de ese rol)
+  viewAs: ViewAs | null;
+  realIsNetwork: boolean;
 };
 
 export function canManageBranch(ctx: Pick<AppContext, "isNetwork" | "memberships">, branchId: string): boolean {
@@ -69,23 +82,32 @@ export const getContext = cache(async (): Promise<AppContext | null> => {
   const wanted = cookieStore.get(BRANCH_COOKIE)?.value;
   const currentBranch = list.find((b) => b.id === wanted) ?? list[0] ?? null;
 
+  // Solo la marca puede «ver como»: la app se arma como si tuviera ese rol en la sucursal elegida
+  const viewAs = isNetwork && currentBranch ? parseViewAs(cookieStore.get(VIEW_AS_COOKIE)?.value) : null;
+  const effective: Membership[] = viewAs
+    ? [{ organization_id: org.id, branch_id: currentBranch!.id, role: viewAs.role }]
+    : own;
+  const effectiveNetwork = viewAs ? false : isNetwork;
+
   const canManageCurrentBranch = currentBranch
-    ? canManageBranch({ isNetwork, memberships: own }, currentBranch.id)
+    ? canManageBranch({ isNetwork: effectiveNetwork, memberships: effective }, currentBranch.id)
     : false;
 
   return {
     userId,
     email: typeof claims.email === "string" ? claims.email : "",
     org,
-    memberships: own,
-    isNetwork,
-    roles: own.map((m) => m.role),
+    memberships: effective,
+    isNetwork: effectiveNetwork,
+    roles: effective.map((m) => m.role),
     branches: list,
     currentBranch,
     canManageCurrentBranch,
     canContactCurrentBranch:
       canManageCurrentBranch ||
-      (!!currentBranch && own.some((m) => m.branch_id === currentBranch.id && m.role === "reception")),
+      (!!currentBranch && effective.some((m) => m.branch_id === currentBranch.id && m.role === "reception")),
+    viewAs,
+    realIsNetwork: isNetwork,
   };
 });
 

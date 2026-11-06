@@ -31,12 +31,15 @@ Leyenda: ✅ existe · 🆕 previsto (no programado) · 🔀 se movió de lugar.
 |---|---|---|---|---|---|---|---|
 | 1 | Hoy | `/` | «¿Qué tengo hoy y qué está pendiente?» | ✅ | ✅ | ✅ | ✅ |
 | 2 | Pacientes | `/pacientes` | Buscar, cargar y completar fichas | ✅ | ✅ | ✅ | ✅ |
+| 3′ | Mis comisiones | `/comisiones` | «¿Cuánto me toca este mes?» | ✅ | — | — | — |
 | 3 | Contactar | `/leads`, `/recall` | «¿A quién le escribo para que saque turno?» | — | ✅ | ✅ | ✅ |
 | 4 | Números | `/numeros` y pestañas | «¿Cómo viene la sucursal?» | — | — | ✅ | ✅ |
 | 5 | Sucursales {marca} | `/marca` | Sucursales, franquiciados y catálogo de la red (en el celular: «Sucursales») | — | — | — | ✅ |
 | 6 | Ajustes | `/ajustes` y pestañas | Configurar la sucursal (una vez) | — | — | ✅ | ✅ |
 
-Profesional: 2 ítems · Recepción: 3 · Franquiciado: 5 · Marca: 6.
+Profesional: 3 ítems · Recepción: 3 · Franquiciado: 5 · Marca: 6.
+**Ver como** ✅ (solo la marca): en la barra lateral (celular: franja bajo la barra de arriba) se elige
+Franquiciado/a, Recepción o una profesional y la app se arma como la ve ese rol, con un aviso arriba.
 El selector de sucursal (arriba) cambia la sucursal de todas las pantallas.
 
 ---
@@ -79,11 +82,13 @@ Pestañas: **Leads · Recall**.
 
 ## 4. Números (`/numeros` · `/facturacion` · `/marketing` · `/insumos`)
 
-Pestañas: **Ventas · Facturación · Anuncios · Insumos**. Solo franquiciado y marca.
+Pestañas: **Ventas · Comisiones · Facturación · Anuncios · Insumos**. Solo franquiciado y marca.
 
 - **Ventas** ✅ (`/numeros`): período, facturado, insumos, comisión, neto; por profesional, cuenta de
   cobro, tratamiento; pacientes que más gastaron.
   - 🆕 **Exportar a Excel** turnos y cobros del período: botón secundario arriba a la derecha.
+- **Comisiones** ✅ (`/comisiones`): por mes, «Todas» o una profesional: resumen por profesional y turno por
+  turno (cobrado y comisión). La profesional ve la misma pantalla solo con lo suyo, como «Mis comisiones».
 - **Facturación** ✅ (`/facturacion`): titulares del monotributo, lo del mes y 12 meses contra el tope,
   cuentas de cada titular.
   - 🆕 **Facturar en ARCA**: acción por cobro desde acá (no pantalla nueva).
