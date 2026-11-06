@@ -41,14 +41,14 @@ function longDate(isoDate: string, withYear = false) {
 export default async function AgendaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ fecha?: string; vista?: string }>;
+  searchParams: Promise<{ fecha?: string; vista?: string; ultimo?: string }>;
 }) {
   const ctx = await getContext();
   if (!ctx?.currentBranch) {
     return <p className="text-sm text-muted">No tenés sucursales asignadas.</p>;
   }
 
-  const { fecha, vista } = await searchParams;
+  const { fecha, vista, ultimo } = await searchParams;
   const view: "mes" | "semana" = vista === "semana" ? "semana" : "mes";
   const today = todayISO();
   const day = fecha && ISO_DATE.test(fecha) ? fecha : today;
@@ -374,6 +374,7 @@ export default async function AgendaPage({
             reminderTpl={reminderTpl}
             branchLabel={branchLabel}
             currency={ctx.org.currency}
+            highlightId={ultimo ?? null}
           />
         )}
       </section>

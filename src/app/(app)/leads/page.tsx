@@ -112,6 +112,10 @@ export default async function LeadsPage({
     byCampaign.set(k, c);
   }
 
+  // Recién pasó a este bloque (se le escribió hace segundos): destello suave
+  const justMoved = (l: Lead) =>
+    !!l.contacted_at && l.status === "contacted" && Date.now() - new Date(l.contacted_at).getTime() < 20_000;
+
   // «Le escribiste» / «Le escribió marian»
   const wrote = (l: Lead) =>
     l.contacted_by === ctx.userId
@@ -133,7 +137,10 @@ export default async function LeadsPage({
   };
 
   const row = (l: Lead, mode: "new" | "due" | "waiting" | "history") => (
-      <li key={l.id} className="grid gap-3 px-4 py-4 sm:grid-cols-[1fr_auto] sm:items-start">
+      <li
+        key={l.id}
+        className={`grid gap-3 px-4 py-4 sm:grid-cols-[1fr_auto] sm:items-start ${justMoved(l) ? "flash" : ""}`}
+      >
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="text-[0.98rem] font-semibold">{l.full_name ?? "Sin nombre"}</span>{" "}

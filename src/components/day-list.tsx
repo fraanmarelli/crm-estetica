@@ -46,6 +46,7 @@ export function DayList({
   reminderTpl,
   branchLabel,
   currency,
+  highlightId = null,
 }: {
   rows: DayRow[];
   returningIds: string[];
@@ -56,6 +57,8 @@ export function DayList({
   reminderTpl: string;
   branchLabel: string;
   currency: string;
+  // El turno recién guardado: destello suave al volver a la agenda
+  highlightId?: string | null;
 }) {
   const returning = new Set(returningIds);
   const pending = rows.filter((r) => r.status === "scheduled");
@@ -82,7 +85,7 @@ export function DayList({
         key={r.id}
         className={`grid grid-cols-[3.75rem_1fr] gap-x-4 gap-y-2 px-4 py-3.5 sm:grid-cols-[3.75rem_1fr_auto] sm:items-center ${
           r.status === "cancelled" ? "opacity-55" : ""
-        }`}
+        } ${r.id === highlightId ? "flash" : ""}`}
       >
         <div className="leading-tight">
           <span className={`num block text-lg font-semibold ${isPending ? "text-ink" : "text-muted"}`}>{time}</span>

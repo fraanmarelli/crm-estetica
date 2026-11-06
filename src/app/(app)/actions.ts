@@ -360,7 +360,7 @@ export async function saveAppointment(_prev: ActionState, formData: FormData): P
   // Vuelve a la agenda, en el día del turno
   const day = new Date(scheduledAt).toLocaleDateString("en-CA", { timeZone: TZ });
   const view = str(formData, "return_view") === "semana" ? "&vista=semana" : "";
-  redirect(`/?fecha=${day}${view}&listo=${status === "completed" ? "cobro" : "turno"}`);
+  redirect(`/?fecha=${day}${view}&listo=${status === "completed" ? "cobro" : "turno"}&ultimo=${appointmentId}`);
 }
 
 export async function setAppointmentStatus(formData: FormData) {

@@ -25,6 +25,7 @@ export function LeadWhatsAppButton({
     <button
       type="button"
       disabled={pending}
+      aria-busy={pending || undefined}
       className={`btn btn-sm ${primary ? "btn-primary" : ""}`}
       onClick={() => {
         window.open(href, "_blank", "noopener,noreferrer");

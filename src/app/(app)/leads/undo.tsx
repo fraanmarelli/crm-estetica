@@ -36,7 +36,7 @@ export function LeadUndoProvider({ children }: { children: React.ReactNode }) {
           className="fixed inset-x-0 z-40 flex justify-center px-4"
           style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + var(--undo-offset, 84px))" }}
         >
-          <div className="flex items-center gap-4 rounded-full bg-chrome px-5 py-2.5 text-sm text-chrome-ink shadow-lg">
+          <div className="toast-in flex items-center gap-4 rounded-full bg-chrome px-5 py-2.5 text-sm text-chrome-ink shadow-lg">
             <span>Le escribiste a {current.name}</span>
             <button
               type="button"

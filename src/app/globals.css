@@ -246,7 +246,7 @@
     display: none;
   }
   .fold-chevron {
-    transition: transform 150ms;
+    transition: transform 180ms var(--ease-out);
   }
   .fold[open] .fold-chevron {
     transform: rotate(180deg);
@@ -622,6 +622,68 @@
     opacity: 0;
     transform: translateY(8px);
   }
+}
+
+/* Cambio de pantalla: el contenido aparece con un fundido */
+.page-in {
+  animation: page-in 150ms var(--ease-out) both;
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+/* Plegables: lo de adentro entra deslizando al abrir */
+details[open] > :not(summary) {
+  animation: fold-in 180ms var(--ease-out) both;
+}
+@keyframes fold-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+/* Una fila con una acción en curso se atenúa: está por cambiar de lugar o irse */
+li:has(> * [aria-busy="true"]),
+li:has([aria-busy="true"]) {
+  opacity: 0.45;
+  transition: opacity 150ms var(--ease-out);
+}
+
+/* Lo que recién llegó a un bloque: destello suave del color de la marca */
+.flash {
+  position: relative;
+  isolation: isolate;
+}
+.flash::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--brand-soft);
+  opacity: 0;
+  pointer-events: none;
+  animation: flash 1.2s ease-out;
+}
+@keyframes flash {
+  from {
+    opacity: 1;
+  }
+}
+
+/* Pestañas: la marca de la activa se desliza */
+.tab-slider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--ink);
+  transition: transform 200ms var(--ease-out);
+  z-index: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

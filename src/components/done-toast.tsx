@@ -21,14 +21,23 @@ export function DoneToast() {
   useEffect(() => {
     if (!code || !MESSAGES[code]) return;
     setShown(MESSAGES[code]);
-    // Saca ?listo de la dirección para que no vuelva a aparecer al recargar
-    const rest = new URLSearchParams(params.toString());
-    rest.delete("listo");
-    const q = rest.toString();
-    router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
+    // Después del destello, saca ?listo y ?ultimo de la dirección para que no vuelvan a aparecer al recargar
+    const clean = setTimeout(() => {
+      const rest = new URLSearchParams(params.toString());
+      rest.delete("listo");
+      rest.delete("ultimo");
+      const q = rest.toString();
+      router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
+    }, 1500);
+    return () => clearTimeout(clean);
+  }, [code, params, pathname, router]);
+
+  // Se va sola (aparte: no se corta cuando cambia la dirección)
+  useEffect(() => {
+    if (!shown) return;
     const t = setTimeout(() => setShown(null), 2400);
     return () => clearTimeout(t);
-  }, [code, params, pathname, router]);
+  }, [shown]);
 
   if (!shown) return null;
   return (

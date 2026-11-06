@@ -29,18 +29,17 @@ sentirse rápida aunque la pantalla nueva tarde medio segundo en llegar.
 | Botón que guarda algo | `SubmitButton`: «Guardando...» con ruedita, no se toca dos veces; `doneText` muestra «✓ ...» si la acción no devuelve error a la pantalla | `components/submit-button.tsx` |
 | Se guardó y se volvió a otra pantalla | La acción redirige con `?listo=<código>` y aparece «✓ Turno guardado» abajo (`DoneToast`) | `components/done-toast.tsx` |
 | Deshacer algo recién hecho | Aviso abajo con «Deshacer», 10 segundos | `leads/undo.tsx` |
+| Cambio de pantalla | El contenido aparece con un fundido de 150 ms (`.page-in`) | `src/app/(app)/template.tsx` |
+| Cambiar de pestaña | La marca de la activa se desliza (`.tab-slider`, solo `transform`) | `section-tabs.tsx` |
+| Abrir un plegable (`<details>`) | Lo de adentro entra deslizando y la flecha gira; cualquier `<details>` lo hace solo | `globals.css` |
+| Una fila con una acción en curso | Se atenúa sola (`li:has([aria-busy])`) mientras guarda | `globals.css` |
+| Algo recién llegado a un bloque | Destello suave del color de la marca, 1,2 s (`.flash`) | leads (recién escrito), agenda (`?ultimo=<turno>`) |
 
 Todo botón de un formulario que llama a una acción del servidor usa `SubmitButton` (con un `pendingText`
 que diga lo que está pasando: «Guardando...», «Descartando...»). Un `<button>` suelto en un formulario
 es un error.
 
-### Próximos (aprobados, no programados)
-
-- Cambio de pantalla: el contenido aparece con un fundido de 150 ms; la marca de la pestaña activa se desliza.
-- Plegables que se abren deslizando, con la flecha girando.
-- Listas que se reacomodan: lo que cambia de bloque se va con un fundido; lo nuevo aparece con un destello
-  suave del color de la marca (1 s).
-- El aviso de «Deshacer» y las confirmaciones entran desde abajo (ya lo hace `DoneToast`).
+Para que una fila se atenúe mientras guarda, su botón tiene que marcar `aria-busy` (lo hace `SubmitButton`).
 
 ## Textos
 
