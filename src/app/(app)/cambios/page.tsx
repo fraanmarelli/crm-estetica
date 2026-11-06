@@ -41,15 +41,25 @@ export default async function ChangesPage() {
   const supabase = await createClient();
   const cur = ctx.org.currency;
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("change_alerts")
     .select(
-      "id, kind, appointment_id, patient_id, actor_email, before, after, detail, created_at, reviewed_at, patient:patients(first_name, last_name), appointment:appointments(scheduled_at)",
+      "id, kind, appointment_id, patient_id, actor_email, before, after, detail, created_at, reviewed_at, appointment:appointments(scheduled_at)",
     )
     .eq("branch_id", ctx.currentBranch.id)
     .order("created_at", { ascending: false })
     .limit(200);
-  const alerts = ((data ?? []) as unknown as Alert[]).filter(
+  const raw = (data ?? []) as unknown as Alert[];
+  // La paciente se busca aparte (el aviso guarda su id, sin relación directa)
+  const patientIds = [...new Set(raw.map((a) => a.patient_id).filter(Boolean) as string[])];
+  const { data: patientData } = patientIds.length
+    ? await supabase.from("patients").select("id, first_name, last_name").in("id", patientIds)
+    : { data: [] };
+  const patients = new Map(
+    ((patientData ?? []) as { id: string; first_name: string; last_name: string | null }[]).map((p) => [p.id, p]),
+  );
+  for (const a of raw) a.patient = a.patient_id ? (patients.get(a.patient_id) ?? null) : null;
+  const alerts = raw.filter(
     (a) => a.kind !== "payment_edited" || !sameSnapshot(a.before, a.after),
   );
   const pending = alerts.filter((a) => !a.reviewed_at);
@@ -149,6 +159,8 @@ export default async function ChangesPage() {
           </form>
         )}
       </div>
+
+      {error && <p className="alert-error">No se pudieron cargar los cambios: {error.message}</p>}
 
       <section className="space-y-2">
         <h2>
