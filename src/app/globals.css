@@ -703,3 +703,8 @@ li:has([aria-busy="true"]) {
 .btn .btn-spinner {
   margin-right: 0;
 }
+
+/* El contenedor de la ventana (slot @modal) sin ventana abierta no ocupa lugar en la grilla */
+.page-in:empty {
+  display: none;
+}

@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 // Ventana encima de la pantalla actual (en la compu); en el celular ocupa toda la pantalla.
 // Se cierra con la ✕, con Esc, tocando afuera o con el botón atrás del navegador.
@@ -9,8 +10,12 @@ export function Modal({ children, label }: { children: React.ReactNode; label: s
   const router = useRouter();
   const panel = useRef<HTMLDivElement>(null);
   const close = () => router.back();
+  // Se monta en <body>: así no la achica ni la corre ningún contenedor de la pantalla (grilla, animación)
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
+    if (!mounted) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") router.back();
     };
@@ -23,9 +28,10 @@ export function Modal({ children, label }: { children: React.ReactNode; label: s
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
     };
-  }, [router]);
+  }, [router, mounted]);
 
-  return (
+  if (!mounted) return null;
+  return createPortal(
     <div
       className="modal-backdrop fixed inset-0 z-50 flex items-stretch justify-center bg-black/45 lg:items-start lg:px-6 lg:py-10"
       onMouseDown={(e) => {
@@ -70,6 +76,7 @@ export function Modal({ children, label }: { children: React.ReactNode; label: s
         </div>
         <div className="lg:px-4 lg:pb-4">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
