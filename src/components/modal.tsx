@@ -23,7 +23,7 @@ export function Modal({ children, label }: { children: React.ReactNode; label: s
     // La pantalla de atrás no se mueve mientras la ventana está abierta
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    panel.current?.focus();
+    panel.current?.focus({ preventScroll: true });
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
@@ -44,15 +44,17 @@ export function Modal({ children, label }: { children: React.ReactNode; label: s
         aria-modal="true"
         aria-label={label}
         tabIndex={-1}
-        className="modal-panel relative w-full overflow-y-auto bg-canvas outline-none lg:max-h-full lg:max-w-4xl lg:rounded-2xl lg:shadow-2xl"
-        style={{
-          paddingTop: "max(16px, env(safe-area-inset-top, 0px))",
-          paddingBottom: "max(24px, env(safe-area-inset-bottom, 0px))",
-          paddingLeft: "max(16px, env(safe-area-inset-left, 0px))",
-          paddingRight: "max(16px, env(safe-area-inset-right, 0px))",
-        }}
+        className="modal-panel relative flex w-full flex-col overflow-hidden bg-canvas outline-none lg:max-h-full lg:max-w-4xl lg:rounded-2xl lg:shadow-2xl"
       >
-        <div className="sticky top-0 z-10 -mx-4 -mt-4 mb-2 flex items-center justify-between bg-canvas/95 px-4 py-2 backdrop-blur lg:-mx-4">
+        {/* Barra fija arriba (no se desplaza con el contenido ni lo tapa) */}
+        <div
+          className="flex shrink-0 items-center justify-between border-b border-line/60 py-2"
+          style={{
+            paddingTop: "max(8px, env(safe-area-inset-top, 0px))",
+            paddingLeft: "max(16px, env(safe-area-inset-left, 0px))",
+            paddingRight: "max(12px, env(safe-area-inset-right, 0px))",
+          }}
+        >
           <button
             type="button"
             onClick={close}
@@ -74,7 +76,17 @@ export function Modal({ children, label }: { children: React.ReactNode; label: s
             </svg>
           </button>
         </div>
-        <div className="lg:px-4 lg:pb-4">{children}</div>
+        {/* Lo que se desplaza */}
+        <div
+          className="min-h-0 flex-1 overflow-y-auto pt-4 lg:px-8 lg:pb-8"
+          style={{
+            paddingBottom: "max(24px, env(safe-area-inset-bottom, 0px))",
+            paddingLeft: "max(16px, env(safe-area-inset-left, 0px))",
+            paddingRight: "max(16px, env(safe-area-inset-right, 0px))",
+          }}
+        >
+          {children}
+        </div>
       </div>
     </div>,
     document.body,
