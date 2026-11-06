@@ -55,7 +55,9 @@ De arriba hacia abajo:
    pacientes que vienen por primera vez → cumpleaños.
 4. **Agenda del día o de la semana** ✅: «Por atender» y «Atendidas · No vinieron», con WhatsApp de
    recordatorio, ficha incompleta y estado de la transferencia.
-5. Agendar turno ✅ → `/turnos/nuevo`. Turno → `/turnos/[id]` (cobro, ítems, promo, seña).
+5. Agendar turno ✅ → `/turnos/nuevo`. Turno → `/turnos/[id]` (cobro, ítems, promo, seña). En cada ítem:
+   zona (con sugerencias), cantidad y **lote** ✅ (propone el último de la sucursal). Al registrarlo atendido:
+   **Nota de la sesión** ✅ (solo profesionales, franquiciado y marca).
 
 ## 2. Pacientes (`/pacientes`)
 
@@ -63,6 +65,10 @@ De arriba hacia abajo:
 - Cargar paciente ✅ (`/pacientes/nuevo`; carga rápida para dar turno sin tenerla presente).
 - Completar ficha ✅ (`/pacientes/[id]/completar`: a mano o QR/link para la paciente).
 - Registro por QR de la sucursal ✅ (`/pacientes/registro`).
+- **Historia clínica** ✅ (en la ficha; solo profesionales, franquiciado y marca; recepción ve la tabla de
+  turnos de siempre): resumen por tratamiento (×N · última fecha) y cada sesión atendida con fecha grande,
+  profesional, tratamiento con zonas y cantidades, lote y la nota de la sesión. «Otros turnos» plegado.
+- 🆕 **Fotos antes/después**: en la ficha, dentro de cada sesión de la historia clínica, y para subir en el turno.
 - 🆕 **Consentimiento informado con firma**: va en la ficha (pestaña o sección «Consentimientos») y se
   pide al completar la ficha. Las cláusulas por tratamiento las define la marca en **Sucursales**.
 - 🆕 **Importar historial** (CSV): acción secundaria plegada en Pacientes, solo franquiciado y marca.
@@ -93,8 +99,8 @@ Pestañas: **Ventas · Comisiones · Facturación · Anuncios · Insumos**. Solo
   cuentas de cada titular.
   - 🆕 **Facturar en ARCA**: acción por cobro desde acá (no pantalla nueva).
 - **Anuncios** ✅ (`/marketing`): gasto y resultados de Meta cruzados con pacientes.
-- **Insumos** ✅ (`/insumos`): costo por insumo y qué usa cada tratamiento (la marca edita, el
-  franquiciado consulta).
+- **Insumos** ✅ (`/insumos`): **Buscar lote** ✅ arriba (a qué pacientes se les aplicó; la marca puede buscar
+  en toda la red), costo por insumo y qué usa cada tratamiento (la marca edita, el franquiciado consulta).
 
 ## 5. Sucursales {marca} (`/marca`) — solo marca (ej. «Sucursales Dr Beauty»)
 
@@ -114,7 +120,6 @@ sola si ya está configurada):
 - 🆕 **Mensajes**: recordatorio, cumpleaños, recall y leads (una sección plegada en General).
 - 🆕 **Días de recall** por tratamiento: misma sección que Mensajes.
 - 🆕 **Conectar con Google** (Calendar/Sheets): reemplaza el contenido de «Planilla, calendario y Klaviyo».
-- 🆕 **Código de lote**: no es un ajuste; se carga en cada ítem del cobro del turno (`/turnos/[id]`).
 
 ---
 

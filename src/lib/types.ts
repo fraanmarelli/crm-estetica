@@ -92,6 +92,7 @@ export type AppointmentItemInput = {
   price: string;
   promotion_id?: string;
   promotion_name?: string; // solo para mostrar
+  lot_code?: string; // lote del insumo (trazabilidad ANMAT)
 };
 
 // Promo: un tratamiento a precio fijo o un combo con precio total.

@@ -29,6 +29,8 @@ export type AppContext = {
   canManageCurrentBranch: boolean;
   // Marca, franquiciado o recepción: trabaja Contactar (leads y recall). Profesionales no.
   canContactCurrentBranch: boolean;
+  // Profesional de la sucursal, franquiciado o marca: ve y escribe la historia clínica. Recepción no.
+  canViewClinical: boolean;
   // La marca está mirando la app como otro rol (los permisos de la pantalla son los de ese rol)
   viewAs: ViewAs | null;
   realIsNetwork: boolean;
@@ -106,6 +108,9 @@ export const getContext = cache(async (): Promise<AppContext | null> => {
     canContactCurrentBranch:
       canManageCurrentBranch ||
       (!!currentBranch && effective.some((m) => m.branch_id === currentBranch.id && m.role === "reception")),
+    canViewClinical:
+      canManageCurrentBranch ||
+      (!!currentBranch && effective.some((m) => m.branch_id === currentBranch.id && m.role === "professional")),
     viewAs,
     realIsNetwork: isNetwork,
   };

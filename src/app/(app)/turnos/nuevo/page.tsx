@@ -96,7 +96,7 @@ export default async function NewAppointmentPage({
     return <p className="alert-error">No se encontró la paciente.</p>;
   }
 
-  const { treatments, professionals, accounts, promotions } = await loadCatalog(ctx.org.id, ctx.currentBranch.id);
+  const { treatments, professionals, accounts, promotions, lastLots } = await loadCatalog(ctx.org.id, ctx.currentBranch.id);
   // Hoy: la hora actual. Otro día: 10:00.
   const start = !day || day === todayISO() ? isoToLocalInput(null) : `${day}T10:00`;
 
@@ -112,7 +112,9 @@ export default async function NewAppointmentPage({
         professionals={professionals}
         accounts={accounts}
         promotions={promotions}
+        lastLots={lastLots}
         canSeeCosts={ctx.canManageCurrentBranch}
+        canClinical={ctx.canViewClinical}
         returnView={week ? "semana" : undefined}
         defaults={{
           scheduled_at: start,

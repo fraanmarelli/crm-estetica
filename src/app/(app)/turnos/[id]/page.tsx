@@ -28,6 +28,7 @@ type Appt = {
     price: number | null;
     promotion_id: string | null;
     promotion: { name: string } | null;
+    lot_code: string | null;
   }[];
   payments: { account_id: string; amount: number; exchange_rate: number | null; is_deposit: boolean }[];
   checks: TransferCheck[];
@@ -48,7 +49,7 @@ export default async function EditAppointmentPage({
   const { data } = await supabase
     .from("appointments")
     .select(
-      `id, branch_id, patient_id, professional_id, scheduled_at, duration_minutes, status, notes, patient:patients(first_name, last_name, consent_data_at), branch:branches(name), items:appointment_items(treatment_id, zone, quantity, price, promotion_id, promotion:promotions(name)), payments:appointment_payments(account_id, amount, exchange_rate, is_deposit)`,
+      `id, branch_id, patient_id, professional_id, scheduled_at, duration_minutes, status, notes, patient:patients(first_name, last_name, consent_data_at), branch:branches(name), items:appointment_items(treatment_id, zone, quantity, price, promotion_id, lot_code, promotion:promotions(name)), payments:appointment_payments(account_id, amount, exchange_rate, is_deposit)`,
     )
     .eq("id", id)
     .maybeSingle();
@@ -69,11 +70,17 @@ export default async function EditAppointmentPage({
     );
   }
 
-  const { treatments, professionals, accounts, promotions } = await loadCatalog(ctx.org.id, ctx.currentBranch.id);
+  const { treatments, professionals, accounts, promotions, lastLots } = await loadCatalog(ctx.org.id, ctx.currentBranch.id);
   let commission = "";
   if (ctx.canManageCurrentBranch) {
     const { data: c } = await supabase.rpc("appointment_commission", { p_appointment: appt.id });
     if (c?.[0]?.commission_manual && c[0].commission !== null) commission = String(c[0].commission);
+  }
+  // Nota de la sesión: solo profesionales, franquiciado y marca (la base filtra igual)
+  let clinicalNote = "";
+  if (ctx.canViewClinical) {
+    const { data: n } = await supabase.from("clinical_notes").select("body").eq("appointment_id", appt.id).maybeSingle();
+    clinicalNote = n?.body ?? "";
   }
   const s = (v: number | string | null) => (v === null ? "" : String(v));
   const checkout = sp.cobrar === "1" && appt.status !== "cancelled";
@@ -122,7 +129,10 @@ export default async function EditAppointmentPage({
         professionals={professionals}
         accounts={accounts}
         promotions={promotions}
+        lastLots={lastLots}
         canSeeCosts={ctx.canManageCurrentBranch}
+        canClinical={ctx.canViewClinical}
+        clinicalNote={clinicalNote}
         mode={checkout ? "checkout" : "full"}
         returnView={sp.vista === "semana" ? "semana" : undefined}
         defaults={{
@@ -139,6 +149,7 @@ export default async function EditAppointmentPage({
             price: s(i.price),
             promotion_id: i.promotion_id ?? "",
             promotion_name: i.promotion?.name ?? "",
+            lot_code: i.lot_code ?? "",
           })),
           payments: appt.payments.map((p) => ({
             account_id: p.account_id,

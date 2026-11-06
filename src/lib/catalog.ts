@@ -7,7 +7,8 @@ import type { PaymentAccount, Professional, Promotion, Treatment } from "@/lib/t
 export async function loadCatalog(orgId: string, branchId: string) {
   const supabase = await createClient();
   const today = todayISO();
-  const [{ data: treatments }, { data: professionals }, { data: accounts }, { data: promotions }] = await Promise.all([
+  const [{ data: treatments }, { data: professionals }, { data: accounts }, { data: promotions }, { data: lots }] =
+    await Promise.all([
     supabase
       .from("treatments")
       .select("id, name, category, recall_days, unit_label, supply:supplies(name, unit)")
@@ -36,7 +37,19 @@ export async function loadCatalog(orgId: string, branchId: string) {
       .eq("is_active", true)
       .or(`branch_id.is.null,branch_id.eq.${branchId}`)
       .order("name"),
+    // Últimos lotes usados en la sucursal: se propone el más reciente de cada tratamiento
+    supabase
+      .from("appointment_items")
+      .select("treatment_id, lot_code, appointment:appointments!inner(branch_id)")
+      .eq("appointment.branch_id", branchId)
+      .not("lot_code", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(300),
   ]);
+  const lastLots: Record<string, string> = {};
+  for (const l of (lots ?? []) as { treatment_id: string; lot_code: string }[]) {
+    if (!lastLots[l.treatment_id]) lastLots[l.treatment_id] = l.lot_code;
+  }
   return {
     treatments: (treatments ?? []) as unknown as Treatment[],
     professionals: (professionals ?? []) as Professional[],
@@ -45,5 +58,6 @@ export async function loadCatalog(orgId: string, branchId: string) {
     promotions: ((promotions ?? []) as Promotion[]).filter(
       (p) => p.items.length > 0 && (!p.valid_until || p.valid_until >= today),
     ),
+    lastLots,
   };
 }

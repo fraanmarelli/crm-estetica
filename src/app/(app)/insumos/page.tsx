@@ -1,7 +1,9 @@
+import Link from "next/link";
 import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/supabase/server";
 import { SectionTabs } from "@/components/section-tabs";
 import { requireManagerContext } from "@/lib/context";
+import { fmtDate } from "@/lib/format";
 import type { Supply } from "@/lib/types";
 import { SupplyCostsForm } from "./supply-costs-form";
 import { NewSupplyForm } from "./new-supply-form";
@@ -9,10 +11,37 @@ import { setTreatmentSupply } from "./actions";
 
 type TreatmentRow = { id: string; name: string; category: string | null; supply_id: string | null };
 
-export default async function SuppliesPage() {
+type LotRow = {
+  appointment_id: string;
+  scheduled_at: string;
+  branch_name: string;
+  patient_id: string;
+  patient_name: string;
+  patient_phone: string | null;
+  treatment: string;
+  professional_name: string | null;
+  lot_code: string;
+};
+
+export default async function SuppliesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ lote?: string; red?: string }>;
+}) {
   const ctx = await requireManagerContext();
   const supabase = await createClient();
   const canEdit = ctx.isNetwork;
+  const sp = await searchParams;
+  const lot = (sp.lote ?? "").trim().slice(0, 60);
+  const wholeNetwork = ctx.isNetwork && sp.red === "1";
+  const { data: lotData, error: lotError } = lot
+    ? await supabase.rpc("lot_trace", {
+        p_org: ctx.org.id,
+        p_branch: wholeNetwork ? null : ctx.currentBranch.id,
+        p_lot: lot,
+      })
+    : { data: null, error: null };
+  const lotRows = (lotData ?? []) as LotRow[];
 
   const [{ data: supplyData }, { data: treatmentData }] = await Promise.all([
     supabase.rpc("supply_list", { p_org: ctx.org.id }),
@@ -39,6 +68,72 @@ export default async function SuppliesPage() {
           </p>
         </div>
       </div>
+
+      {/* Trazabilidad (ANMAT): a qué pacientes se les aplicó un lote */}
+      <section className="space-y-3" id="lote">
+        <h2>Buscar lote</h2>
+        <form className="card flex flex-wrap items-end gap-3" action="/insumos#lote">
+          <div className="min-w-0 flex-1">
+            <label className="label" htmlFor="lot-search">Código de lote</label>
+            <input
+              id="lot-search"
+              name="lote"
+              defaultValue={lot}
+              placeholder="Ej. el de una alerta de ANMAT"
+              autoComplete="off"
+              className="input num uppercase"
+            />
+          </div>
+          {ctx.isNetwork && (
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="red" value="1" defaultChecked={wholeNetwork} />
+              En toda la red
+            </label>
+          )}
+          <button className="btn btn-primary">Buscar</button>
+        </form>
+        {lotError && <p className="alert-error">No se pudo buscar el lote: {lotError.message}</p>}
+        {lot && !lotError && (
+          <div className="card overflow-x-auto p-0">
+            {lotRows.length === 0 ? (
+              <p className="p-4 text-sm text-muted">
+                Ningún tratamiento atendido con un lote que contenga «{lot.toUpperCase()}»
+                {wholeNetwork ? " en la red" : ` en ${ctx.currentBranch.name}`}.
+              </p>
+            ) : (
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Paciente</th>
+                    <th>Tratamiento</th>
+                    <th>Lote</th>
+                    {wholeNetwork && <th>Sucursal</th>}
+                    <th>Profesional</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lotRows.map((r) => (
+                    <tr key={`${r.appointment_id}-${r.treatment}-${r.lot_code}`}>
+                      <td className="whitespace-nowrap">{fmtDate(r.scheduled_at)}</td>
+                      <td>
+                        <Link href={`/pacientes/${r.patient_id}`} className="font-medium hover:text-brand">
+                          {r.patient_name}
+                        </Link>
+                        {r.patient_phone && <span className="num block text-xs text-muted">+{r.patient_phone}</span>}
+                      </td>
+                      <td>{r.treatment}</td>
+                      <td className="num">{r.lot_code}</td>
+                      {wholeNetwork && <td className="text-muted">{r.branch_name}</td>}
+                      <td className="text-muted">{r.professional_name ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+      </section>
 
       <SupplyCostsForm supplies={supplies} canEdit={canEdit} />
 

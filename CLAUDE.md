@@ -55,6 +55,9 @@ y entregá archivos completos.
   `google_calendar`). Eventos: `appointment.saved` (cualquier cambio), `.completed`, `.updated` (cambio de un
   realizado), `.deleted`. `integration_refs` guarda el id externo (evento de Google) que devuelve el handler.
 - `appointments.duration_minutes` define el largo del turno (calendario).
+- Historia clínica: `clinical_notes` (una nota por turno atendido; sucursal/paciente los pone un trigger desde el turno).
+  La ven y escriben profesionales de la sucursal, franquiciado y marca (`can_view_clinical()`); recepción no.
+  `appointment_items.lot_code` (lote, en el cobro) + `lot_trace()` para buscar a quién se le aplicó un lote.
 - Registro de pacientes: link fijo por sucursal `/registro/[branches.intake_token]` (público, sin sesión) que
   solo CREA pacientes (`patients.self_registered_at`). Recepción lo ve en `/pacientes/registro` (QR, link, se
   registraron hoy); el franquiciado lo cambia con `rotate_intake_token()`. El servidor valida el token y recién ahí
@@ -115,8 +118,7 @@ y entregá archivos completos.
 ## Próximos pasos previstos
 - **Consentimiento informado** en la ficha de ingreso: cláusulas por tratamiento + firma digital (dibujada en
   pantalla), guardado con fecha, versión del texto y paciente. Pedido explícito del dueño del proyecto.
-- **Código de lote** del insumo usado (jeringa, vial, etc.) en cada ítem del cobro, por trazabilidad sanitaria
-  (ANMAT). Pedido explícito del dueño del proyecto.
+- **Fotos antes/después** en la historia clínica (Storage privado, achicadas antes de subir).
 - **"Conectar con Google"** (OAuth) para Calendar y Sheets en vez de Apps Script: un botón, el CRM crea el
   calendario de la sucursal solo. Requiere proyecto en Google Cloud y verificación de la app por Google.
 - **Exportar a Excel** los turnos/cobros por período, para sucursales que no necesitan sincronizar una planilla.

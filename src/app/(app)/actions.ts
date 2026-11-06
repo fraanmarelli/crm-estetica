@@ -314,6 +314,7 @@ export async function saveAppointment(_prev: ActionState, formData: FormData): P
         price: numOrNull(i.price ?? ""),
         // La base verifica que la promo sea de la red o de esta sucursal
         promotion_id: orNull(i.promotion_id ?? ""),
+        lot_code: orNull(String(i.lot_code ?? "").trim().toUpperCase().slice(0, 60)),
       })),
     );
     if (error) {
@@ -341,6 +342,23 @@ export async function saveAppointment(_prev: ActionState, formData: FormData): P
 
   const { error: statusErr } = await supabase.from("appointments").update({ status }).eq("id", appointmentId);
   if (statusErr) return { error: `No se pudo actualizar el estado: ${statusErr.message}` };
+
+  // Nota de la sesión (historia clínica): solo profesional, franquiciado o marca; la base lo verifica (RLS)
+  if (status === "completed" && formData.has("clinical_note")) {
+    const body = str(formData, "clinical_note").slice(0, 4000);
+    const { error } = body
+      ? await supabase
+          .from("clinical_notes")
+          // Sucursal, paciente y organización los completa la base a partir del turno
+          .upsert(
+            { appointment_id: appointmentId, body, organization_id: ctx.org.id, branch_id: ctx.currentBranch.id, patient_id: patientId },
+            { onConflict: "appointment_id" },
+          )
+      : ctx.canManageCurrentBranch
+        ? await supabase.from("clinical_notes").delete().eq("appointment_id", appointmentId)
+        : { error: null };
+    if (error) return { error: `Se guardó el turno, pero no la nota de la sesión: ${error.message}` };
+  }
 
   // Comisión manual (solo marca/franquiciado; la base lo vuelve a verificar)
   if (status === "completed" && formData.has("commission")) {
