@@ -1,3 +1,4 @@
+import { SubmitButton } from "@/components/submit-button";
 import Link from "next/link";
 import { setAppointmentStatus } from "@/app/(app)/actions";
 import { IconWhatsApp } from "@/components/icons";
@@ -155,7 +156,7 @@ export function DayList({
               <form action={setAppointmentStatus}>
                 <input type="hidden" name="id" value={r.id} />
                 <input type="hidden" name="status" value="no_show" />
-                <button className="btn btn-sm">No vino</button>
+                <SubmitButton className="btn btn-sm" pendingText="Marcando...">No vino</SubmitButton>
               </form>
               <Link href={`/turnos/${r.id}?cobrar=1${viewParam}`} className="btn btn-sm btn-primary">
                 Cobrar

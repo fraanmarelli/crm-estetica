@@ -1,3 +1,4 @@
+import { SubmitButton } from "@/components/submit-button";
 import Link from "next/link";
 import { headers } from "next/headers";
 import QRCode from "qrcode";
@@ -110,7 +111,7 @@ export default async function CompleteIntakePage({
         ) : (
           <form action={createIntakeLink}>
             <input type="hidden" name="patient_id" value={patient.id} />
-            <button className="btn btn-primary">Mostrar QR y link</button>
+            <SubmitButton className="btn btn-primary" pendingText="Generando...">Mostrar QR y link</SubmitButton>
           </form>
         )}
       </section>

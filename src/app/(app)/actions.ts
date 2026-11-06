@@ -164,7 +164,7 @@ export async function createPatient(_prev: PatientActionState, formData: FormDat
     const vista = str(formData, "next_vista") === "semana" ? "&vista=semana" : "";
     redirect(`/turnos/nuevo?paciente=${data.id}${/^\d{4}-\d{2}-\d{2}$/.test(fecha) ? `&fecha=${fecha}` : ""}${vista}`);
   }
-  redirect(`/pacientes/${data.id}`);
+  redirect(`/pacientes/${data.id}?listo=paciente`);
 }
 
 export async function updatePatient(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -208,7 +208,7 @@ export async function updatePatient(_prev: ActionState, formData: FormData): Pro
   revalidatePath("/");
   if (!current?.consent_data_at && formData.get("consent_data") === "on") {
     const back = str(formData, "back");
-    if (back.startsWith("/")) redirect(back);
+    if (back.startsWith("/")) redirect(`${back}${back.includes("?") ? "&" : "?"}listo=ficha`);
     return { ok: "Ficha completa." };
   }
   return { ok: "Datos guardados." };
@@ -360,7 +360,7 @@ export async function saveAppointment(_prev: ActionState, formData: FormData): P
   // Vuelve a la agenda, en el día del turno
   const day = new Date(scheduledAt).toLocaleDateString("en-CA", { timeZone: TZ });
   const view = str(formData, "return_view") === "semana" ? "&vista=semana" : "";
-  redirect(`/?fecha=${day}${view}`);
+  redirect(`/?fecha=${day}${view}&listo=${status === "completed" ? "cobro" : "turno"}`);
 }
 
 export async function setAppointmentStatus(formData: FormData) {

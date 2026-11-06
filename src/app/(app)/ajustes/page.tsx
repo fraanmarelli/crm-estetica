@@ -1,3 +1,4 @@
+import { SubmitButton } from "@/components/submit-button";
 import Link from "next/link";
 import { SectionTabs } from "@/components/section-tabs";
 import { createClient } from "@/lib/supabase/server";
@@ -189,7 +190,7 @@ export default async function SettingsPage({
                   {conn ? (
                     <form action={disconnectMp}>
                       <input type="hidden" name="id" value={conn.id} />
-                      <button className="btn btn-sm">Desconectar</button>
+                      <SubmitButton className="btn btn-sm" pendingText="Desconectando...">Desconectar</SubmitButton>
                     </form>
                   ) : (
                     <a href={`/api/mp/connect?account=${a.id}`} className="btn btn-sm">
@@ -235,7 +236,9 @@ export default async function SettingsPage({
                   <form action={toggleIntegration}>
                     <input type="hidden" name="id" value={i.id} />
                     <input type="hidden" name="active" value={i.is_active ? "0" : "1"} />
-                    <button className="btn btn-sm">{i.is_active ? "Pausar" : "Activar"}</button>
+                    <SubmitButton className="btn btn-sm" pendingText={i.is_active ? "Pausando..." : "Activando..."}>
+                      {i.is_active ? "Pausar" : "Activar"}
+                    </SubmitButton>
                   </form>
                 </div>
               </li>

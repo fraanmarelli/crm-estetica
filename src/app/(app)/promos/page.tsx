@@ -1,3 +1,4 @@
+import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/supabase/server";
 import { SectionTabs } from "@/components/section-tabs";
 import { requireManagerContext } from "@/lib/context";
@@ -69,7 +70,9 @@ export default async function PromosPage() {
             <form action={togglePromotion}>
               <input type="hidden" name="id" value={p.id} />
               <input type="hidden" name="active" value={p.is_active ? "0" : "1"} />
-              <button className="btn btn-sm">{p.is_active ? "Pausar" : "Activar"}</button>
+              <SubmitButton className="btn btn-sm" pendingText={p.is_active ? "Pausando..." : "Activando..."}>
+                {p.is_active ? "Pausar" : "Activar"}
+              </SubmitButton>
             </form>
           )}
         </div>

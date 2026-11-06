@@ -1,4 +1,5 @@
-import type { CSSProperties } from "react";
+import { Suspense, type CSSProperties } from "react";
+import { DoneToast } from "@/components/done-toast";
 import { getContext } from "@/lib/context";
 import { ROLE_LABEL } from "@/lib/format";
 import { BranchSwitcher } from "@/components/branch-switcher";
@@ -165,6 +166,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </main>
 
       <BottomNav items={items} />
+      <Suspense fallback={null}>
+        <DoneToast />
+      </Suspense>
     </div>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   IconBrand,
   IconMarketing,
@@ -39,19 +40,38 @@ function isActive(pathname: string, item: NavItem) {
   return [item.href, ...(item.match ?? [])].some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
+// Barrita de arriba mientras carga la pantalla de este link (va adentro del <Link>)
+export function LinkPending() {
+  const { pending } = useLinkStatus();
+  return pending ? <span className="nav-progress" aria-hidden="true" /> : null;
+}
+
+// El ítem tocado se marca al instante, sin esperar a que llegue la pantalla nueva
+export function useTappedHref() {
+  const pathname = usePathname();
+  const [tapped, setTapped] = useState<{ href: string; from: string } | null>(null);
+  // Cuando cambia la ruta, manda la ruta real
+  const current = tapped && tapped.from === pathname ? tapped.href : null;
+  useEffect(() => {
+    if (tapped && tapped.from !== pathname) setTapped(null);
+  }, [pathname, tapped]);
+  return { pathname, tapped: current, tap: (href: string) => setTapped({ href, from: pathname }) };
+}
+
 // Barra lateral (escritorio)
 export function SideNav({ items }: { items: NavItem[] }) {
-  const pathname = usePathname();
+  const { pathname, tapped, tap } = useTappedHref();
   return (
     <nav className="flex flex-col gap-0.5">
       {items.map((item) => {
         const Icon = ICONS[item.icon];
-        const active = isActive(pathname, item);
+        const active = tapped ? tapped === item.href : isActive(pathname, item);
         return (
           <Link
             key={item.href}
             href={item.href}
             aria-current={active ? "page" : undefined}
+            onClick={() => tap(item.href)}
             className={`flex items-center gap-3 rounded-xl px-3 py-2 text-[0.92rem] font-medium transition-colors ${
               active
                 ? "bg-gold-1/12 text-gold-1"
@@ -60,6 +80,7 @@ export function SideNav({ items }: { items: NavItem[] }) {
           >
             <Icon />
             {item.label}
+            <LinkPending />
           </Link>
         );
       })}
@@ -69,7 +90,7 @@ export function SideNav({ items }: { items: NavItem[] }) {
 
 // Barra inferior (celular y tablet en vertical)
 export function BottomNav({ items }: { items: NavItem[] }) {
-  const pathname = usePathname();
+  const { pathname, tapped, tap } = useTappedHref();
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface lg:hidden"
@@ -78,18 +99,20 @@ export function BottomNav({ items }: { items: NavItem[] }) {
       <div className="mx-auto flex max-w-xl justify-around">
         {items.map((item) => {
           const Icon = ICONS[item.icon];
-          const active = isActive(pathname, item);
+          const active = tapped ? tapped === item.href : isActive(pathname, item);
           return (
             <Link
               key={item.href}
               href={item.href}
               aria-current={active ? "page" : undefined}
+              onClick={() => tap(item.href)}
               className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-2 text-[0.7rem] font-semibold ${
                 active ? "text-brand" : "text-muted"
               }`}
             >
               <Icon className="h-[22px] w-[22px]" />
               <span className="truncate">{item.shortLabel ?? item.label}</span>
+              <LinkPending />
             </Link>
           );
         })}

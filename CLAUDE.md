@@ -91,6 +91,7 @@ y entregá archivos completos.
   iría (o qué cambiar del mapa) para que se apruebe primero. Al terminar, actualizar el mapa (🆕 → ✅).
 - Menú: máximo 5 ítems (6 para la marca); lo secundario va en pestañas (`SectionTabs`). Cada rol ve solo lo suyo.
 - Funciona sin configurar; lo que se configura una vez va plegado. Los avisos van en «Pendientes» de Hoy.
+- Seguir `docs/ESTILO.md` (movimiento, textos). Todo botón que envía a una acción del servidor es `SubmitButton`.
 
 ## Reglas que no se rompen
 1. **Toda tabla nueva** lleva `organization_id`, y `branch_id` si es de una sucursal, con FK compuesta

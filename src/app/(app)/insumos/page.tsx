@@ -1,3 +1,4 @@
+import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/supabase/server";
 import { SectionTabs } from "@/components/section-tabs";
 import { requireManagerContext } from "@/lib/context";
@@ -82,7 +83,7 @@ export default async function SuppliesPage() {
                               </option>
                             ))}
                           </select>
-                          <button className="btn btn-sm">Guardar</button>
+                          <SubmitButton className="btn btn-sm" doneText="Guardado">Guardar</SubmitButton>
                         </form>
                       ) : (
                         <span className={current ? "" : "text-muted"}>{current?.name ?? "Sin insumo"}</span>

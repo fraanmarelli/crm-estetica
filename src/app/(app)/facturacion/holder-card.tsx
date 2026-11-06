@@ -1,3 +1,4 @@
+import { SubmitButton } from "@/components/submit-button";
 import { fmtMoney } from "@/lib/format";
 import { deleteHolder } from "./actions";
 import { HolderForm } from "./forms";
@@ -83,9 +84,12 @@ export function HolderCard({ h, monthLabel, accountNames }: { h: HolderStatus; m
           <HolderForm holder={{ ...h, id: h.holder_id }} compact />
           <form action={deleteHolder}>
             <input type="hidden" name="id" value={h.holder_id} />
-            <button className="text-xs text-muted underline-offset-2 hover:text-bad hover:underline">
+            <SubmitButton
+              className="text-xs text-muted underline-offset-2 hover:text-bad hover:underline"
+              pendingText="Quitando..."
+            >
               Quitar titular
-            </button>
+            </SubmitButton>
             <span className="text-xs text-muted"> · sus cuentas dejan de sumar; no se borra ningún cobro</span>
           </form>
         </div>

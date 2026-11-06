@@ -1,3 +1,4 @@
+import { SubmitButton } from "@/components/submit-button";
 import Link from "next/link";
 import { SectionTabs } from "@/components/section-tabs";
 import { createClient } from "@/lib/supabase/server";
@@ -185,20 +186,26 @@ export default async function LeadsPage({
           {l.status !== "booked" && (
             <form action={bookLead}>
               <input type="hidden" name="id" value={l.id} />
-              <button className={`btn btn-sm ${mode === "waiting" ? "btn-primary" : ""}`}>Darle turno</button>
+              <SubmitButton className={`btn btn-sm ${mode === "waiting" ? "btn-primary" : ""}`} pendingText="Abriendo...">
+                Darle turno
+              </SubmitButton>
             </form>
           )}
           {l.status === "new" || l.status === "contacted" ? (
             <form action={setLeadStatus}>
               <input type="hidden" name="id" value={l.id} />
               <input type="hidden" name="status" value="lost" />
-              <button className="text-xs text-muted hover:text-bad">Descartar</button>
+              <SubmitButton className="text-xs text-muted hover:text-bad" pendingText="Descartando...">
+                Descartar
+              </SubmitButton>
             </form>
           ) : l.status === "lost" ? (
             <form action={setLeadStatus}>
               <input type="hidden" name="id" value={l.id} />
               <input type="hidden" name="status" value="contacted" />
-              <button className="text-xs text-muted hover:text-ink">Recuperar</button>
+              <SubmitButton className="text-xs text-muted hover:text-ink" pendingText="Recuperando...">
+                Recuperar
+              </SubmitButton>
             </form>
           ) : null}
         </div>

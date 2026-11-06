@@ -1,3 +1,4 @@
+import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/supabase/server";
 import { fmtDate, ROLE_LABEL } from "@/lib/format";
 import type { Role } from "@/lib/types";
@@ -87,7 +88,7 @@ export async function TeamPanel({
             </div>
             <form action={revokeInvite}>
               <input type="hidden" name="id" value={i.id} />
-              <button className="text-xs text-muted hover:text-bad">Anular invitación</button>
+              <SubmitButton className="text-xs text-muted hover:text-bad" pendingText="Anulando...">Anular invitación</SubmitButton>
             </form>
           </li>
         ))}
