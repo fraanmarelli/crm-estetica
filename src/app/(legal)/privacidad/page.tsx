@@ -15,7 +15,8 @@ export default function PrivacyPage() {
 
       <p>
         CRM Estética es un sistema de gestión para clínicas de estética (pacientes, turnos, cobros y marketing),
-        desarrollado y operado por <strong>Tero Labs</strong> (Argentina, <a href="https://terolabs.dev">terolabs.dev</a>).
+        desarrollado y operado por <strong>Tero Labs</strong>, emprendimiento de Franco Giuliano Marelli (Córdoba,
+        Argentina, <a href="https://terolabs.dev">terolabs.dev</a>).
         Esta política explica qué datos trata el CRM, para qué y cómo pedir que se borren.
       </p>
 
@@ -82,7 +83,7 @@ export default function PrivacyPage() {
 
       <h2>Contacto</h2>
       <p>
-        Tero Labs · <a href="mailto:hola@terolabs.dev">hola@terolabs.dev</a>
+        Tero Labs (Franco Giuliano Marelli) · <a href="mailto:hola@terolabs.dev">hola@terolabs.dev</a>
       </p>
     </>
   );
