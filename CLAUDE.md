@@ -42,7 +42,9 @@ y entregá archivos completos.
 - Facturación (monotributo): `account_holders` (titular, CUIT, `annual_limit` = tope de su categoría, `alert_pct`)
   por sucursal; `payment_accounts.holder_id` (sin titular = no suma, ej. efectivo). `holder_status()` da lo del mes
   y lo de los últimos 12 meses con `level` ok/warn/over; `billing_by_account()` lo de cada cuenta en un período.
-  Los cobros se cuentan en el día del turno. Solo franquiciado y marca; la agenda avisa con warn/over.
+  Solo franquiciado y marca; la agenda avisa con warn/over.
+- **Un turno cuenta en el día del turno** (`scheduled_at` en la hora de la organización), no en el día en que se
+  marcó atendido: Ventas, Comisiones, Facturación, monotributo, Sucursales y el mail semanal usan la misma fecha.
 - Verificación de transferencias MP: `mp_connections` (una cuenta de MP por `payment_accounts`, OAuth solo lectura,
   rutas `/api/mp/connect` y `/api/mp/callback`) + `mp_connection_secrets` (tokens, solo service role).
   Un trigger en `appointment_payments` crea `transfer_checks` (clave turno+cuenta+monto+seña, sobrevive a la edición
@@ -96,6 +98,14 @@ y entregá archivos completos.
   service role), `ad_insights_daily` (gasto/resultados por campaña y día), `marketing_summary()` cruza con pacientes.
 - Tareas programadas (pg_cron): `dispatch-events` cada minuto, `meta-sync` diario, `weekly-report` los lunes.
 
+## Pruebas
+- `npm test`: plata en la app (`src/lib/money.test.ts`: montos es-AR, reparto de promos, cobro en pantalla) y
+  el cruce de Mercado Pago. La lógica de plata del formulario vive en `src/lib/money.ts` y `src/lib/appointment-rows.ts`.
+- `npm run test:db`: crea una base vacía, aplica todas las migraciones y corre `supabase/tests/*.test.sql`
+  (`plata.test.sql`: cobros ARS/USD/seña, insumos, comisión, neto, monotributo, millas, avisos y quién ve qué).
+- GitHub las corre en cada cambio (`.github/workflows/pruebas.yml`) y avisa por mail si fallan.
+- Todo cambio en un cálculo de plata (trigger o función) lleva su caso en `plata.test.sql`.
+
 ## Reglas del producto
 - **Ninguna función nueva se programa sin un lugar aprobado en `docs/MAPA.md`** (menú, pestaña, sección, qué va
   a la vista y qué plegado). Si un pedido no encaja en el mapa, avisar antes de programarlo y proponer dónde
@@ -138,7 +148,7 @@ y entregá archivos completos.
 - Tipos generados: `npx supabase gen types typescript --project-id <ref> > src/lib/database.types.ts`.
 - Auditoría (nov 2026), para cuando se sumen sucursales (hoy solo Córdoba; turnos por WhatsApp con recepción, sin
   paquetes ni gift cards, sin superposición de boxes): Supabase Pro + mudar a São Paulo (una sola migración);
-  registro de quién vio/cambió una ficha; pruebas de los cálculos de plata y aviso de errores; confirmación de turnos
+  registro de quién vio/cambió una ficha; aviso de errores en producción (las pruebas de plata ya están); confirmación de turnos
   por WhatsApp y reserva online opcional; ficha clínica (evolución, mapa facial con unidades, fotos antes/después);
   paquetes y gift cards; stock de insumos con alertas; agenda por box/equipo y lista de espera; encuesta y reseña
   en Google; reportes de ausencias, retención, ticket promedio, ocupación y valor por paciente; mail semanal (Resend).

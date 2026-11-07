@@ -91,12 +91,13 @@ export default async function NewAppointmentPage({
   // ------------------------------------------------------------------
   // Paso 2: cargar el turno
   // ------------------------------------------------------------------
-  const { data: brief } = await supabase.rpc("patient_brief", { p_patient: paciente });
+  const [{ data: brief }, { treatments, professionals, accounts, promotions, lastLots }] = await Promise.all([
+    supabase.rpc("patient_brief", { p_patient: paciente }),
+    loadCatalog(ctx.org.id, ctx.currentBranch.id),
+  ]);
   if (!brief?.length) {
     return <p className="alert-error">No se encontró la paciente.</p>;
   }
-
-  const { treatments, professionals, accounts, promotions, lastLots } = await loadCatalog(ctx.org.id, ctx.currentBranch.id);
   // Hoy: la hora actual. Otro día: 10:00.
   const start = !day || day === todayISO() ? isoToLocalInput(null) : `${day}T10:00`;
 

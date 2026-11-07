@@ -5,6 +5,8 @@ import { saveAppointment } from "@/app/(app)/actions";
 import { SubmitButton } from "@/components/submit-button";
 import { DateTimeField } from "@/components/date-fields";
 import { STATUS_LABEL, groupThousands, moneyInputValue, pluralEs } from "@/lib/format";
+import { emptyRow, toItems, toRows, type Row } from "@/lib/appointment-rows";
+import { paidInPesos, parseMoney } from "@/lib/money";
 import type {
   ActionState,
   AppointmentItemInput,
@@ -29,21 +31,6 @@ export type AppointmentDefaults = {
   commission?: string; // "" = automática
 };
 
-// Un renglón de "Tratamientos": un tratamiento suelto o una promo entera (un solo precio).
-// Al guardar, la promo se convierte en sus tratamientos (para recall, insumos y Klaviyo)
-// con el precio repartido entre ellos.
-type Row = {
-  treatment_id: string;
-  zone: string;
-  quantity: string;
-  price: string;
-  promotion_id: string;
-  promotion_name: string;
-  promo_items: { treatment_id: string; zone: string }[];
-  // Lote del insumo (jeringa, vial): en una promo, vale para sus tratamientos con insumo
-  lot_code: string;
-};
-
 const DURATIONS = [15, 20, 30, 45, 60, 90, 120, 180];
 // Zonas más usadas (se sugieren al escribir; se puede poner cualquier otra)
 const ZONES = [
@@ -63,97 +50,10 @@ const ZONES = [
   "Sonrisa gingival",
 ];
 
-const emptyRow = (): Row => ({
-  treatment_id: "",
-  zone: "",
-  quantity: "",
-  price: "",
-  promotion_id: "",
-  promotion_name: "",
-  promo_items: [],
-  lot_code: "",
-});
 const emptyPayment = (): PaymentInput => ({ account_id: "", amount: "", exchange_rate: "" });
-const toNum = (s: string) => {
-  const n = Number(String(s).replace(/\./g, "").replace(",", "."));
-  return String(s).trim() === "" || !Number.isFinite(n) ? 0 : n;
-};
+const toNum = parseMoney;
 const money = (v: number, currency = "ARS") =>
   v.toLocaleString("es-AR", { style: "currency", currency, maximumFractionDigits: 0 });
-// Para el servidor: sin puntos de miles y con coma decimal (así lo lee numOrNull)
-const forServer = (n: number) => String(n).replace(".", ",");
-
-// Ítems guardados → renglones (los de una misma promo vuelven a ser uno)
-function toRows(items: AppointmentItemInput[]): Row[] {
-  const rows: Row[] = [];
-  const byPromo = new Map<string, Row>();
-  for (const it of items) {
-    if (it.promotion_id) {
-      const existing = byPromo.get(it.promotion_id);
-      if (existing) {
-        existing.price = moneyInputValue(toNum(existing.price) + toNum(it.price));
-        existing.promo_items.push({ treatment_id: it.treatment_id, zone: it.zone });
-        existing.quantity = "";
-        existing.lot_code = existing.lot_code || (it.lot_code ?? "");
-        continue;
-      }
-      const row: Row = {
-        ...emptyRow(),
-        promotion_id: it.promotion_id,
-        promotion_name: it.promotion_name ?? "Promo",
-        price: moneyInputValue(it.price),
-        quantity: it.quantity,
-        promo_items: [{ treatment_id: it.treatment_id, zone: it.zone }],
-        lot_code: it.lot_code ?? "",
-      };
-      byPromo.set(it.promotion_id, row);
-      rows.push(row);
-    } else {
-      rows.push({
-        ...emptyRow(),
-        ...it,
-        price: moneyInputValue(it.price),
-        promotion_id: "",
-        promotion_name: "",
-        lot_code: it.lot_code ?? "",
-      });
-    }
-  }
-  return rows;
-}
-
-// Renglones → ítems que se guardan
-function toItems(rows: Row[], hasSupply: (treatmentId: string) => boolean): AppointmentItemInput[] {
-  const out: AppointmentItemInput[] = [];
-  for (const r of rows) {
-    if (r.promotion_id) {
-      const list = r.promo_items;
-      if (!list.length) continue;
-      const total = toNum(r.price);
-      const hasPrice = r.price.trim() !== "";
-      const share = Math.floor(total / list.length);
-      list.forEach((it, i) => {
-        out.push({
-          treatment_id: it.treatment_id,
-          zone: it.zone,
-          quantity: list.length === 1 ? r.quantity : "",
-          price: hasPrice ? forServer(i === list.length - 1 ? total - share * (list.length - 1) : share) : "",
-          promotion_id: r.promotion_id,
-          lot_code: list.length === 1 || hasSupply(it.treatment_id) ? r.lot_code : "",
-        });
-      });
-    } else if (r.treatment_id) {
-      out.push({
-        treatment_id: r.treatment_id,
-        zone: r.zone,
-        quantity: r.quantity,
-        price: r.price.trim() === "" ? "" : forServer(toNum(r.price)),
-        lot_code: r.lot_code,
-      });
-    }
-  }
-  return out;
-}
 
 export function AppointmentForm({
   patientId,
@@ -221,22 +121,8 @@ export function AppointmentForm({
   const accountById = (id: string) => accounts.find((a) => a.id === id);
   const itemsTotal = rows.reduce((s, r) => s + toNum(r.price), 0);
 
-  // Cada parte del cobro en pesos; los dólares cuentan solo si tienen cotización
-  function inPesos(list: PaymentInput[]) {
-    let ars = 0;
-    let usdRated = 0;
-    let usdUnrated = 0;
-    for (const p of list) {
-      const acc = accountById(p.account_id);
-      if (!acc) continue;
-      if (acc.currency === "ARS") ars += toNum(p.amount);
-      else if (toNum(p.exchange_rate) > 0) {
-        ars += toNum(p.amount) * toNum(p.exchange_rate);
-        usdRated += toNum(p.amount);
-      } else usdUnrated += toNum(p.amount);
-    }
-    return { ars, usdRated, usdUnrated };
-  }
+  // Cada parte del cobro en pesos; los dólares cuentan solo si tienen cotización (igual que la base)
+  const inPesos = (list: PaymentInput[]) => paidInPesos(list, accounts);
   const depositSum = inPesos(hasDeposit ? [deposit] : []);
   const restSum = inPesos(payments);
   const paidArs = depositSum.ars + restSum.ars;

@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { BRANCH_COOKIE, VIEW_AS_COOKIE, getContext, requireBranchContext, requireManagerContext } from "@/lib/context";
 import { TZ, localInputToISO } from "@/lib/format";
+import { numOrNull } from "@/lib/money";
 import type {
   ActionState,
   AppointmentItemInput,
@@ -30,11 +31,6 @@ const qtyOrNull = (v: string) => {
   const t = v.trim().replace(",", ".");
   if (t === "") return null;
   const n = Number(t);
-  return Number.isFinite(n) ? n : null;
-};
-const numOrNull = (v: string) => {
-  if (v === "") return null;
-  const n = Number(v.replace(/\./g, "").replace(",", "."));
   return Number.isFinite(n) ? n : null;
 };
 

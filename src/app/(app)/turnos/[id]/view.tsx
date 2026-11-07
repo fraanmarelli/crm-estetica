@@ -7,7 +7,7 @@ import { STATUS_LABEL, fmtDateTime, fullName, isoToLocalInput } from "@/lib/form
 import { AppointmentForm } from "@/components/appointment-form";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { IntakePrompt } from "@/components/intake-prompt";
-import { TransferStatus, loadTransferChecks, type TransferCheck } from "@/components/transfer-status";
+import { TransferStatus, type TransferCheck } from "@/components/transfer-status";
 import type { AppointmentStatus } from "@/lib/types";
 
 type Appt = {
@@ -38,18 +38,24 @@ type Appt = {
 export async function AppointmentView({ id, sp }: { id: string; sp: { cobrar?: string; vista?: string } }) {
   const ctx = await requireBranchContext();
   const supabase = await createClient();
+  // El catálogo (tratamientos, cuentas, promos) y la comisión no dependen del turno: se piden al mismo
+  // tiempo que el turno, en vez de uno detrás del otro
+  const catalogP = ctx.isProfessionalOnly ? null : loadCatalog(ctx.org.id, ctx.currentBranch.id);
+  const commissionP = ctx.canManageCurrentBranch
+    ? supabase.rpc("appointment_commission", { p_appointment: id })
+    : null;
 
   const { data } = await supabase
     .from("appointments")
     .select(
-      `id, branch_id, patient_id, professional_id, scheduled_at, duration_minutes, status, notes, patient:patients(first_name, last_name, consent_data_at, notes), branch:branches(name), items:appointment_items(treatment_id, zone, quantity, price, promotion_id, lot_code, promotion:promotions(name)), payments:appointment_payments(account_id, amount, exchange_rate, is_deposit)`,
+      `id, branch_id, patient_id, professional_id, scheduled_at, duration_minutes, status, notes, patient:patients(first_name, last_name, consent_data_at, notes), branch:branches(name), items:appointment_items(treatment_id, zone, quantity, price, promotion_id, lot_code, promotion:promotions(name)), payments:appointment_payments(account_id, amount, exchange_rate, is_deposit), checks:transfer_checks(status, amount, is_deposit, matched_by, transfer_at, note, account:payment_accounts(name))`,
     )
     .eq("id", id)
     .maybeSingle();
 
   if (!data) notFound();
   const appt = data as unknown as Appt;
-  appt.checks = (await loadTransferChecks(supabase, [appt.id])).get(appt.id) ?? [];
+  appt.checks ??= [];
 
   if (appt.branch_id !== ctx.currentBranch.id) {
     return (
@@ -67,13 +73,16 @@ export async function AppointmentView({ id, sp }: { id: string; sp: { cobrar?: s
 
   // Profesional: resumen de solo lectura (no cobra ni edita turnos)
   if (ctx.isProfessionalOnly) {
-    const { data: pro } = appt.professional_id
-      ? await supabase.from("professionals").select("full_name").eq("id", appt.professional_id).maybeSingle()
-      : { data: null };
-    const { data: tr } = await supabase
-      .from("treatments")
-      .select("id, name, unit_label")
-      .in("id", appt.items.map((i) => i.treatment_id).length ? appt.items.map((i) => i.treatment_id) : ["00000000-0000-0000-0000-000000000000"]);
+    const treatmentIds = appt.items.map((i) => i.treatment_id);
+    const [{ data: pro }, { data: tr }] = await Promise.all([
+      appt.professional_id
+        ? supabase.from("professionals").select("full_name").eq("id", appt.professional_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+      supabase
+        .from("treatments")
+        .select("id, name, unit_label")
+        .in("id", treatmentIds.length ? treatmentIds : ["00000000-0000-0000-0000-000000000000"]),
+    ]);
     const tName = new Map(((tr ?? []) as { id: string; name: string; unit_label: string | null }[]).map((t) => [t.id, t]));
     return (
       <div className="mx-auto max-w-2xl space-y-4">
@@ -113,12 +122,13 @@ export async function AppointmentView({ id, sp }: { id: string; sp: { cobrar?: s
     );
   }
 
-  const { treatments, professionals, accounts, promotions, lastLots } = await loadCatalog(ctx.org.id, ctx.currentBranch.id);
+  const [{ treatments, professionals, accounts, promotions, lastLots }, commissionRes] = await Promise.all([
+    catalogP ?? loadCatalog(ctx.org.id, ctx.currentBranch.id),
+    commissionP,
+  ]);
   let commission = "";
-  if (ctx.canManageCurrentBranch) {
-    const { data: c } = await supabase.rpc("appointment_commission", { p_appointment: appt.id });
-    if (c?.[0]?.commission_manual && c[0].commission !== null) commission = String(c[0].commission);
-  }
+  const c = commissionRes?.data as { commission: number | null; commission_manual: boolean }[] | null | undefined;
+  if (c?.[0]?.commission_manual && c[0].commission !== null) commission = String(c[0].commission);
   const s = (v: number | string | null) => (v === null ? "" : String(v));
   const checkout = sp.cobrar === "1" && appt.status !== "cancelled";
 

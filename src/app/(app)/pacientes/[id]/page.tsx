@@ -62,28 +62,13 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const supabase = await createClient();
 
-  const { data: patient } = await supabase
-    .from("patients")
-    .select("*, home_branch:branches(name)")
-    .eq("id", id)
-    .maybeSingle();
-
-  if (!patient) {
-    // Puede existir en otra sucursal sin acceso a la ficha completa
-    const { data: brief } = await supabase.rpc("patient_brief", { p_patient: id });
-    if (!brief?.length) notFound();
-    return (
-      <div className="card mx-auto max-w-md space-y-3">
-        <h1>{brief[0].display_name}</h1>
-        <p className="text-sm text-muted">
-          Es paciente de otra sucursal. Al darle un turno en {ctx.currentBranch.name} vas a ver su ficha.
-        </p>
-        <Link href={`/turnos/nuevo?paciente=${id}`} className="btn btn-primary">Darle un turno</Link>
-      </div>
-    );
-  }
-
-  const [{ data: appts }, { data: balance }, { data: moves }, { data: notesData }, { data: bgData }] = await Promise.all([
+  // Todo junto, en una sola vuelta a la base (si no hay ficha, lo demás vuelve vacío)
+  const [{ data: patient }, { data: appts }, { data: balance }, { data: moves }, { data: notesData }, { data: bgData }] = await Promise.all([
+    supabase
+      .from("patients")
+      .select("*, home_branch:branches(name)")
+      .eq("id", id)
+      .maybeSingle(),
     supabase
       .from("appointments")
       .select(
@@ -114,6 +99,21 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
           .maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
+  if (!patient) {
+    // Puede existir en otra sucursal sin acceso a la ficha completa
+    const { data: brief } = await supabase.rpc("patient_brief", { p_patient: id });
+    if (!brief?.length) notFound();
+    return (
+      <div className="card mx-auto max-w-md space-y-3">
+        <h1>{brief[0].display_name}</h1>
+        <p className="text-sm text-muted">
+          Es paciente de otra sucursal. Al darle un turno en {ctx.currentBranch.name} vas a ver su ficha.
+        </p>
+        <Link href={`/turnos/nuevo?paciente=${id}`} className="btn btn-primary">Darle un turno</Link>
+      </div>
+    );
+  }
+
   const notes = (notesData ?? []) as Note[];
   const notesByAppt = new Map<string, Note[]>();
   for (const n of notes) {

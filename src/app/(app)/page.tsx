@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { DayList, shortDate, type DayRow } from "@/components/day-list";
-import { loadTransferChecks } from "@/components/transfer-status";
 import { createClient } from "@/lib/supabase/server";
 import { getContext } from "@/lib/context";
 import {
@@ -90,13 +89,19 @@ export default async function AgendaPage({
         .limit(3000),
       supabase
         .from("appointments")
+        // En la misma consulta: la verificación de cada transferencia y si la paciente ya se atendió
+        // antes en la sucursal (una vuelta a la base en vez de tres)
         .select(
-          `id, scheduled_at, duration_minutes, status, amount_paid, amount_usd, patient:patients(id, first_name, last_name, phone, notes, consent_data_at), professional:professionals(full_name), items:appointment_items(zone, treatment:treatments(name))`,
+          `id, scheduled_at, duration_minutes, status, amount_paid, amount_usd, patient:patients(id, first_name, last_name, phone, notes, consent_data_at, prior:appointments(id)), professional:professionals(full_name), items:appointment_items(zone, treatment:treatments(name)), checks:transfer_checks(status, amount, is_deposit, matched_by, transfer_at, note, account:payment_accounts(name))`,
         )
         .eq("branch_id", branchId)
         .match(onlyPro ? { professional_id: onlyPro } : {})
         .gte("scheduled_at", start)
         .lt("scheduled_at", end)
+        .eq("patient.prior.branch_id", branchId)
+        .eq("patient.prior.status", "completed")
+        .lt("patient.prior.scheduled_at", start)
+        .limit(1, { referencedTable: "patient.prior" })
         .order("scheduled_at"),
       supabase.from("recall_due_by_branch").select("due_count").eq("branch_id", branchId).maybeSingle(),
       supabase.rpc("birthdays_on", { p_branch: branchId, p_date: day }),
@@ -143,10 +148,8 @@ export default async function AgendaPage({
     else if (a.status === "no_show") c.noShow++;
   }
 
-  const rows = (dayAppts ?? []) as unknown as Row[];
-  // Verificación de transferencias aparte: si falla (ej. falta la migración) la agenda se ve igual
-  const checksByAppt = await loadTransferChecks(supabase, rows.map((r) => r.id));
-  for (const r of rows) r.checks = checksByAppt.get(r.id) ?? [];
+  const rows = (dayAppts ?? []) as unknown as (Row & { patient: (Row["patient"] & { prior?: unknown[] }) | null })[];
+  for (const r of rows) r.checks ??= [];
   const active = rows.filter((r) => r.status !== "cancelled");
   const done = rows.filter((r) => r.status === "completed");
   const pending = rows.filter((r) => r.status === "scheduled");
@@ -154,20 +157,10 @@ export default async function AgendaPage({
   const revenue = done.reduce((s, r) => s + Number(r.amount_paid ?? 0), 0);
   const dueCount = due?.due_count ?? 0;
 
-  // Primera visita a la sucursal
-  const patientIds = [...new Set(rows.map((r) => r.patient?.id).filter((x): x is string => Boolean(x)))];
-  const returning = new Set<string>();
-  if (patientIds.length) {
-    const { data: prior } = await supabase
-      .from("appointments")
-      .select("patient_id")
-      .eq("branch_id", branchId)
-      .eq("status", "completed")
-      .in("patient_id", patientIds)
-      .lt("scheduled_at", start)
-      .limit(1000);
-    for (const p of prior ?? []) returning.add(p.patient_id as string);
-  }
+  // Primera visita a la sucursal: no tiene ningún turno atendido antes de hoy
+  const returning = new Set(
+    rows.filter((r) => r.patient && (r.patient.prior?.length ?? 0) > 0).map((r) => r.patient!.id),
+  );
   // Solo las que todavía no se atendieron (y con ficha completa: las incompletas ya tienen su aviso)
   const firstVisits = pending.filter((r) => r.patient && r.patient.consent_data_at && !returning.has(r.patient.id));
 
