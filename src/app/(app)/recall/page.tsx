@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SoonCard } from "@/components/soon";
 import { SectionTabs } from "@/components/section-tabs";
 import { createClient } from "@/lib/supabase/server";
 import { requireContactContext } from "@/lib/context";
@@ -75,6 +76,13 @@ export default async function RecallPage({ searchParams }: { searchParams: Promi
           </p>
         </div>
       </div>
+
+      {ctx.showRoadmap && (
+        <SoonCard
+          title="Recall automático por WhatsApp"
+          description="El CRM le escribe sola a cada paciente cuando le toca volver, con mensajes aprobados por Meta. Acá vas a ver «enviado automático» en cada una."
+        />
+      )}
 
       <div className="flex gap-1">
         {WINDOWS.map((w) => (

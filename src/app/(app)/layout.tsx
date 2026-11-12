@@ -4,6 +4,7 @@ import { getContext } from "@/lib/context";
 import { ROLE_LABEL } from "@/lib/format";
 import { BranchSwitcher } from "@/components/branch-switcher";
 import { ViewAsSwitcher } from "@/components/view-as-switcher";
+import { RoadmapToggle } from "@/components/roadmap-toggle";
 import { createClient } from "@/lib/supabase/server";
 import { BrandMark } from "@/components/brand-mark";
 import { BottomNav, SideNav, type NavItem } from "@/components/nav-links";
@@ -105,7 +106,10 @@ export default async function AppLayout({ children, modal }: { children: React.R
           <BranchSwitcher branches={ctx.branches} currentId={ctx.currentBranch?.id ?? null} />
         </div>
         {ctx.realIsNetwork && (
-          <ViewAsSwitcher current={viewAsValue} professionals={viewAsPros} variant="side" />
+          <div className="space-y-1">
+            <ViewAsSwitcher current={viewAsValue} professionals={viewAsPros} variant="side" />
+            <RoadmapToggle on={ctx.showRoadmap} variant="side" />
+          </div>
         )}
         <SideNav items={items} />
         <div className="mt-auto flex items-center gap-2 border-t border-chrome-line px-3 pt-4">
@@ -145,7 +149,12 @@ export default async function AppLayout({ children, modal }: { children: React.R
             paddingRight: "max(16px, env(safe-area-inset-right, 0px))",
           }}
         >
-          <ViewAsSwitcher current={viewAsValue} professionals={viewAsPros} variant="strip" />
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <ViewAsSwitcher current={viewAsValue} professionals={viewAsPros} variant="strip" />
+            </div>
+            <RoadmapToggle on={ctx.showRoadmap} variant="strip" />
+          </div>
         </div>
       )}
 

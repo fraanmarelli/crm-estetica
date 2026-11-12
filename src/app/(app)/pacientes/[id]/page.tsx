@@ -6,6 +6,7 @@ import { fmtDate, fmtDateTime, fmtMoney, fullName, STATUS_CLASS, STATUS_LABEL } 
 import type { AppointmentStatus, Patient } from "@/lib/types";
 import { ClinicalBackground, type Background } from "./clinical-background";
 import { NoteComposer } from "./note-composer";
+import { SoonButton, SoonCard } from "@/components/soon";
 import { PatientNotes } from "./patient-notes";
 import { PatientEditForm } from "./patient-edit-form";
 import { PointsForm } from "./points-form";
@@ -200,6 +201,19 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
 
             <ClinicalBackground patientId={p.id} data={(bgData ?? null) as Background | null} />
 
+            {ctx.showRoadmap && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <SoonCard
+                  title="Consentimiento informado"
+                  description="Cláusulas de cada tratamiento y firma en pantalla, guardado con fecha y versión del texto."
+                />
+                <SoonCard
+                  title="Fotos antes / después"
+                  description="En cada sesión, privadas, para comparar la evolución."
+                />
+              </div>
+            )}
+
             {summary.length > 0 && (
               <ul className="flex flex-wrap gap-1.5">
                 {summary.map((t) => (
@@ -378,6 +392,11 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
                   </li>
                 ))}
               </ul>
+            )}
+            {ctx.showRoadmap && (
+              <div className="mt-3">
+                <SoonButton label="Mandarle su saldo por WhatsApp" />
+              </div>
             )}
             {!readOnly && (
               <div className="passport-stub">

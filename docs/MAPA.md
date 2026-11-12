@@ -43,6 +43,9 @@ editar datos, sin millas, sin nuevo turno); el turno como resumen. Escribe notas
 lo hace cumplir (turnos, cobros, pacientes y millas: solo marca, franquiciado y recepción).
 **Ver como** ✅ (solo la marca): en la barra lateral (celular: franja bajo la barra de arriba) se elige
 Franquiciado/a, Recepción o una profesional y la app se arma como la ve ese rol, con un aviso arriba.
+**Mostrar lo que viene** ✅ (solo la marca, debajo de «Ver como»): para mostrar el producto. Las funciones 🆕 de este
+mapa aparecen en gris con «Próximamente», en su lugar y sin poder tocarlas (y Mercado Pago, mientras no conecta).
+Apagado, la app es la de siempre; el equipo nunca lo ve.
 El selector de sucursal (arriba) cambia la sucursal de todas las pantallas.
 
 ---

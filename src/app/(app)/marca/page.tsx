@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { SoonCard } from "@/components/soon";
 import { requireNetworkContext } from "@/lib/context";
 import { fmtMoney, todayISO } from "@/lib/format";
 import { Kpi } from "@/components/kpi";
@@ -115,6 +116,19 @@ export default async function NetworkPage() {
       <p className="text-xs text-muted">
         Una sucursal sin turnos cargados aparece en cero: es la señal de que no está usando el sistema.
       </p>
+
+      {ctx.showRoadmap && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <SoonCard
+            title="Sucursales comparadas"
+            description="Ventas, ticket promedio, retención y ausencias de cada sucursal lado a lado."
+          />
+          <SoonCard
+            title="Textos del consentimiento informado"
+            description="La marca define las cláusulas de cada tratamiento; todas las sucursales las usan al hacer firmar."
+          />
+        </div>
+      )}
 
       <section className="card space-y-4">
         <div>

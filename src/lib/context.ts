@@ -7,6 +7,8 @@ import type { Branch, Membership, Organization, Role } from "@/lib/types";
 export const BRANCH_COOKIE = "crm_branch_id";
 // «Ver como» (solo la marca): muestra la app como la ve otro rol, sin cambiar de usuario
 export const VIEW_AS_COOKIE = "crm_view_as";
+// «Mostrar lo que viene» (solo la marca, para mostrar el producto): las funciones planeadas aparecen en gris
+export const ROADMAP_COOKIE = "crm_roadmap";
 export type ViewAs = { role: "branch_admin" | "reception" | "professional"; professionalId: string | null };
 
 function parseViewAs(raw: string | undefined): ViewAs | null {
@@ -38,6 +40,8 @@ export type AppContext = {
   // La marca está mirando la app como otro rol (los permisos de la pantalla son los de ese rol)
   viewAs: ViewAs | null;
   realIsNetwork: boolean;
+  // La marca prendió «Mostrar lo que viene»
+  showRoadmap: boolean;
 };
 
 export function canManageBranch(ctx: Pick<AppContext, "isNetwork" | "memberships">, branchId: string): boolean {
@@ -137,6 +141,7 @@ export const getContext = cache(async (): Promise<AppContext | null> => {
     professionalId,
     viewAs,
     realIsNetwork: isNetwork,
+    showRoadmap: isNetwork && cookieStore.get(ROADMAP_COOKIE)?.value === "1",
   };
 });
 

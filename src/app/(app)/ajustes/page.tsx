@@ -1,4 +1,5 @@
 import { SubmitButton } from "@/components/submit-button";
+import { SoonCard } from "@/components/soon";
 import Link from "next/link";
 import { SectionTabs } from "@/components/section-tabs";
 import { createClient } from "@/lib/supabase/server";
@@ -145,6 +146,13 @@ export default async function SettingsPage({
         <AccountsForm accounts={accountList} />
       </Fold>
 
+      {ctx.showRoadmap ? (
+        <SoonCard
+          title="Verificar transferencias de Mercado Pago"
+          description="Cada cuenta de Mercado Pago del local se conecta una vez y el CRM confirma solo si la transferencia de la paciente llegó: monto exacto y que la haya mandado ella."
+        />
+      ) : (
+        <>
       <Fold
         id="mp"
         title="Verificar transferencias de Mercado Pago"
@@ -207,6 +215,21 @@ export default async function SettingsPage({
           Marian»). Las transferencias a bancos y los cobros con posnet no se pueden verificar así.
         </p>
       </Fold>
+        </>
+      )}
+
+      {ctx.showRoadmap && (
+        <>
+          <SoonCard
+            title="Mensajes y días de recall"
+            description="Editar los textos de recordatorio, cumpleaños, recall y leads, y cada cuántos días vuelve cada tratamiento."
+          />
+          <SoonCard
+            title="Conectar con Google"
+            description="Planilla y calendario de la sucursal con un solo botón, sin configurar nada a mano."
+          />
+        </>
+      )}
 
       <Fold
         title="Planilla, calendario y Klaviyo"

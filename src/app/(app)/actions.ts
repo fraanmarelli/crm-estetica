@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { BRANCH_COOKIE, VIEW_AS_COOKIE, getContext, requireBranchContext, requireManagerContext } from "@/lib/context";
+import { BRANCH_COOKIE, VIEW_AS_COOKIE, ROADMAP_COOKIE, getContext, requireBranchContext, requireManagerContext } from "@/lib/context";
 import { TZ, localInputToISO } from "@/lib/format";
 import { numOrNull } from "@/lib/money";
 import type {
@@ -50,6 +50,19 @@ export async function setBranch(formData: FormData) {
 }
 
 // «Ver como» (solo la marca): cambia cómo se arma la app, no el usuario ni sus permisos en la base
+// «Mostrar lo que viene»: solo la marca, dura el día
+export async function setRoadmap(formData: FormData) {
+  const ctx = await getContext();
+  if (!ctx?.realIsNetwork) redirect("/");
+  const cookieStore = await cookies();
+  if (str(formData, "on") === "1") {
+    cookieStore.set(ROADMAP_COOKIE, "1", { path: "/", httpOnly: true, sameSite: "lax", maxAge: 60 * 60 * 12 });
+  } else {
+    cookieStore.delete(ROADMAP_COOKIE);
+  }
+  revalidatePath("/", "layout");
+}
+
 export async function setViewAs(formData: FormData) {
   const ctx = await getContext();
   if (!ctx?.realIsNetwork || !ctx.currentBranch) redirect("/");

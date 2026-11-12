@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SoonButton } from "@/components/soon";
 import { SectionTabs } from "@/components/section-tabs";
 import { createClient } from "@/lib/supabase/server";
 import { requireManagerContext } from "@/lib/context";
@@ -69,7 +70,8 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
             {ctx.currentBranch.name}, del {fmtDate(from)} al {fmtDate(to)}
           </p>
         </div>
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap items-center gap-1">
+          {ctx.showRoadmap && <SoonButton label="Exportar a Excel" />}
           {PERIODS.map((p) => (
             <Link
               key={p.key}
