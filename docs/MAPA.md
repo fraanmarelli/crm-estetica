@@ -71,6 +71,8 @@ De arriba hacia abajo:
 - Buscar mientras se escribe ✅, ficha (`/pacientes/[id]`) con historial, datos y millas ✅.
 - Cargar paciente ✅ (`/pacientes/nuevo`; carga rápida para dar turno sin tenerla presente).
 - Completar ficha ✅ (`/pacientes/[id]/completar`: a mano o QR/link para la paciente).
+- 🆕 **DNI o CUIT** en la ficha: la sucursal elige qué pedir (DNI, CUIT o los dos) en el registro y la ficha; si es
+  empresa y dejó el DNI, «Buscar CUIT» lo completa (ver Facturar en ARCA).
 - Registro por QR de la sucursal ✅ (`/pacientes/registro`).
 - **Historia clínica** ✅ (en la ficha; solo profesionales, franquiciado y marca; recepción ve la tabla de
   turnos de siempre): resumen por tratamiento (×N · última fecha) y una línea de tiempo con cada sesión atendida
@@ -110,7 +112,9 @@ Pestañas: **Ventas · Comisiones · Facturación · Anuncios · Insumos · Camb
   turno (cobrado y comisión). La profesional ve la misma pantalla solo con lo suyo, como «Mis comisiones».
 - **Facturación** ✅ (`/facturacion`): titulares del monotributo, lo del mes y 12 meses contra el tope,
   cuentas de cada titular.
-  - 🆕 **Facturar en ARCA**: acción por cobro desde acá (no pantalla nueva).
+  - 🆕 **Facturar en ARCA**: acción por cobro desde acá (no pantalla nueva), rápida: un botón «Facturar» en el cobro
+    con los datos ya cargados. Factura con el DNI o el CUIT de la paciente; si hace falta CUIT y solo hay DNI,
+    botón «Buscar CUIT» que lo arma desde el DNI y lo confirma en el padrón de ARCA. (A definir con el dueño.)
 - **Cambios** ✅ (`/cambios`): lo que hizo recepción (o cualquiera que no sea franquiciado ni marca) y conviene
   mirar: cobro editado de un turno ya atendido (antes → después por cuenta), turno atendido que pasó a otro
   estado y millas cargadas a mano. «Revisado» uno o todos; Pendientes de Hoy avisa cuántos hay.

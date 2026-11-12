@@ -140,6 +140,11 @@ y entregá archivos completos.
 - **"Conectar con Google"** (OAuth) para Calendar y Sheets en vez de Apps Script: un botón, el CRM crea el
   calendario de la sucursal solo. Requiere proyecto en Google Cloud y verificación de la app por Google.
 - **Exportar a Excel** los turnos/cobros por período, para sucursales que no necesitan sincronizar una planilla.
+- **Facturar en ARCA rápido** (pedido del dueño de la marca, nov 2026, a definir): botón en el cobro que emite la factura
+  por el web service de factura electrónica de ARCA (WSFE), con el certificado/delegación de cada franquiciado (cada
+  sucursal factura con su CUIT). Pedir DNI o CUIT a elección de la sucursal; «Buscar CUIT» desde el DNI: el CUIT de
+  persona física es prefijo (20/27/23/24) + DNI + dígito verificador, se calculan los candidatos y se confirma cuál
+  existe (y el nombre) en el padrón de ARCA (ws_sr_constancia_inscripcion) con el mismo certificado.
 - Importar pacientes/turnos históricos desde la planilla (CSV) usando `external_ref` (no se re-sincronizan).
 - Editar el mensaje de recall y los `recall_days` desde Ajustes.
 - Recordatorio previo al vencimiento del token de Meta (mail al franquiciado).
