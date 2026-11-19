@@ -32,8 +32,10 @@ y entregá archivos completos.
 - Comisión: `professionals.commission_pct` × `amount_paid` → `appointments.commission` (trigger), o manual con
   `set_commission()`. `commission_pct` y `commission` no son legibles por `authenticated`; se leen con
   `professional_list()` / `appointment_commission()` / `branch_financials()`. Ingreso neto = facturado − insumos − comisión.
-- Al guardar un turno realizado: se inserta como `scheduled`, después ítems y cobros, y al final el estado, para
-  que las integraciones reciban el turno completo una sola vez.
+- Guardar un turno = `save_appointment()` (security invoker, una sola transacción: todo o nada). Adentro se inserta
+  como `scheduled`, después ítems y cobros, al final el estado y la comisión a mano, para que las integraciones
+  reciban el turno completo una sola vez. Sacar de «atendido» un turno cobrado borra su cobro (queda la seña) y pide
+  confirmación (`confirm_uncomplete`); desde la agenda (`setAppointmentStatus`) no se puede tocar un atendido.
 - `appointment_event_payload()` incluye claves con los títulos de la planilla de Córdoba y una por cuenta de cobro.
 - Promos: `promotions` (branch_id null = de la marca para toda la red; si no, de una sucursal) + `promotion_items`
   (uno = precio fijo, varios = combo). Al aplicarla en el turno el precio se reparte entre los ítems (editable) y

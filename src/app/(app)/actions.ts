@@ -277,94 +277,76 @@ export async function saveAppointment(_prev: ActionState, formData: FormData): P
     if (payments.length === 0) return { error: "Cargá cómo pagó (al menos una cuenta y su monto)." };
   }
 
-  // Se guarda primero sin marcar como realizado, después tratamientos y cobros, y al final
-  // el estado: así las integraciones (planilla, Klaviyo) reciben el turno completo una sola vez.
   const duration = Math.trunc(Number(str(formData, "duration_minutes") || "30"));
   if (!Number.isFinite(duration) || duration < 5 || duration > 600) return { error: "Duración inválida." };
 
-  const fields = {
-    patient_id: patientId,
-    professional_id: orNull(str(formData, "professional_id")),
-    scheduled_at: scheduledAt,
-    duration_minutes: duration,
-    notes: orNull(str(formData, "notes")),
-  };
-
-  let appointmentId = id;
-  if (id) {
-    const { error } = await supabase.from("appointments").update(fields).eq("id", id);
-    if (error) return { error: `No se pudo guardar el turno: ${error.message}` };
-  } else {
-    const { data, error } = await supabase
+  // Sacar de «atendido» un turno ya cobrado borra su cobro (queda la seña): solo con confirmación
+  if (id && status !== "completed") {
+    const { data: before } = await supabase
       .from("appointments")
-      .insert({ ...fields, status: "scheduled", organization_id: ctx.org.id, branch_id: ctx.currentBranch.id })
-      .select("id")
-      .single();
-    if (error) return { error: `No se pudo crear el turno: ${error.message}` };
-    appointmentId = data.id;
-  }
-
-  const { data: appt } = await supabase
-    .from("appointments")
-    .select("organization_id, branch_id")
-    .eq("id", appointmentId)
-    .single();
-  if (!appt) return { error: "No se encontró el turno." };
-
-  const { error: delItemsErr } = await supabase.from("appointment_items").delete().eq("appointment_id", appointmentId);
-  if (delItemsErr) return { error: `No se pudieron actualizar los tratamientos: ${delItemsErr.message}` };
-  if (items.length > 0) {
-    const { error } = await supabase.from("appointment_items").insert(
-      items.map((i) => ({
-        appointment_id: appointmentId,
-        treatment_id: i.treatment_id,
-        zone: orNull(i.zone ?? ""),
-        // Cantidad de insumo: acepta 0,5 o 0.5 (acá el punto es decimal, no de miles)
-        quantity: qtyOrNull(i.quantity ?? ""),
-        price: numOrNull(i.price ?? ""),
-        // La base verifica que la promo sea de la red o de esta sucursal
-        promotion_id: orNull(i.promotion_id ?? ""),
-        lot_code: orNull(String(i.lot_code ?? "").trim().toUpperCase().slice(0, 60)),
-      })),
-    );
-    if (error) {
-      if (error.message.includes("promo")) return { error: "Una de las promos no corresponde a esta sucursal." };
-      return { error: `No se pudieron guardar los tratamientos: ${error.message}` };
+      .select("status, payments:appointment_payments(is_deposit)")
+      .eq("id", id)
+      .maybeSingle();
+    const hadCharge = (before?.payments ?? []).some((p: { is_deposit: boolean }) => !p.is_deposit);
+    if (before?.status === "completed" && hadCharge && formData.get("confirm_uncomplete") !== "on") {
+      return { error: "Este turno ya estaba atendido y cobrado. Tildá la confirmación para sacarlo de atendidos." };
     }
   }
 
-  const { error: delPayErr } = await supabase.from("appointment_payments").delete().eq("appointment_id", appointmentId);
-  if (delPayErr) return { error: `No se pudo actualizar el cobro: ${delPayErr.message}` };
-  if (payments.length > 0) {
-    const { error } = await supabase.from("appointment_payments").insert(
-      payments.map((p) => ({
-        organization_id: appt.organization_id,
-        branch_id: appt.branch_id,
-        appointment_id: appointmentId,
-        account_id: p.account_id,
-        amount: numOrNull(p.amount),
-        exchange_rate: numOrNull(p.exchange_rate ?? ""),
-        is_deposit: Boolean(p.is_deposit),
-      })),
-    );
-    if (error) return { error: `No se pudo guardar el cobro: ${error.message}` };
-  }
-
-  const { error: statusErr } = await supabase.from("appointments").update({ status }).eq("id", appointmentId);
-  if (statusErr) return { error: `No se pudo actualizar el estado: ${statusErr.message}` };
-
-  // Comisión manual (solo marca/franquiciado; la base lo vuelve a verificar)
+  // Comisión a mano (solo marca/franquiciado; la base lo vuelve a verificar)
+  let setCommission = false;
+  let commissionAmount: number | null = null;
   if (status === "completed" && formData.has("commission")) {
     const raw = str(formData, "commission");
-    const amount = raw === "" ? null : numOrNull(raw);
-    if (raw !== "" && (amount === null || amount < 0)) return { error: "La comisión no es un monto válido." };
-    const { data: current } = await supabase.rpc("appointment_commission", { p_appointment: appointmentId });
-    const wasManual = Boolean(current?.[0]?.commission_manual);
-    if (amount !== null || wasManual) {
-      const { error } = await supabase.rpc("set_commission", { p_appointment: appointmentId, p_amount: amount });
-      if (error) return { error: error.message };
+    commissionAmount = raw === "" ? null : numOrNull(raw);
+    if (raw !== "" && (commissionAmount === null || commissionAmount < 0)) {
+      return { error: "La comisión no es un monto válido." };
     }
+    let wasManual = false;
+    if (id) {
+      const { data: current } = await supabase.rpc("appointment_commission", { p_appointment: id });
+      wasManual = Boolean(current?.[0]?.commission_manual);
+    }
+    setCommission = commissionAmount !== null || wasManual;
   }
+
+  // Todo en un solo paso (turno, tratamientos, cobro, estado y comisión): si algo falla, no queda
+  // nada a medias. Adentro va en el orden de siempre para que las integraciones reciban el turno completo.
+  const { data: savedId, error: saveErr } = await supabase.rpc("save_appointment", {
+    p_id: id || null,
+    p_branch: ctx.currentBranch.id,
+    p_patient: patientId,
+    p_professional: orNull(str(formData, "professional_id")),
+    p_scheduled_at: scheduledAt,
+    p_duration: duration,
+    p_notes: orNull(str(formData, "notes")),
+    p_status: status,
+    p_items: items.map((i) => ({
+      treatment_id: i.treatment_id,
+      zone: orNull(i.zone ?? ""),
+      // Cantidad de insumo: acepta 0,5 o 0.5 (acá el punto es decimal, no de miles)
+      quantity: qtyOrNull(i.quantity ?? ""),
+      price: numOrNull(i.price ?? ""),
+      // La base verifica que la promo sea de la red o de esta sucursal
+      promotion_id: orNull(i.promotion_id ?? ""),
+      lot_code: orNull(String(i.lot_code ?? "").trim().toUpperCase().slice(0, 60)),
+    })),
+    p_payments: payments.map((p) => ({
+      account_id: p.account_id,
+      amount: numOrNull(p.amount),
+      exchange_rate: numOrNull(p.exchange_rate ?? ""),
+      is_deposit: Boolean(p.is_deposit),
+    })),
+    p_set_commission: setCommission,
+    p_commission: commissionAmount,
+  });
+  if (saveErr || !savedId) {
+    const msg = saveErr?.message ?? "";
+    if (msg.includes("promo")) return { error: "Una de las promos no corresponde a esta sucursal. No se guardó nada." };
+    if (/comisi/i.test(msg)) return { error: `${msg}. No se guardó nada.` };
+    return { error: `No se pudo guardar el turno (no se guardó nada, probá de nuevo): ${msg || "sin respuesta"}` };
+  }
+  const appointmentId = savedId as string;
 
   revalidatePath("/");
   revalidatePath(`/pacientes/${patientId}`);
@@ -381,7 +363,9 @@ export async function setAppointmentStatus(formData: FormData) {
   const status = str(formData, "status") as AppointmentStatus;
   if (!["scheduled", "no_show", "cancelled"].includes(status)) return;
 
-  await supabase.from("appointments").update({ status }).eq("id", id);
+  // Desde la agenda solo se marca «No vino» o se cancela un turno pendiente: un turno atendido
+  // se cambia desde su ficha, donde se confirma (su cobro se borra)
+  await supabase.from("appointments").update({ status }).eq("id", id).neq("status", "completed");
   revalidatePath("/");
 }
 

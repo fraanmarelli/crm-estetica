@@ -307,6 +307,79 @@ end $$;
 select pg_temp.check('La profesional no ve las comisiones de todas', current_setting('t.todas'), 'bloqueado');
 
 -- ---------------------------------------------------------------------
+-- 5. Guardar el turno en un solo paso (save_appointment): todo o nada
+-- ---------------------------------------------------------------------
+select set_config('t.mp', :'mp', true), set_config('t.efectivo', :'efectivo', true);
+select pg_temp.as_user('00000000-0000-0000-0000-00000000aa03', 'recepcion@prueba.test');
+set local role authenticated;
+select save_appointment(null, '00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000f1',
+  '00000000-0000-0000-0000-0000000000d1', '2026-10-25 10:00-03', 30, null, 'completed',
+  '[{"treatment_id":"00000000-0000-0000-0000-0000000000e3","price":40000}]'::jsonb,
+  jsonb_build_array(jsonb_build_object('account_id', current_setting('t.mp'), 'amount', 40000))) as nuevo \gset
+reset role;
+select set_config('t.nuevo', :'nuevo', true);
+select pg_temp.check('5. turno guardado en un paso: queda atendido',
+  (select status::text from appointments where id = :'nuevo'), 'completed');
+select pg_temp.check('5. turno guardado en un paso: cobrado', (select amount_paid from appointments where id = :'nuevo'), 40000::numeric);
+select pg_temp.check('5. turno guardado en un paso: comisión 30%', (select commission from appointments where id = :'nuevo'), 12000::numeric);
+
+-- Una edición que falla a la mitad (un cobro de $0) no deja el turno a medias
+do $$
+begin
+  perform set_config('t.fallo', 'guardó', true);
+  set local role authenticated;
+  begin
+    perform save_appointment(current_setting('t.nuevo')::uuid, '00000000-0000-0000-0000-0000000000b1',
+      '00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-0000000000d1', '2026-10-25 10:00-03', 30, null,
+      'completed', '[{"treatment_id":"00000000-0000-0000-0000-0000000000e1","quantity":1,"price":90000}]'::jsonb,
+      jsonb_build_array(jsonb_build_object('account_id', current_setting('t.efectivo'), 'amount', 0)));
+  exception when others then
+    perform set_config('t.fallo', 'no guardó', true);
+  end;
+  reset role;
+end $$;
+select pg_temp.check('5. edición con un cobro inválido: no se guarda', current_setting('t.fallo'), 'no guardó');
+select pg_temp.check('5. edición fallida: quedan los tratamientos de antes',
+  (select string_agg(treatment_id::text, ',') from appointment_items where appointment_id = :'nuevo'),
+  '00000000-0000-0000-0000-0000000000e3');
+select pg_temp.check('5. edición fallida: queda el cobro de antes', (select amount_paid from appointments where id = :'nuevo'), 40000::numeric);
+
+-- Un turno nuevo que falla no queda creado
+select count(*) as antes from appointments \gset
+do $$
+begin
+  set local role authenticated;
+  begin
+    perform save_appointment(null, '00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000f1',
+      null, '2026-10-26 10:00-03', 30, null, 'completed',
+      '[{"treatment_id":"00000000-0000-0000-0000-0000000000e3","price":1000}]'::jsonb,
+      '[{"account_id":"00000000-0000-0000-0000-00000000dead","amount":1000}]'::jsonb);
+  exception when others then
+    null;
+  end;
+  reset role;
+end $$;
+select pg_temp.check('5. turno nuevo con un cobro inválido: no queda creado', (select count(*) from appointments), :antes::bigint);
+
+-- Recepción no puede cargar una comisión a mano al guardar (y no se guarda nada)
+do $$
+begin
+  perform set_config('t.com', 'guardó', true);
+  set local role authenticated;
+  begin
+    perform save_appointment(current_setting('t.nuevo')::uuid, '00000000-0000-0000-0000-0000000000b1',
+      '00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-0000000000d1', '2026-10-25 10:00-03', 30, 'cambio',
+      'completed', '[{"treatment_id":"00000000-0000-0000-0000-0000000000e3","price":40000}]'::jsonb,
+      jsonb_build_array(jsonb_build_object('account_id', current_setting('t.mp'), 'amount', 40000)), true, 1);
+  exception when others then
+    perform set_config('t.com', 'no guardó', true);
+  end;
+  reset role;
+end $$;
+select pg_temp.check('5. recepción con comisión a mano: no se guarda', current_setting('t.com'), 'no guardó');
+select pg_temp.check('5. … ni el comentario del turno', (select notes from appointments where id = :'nuevo'), null::text);
+
+-- ---------------------------------------------------------------------
 -- Resultado
 -- ---------------------------------------------------------------------
 \o

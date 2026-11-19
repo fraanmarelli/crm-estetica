@@ -174,6 +174,10 @@ export function AppointmentForm({
   }
 
   const completed = status === "completed";
+  // Turno ya atendido y cobrado que se pasa a otro estado: su cobro se borra (queda la seña) y hay que confirmarlo
+  const chargedBefore = paidInPesos(initialRest, accounts);
+  const uncompleting =
+    defaults.status === "completed" && !completed && (chargedBefore.ars > 0 || chargedBefore.usdUnrated > 0);
 
   // Una línea de cobro (cuenta + monto + cotización si es en dólares)
   function paymentRow(
@@ -337,6 +341,28 @@ export function AppointmentForm({
               ))}
             </select>
           </div>
+        </div>
+      )}
+
+      {uncompleting && (
+        <div className="space-y-2 rounded-lg border border-warn-line bg-warn-soft px-3 py-3 text-sm text-warn" role="alert">
+          <p>
+            Este turno ya estaba atendido y cobrado
+            {chargedBefore.ars > 0 && (
+              <>
+                {" "}
+                (<b className="num">{money(chargedBefore.ars)}</b>
+                {chargedBefore.usdUnrated > 0 && ` + ${money(chargedBefore.usdUnrated, "USD")}`})
+              </>
+            )}
+            . Si lo pasás a «{STATUS_LABEL[status]}», se borra ese cobro
+            {hasDeposit ? " (la seña queda)" : ""} y deja de contar en Ventas y Comisiones. Si fue un error, volvé a
+            elegir «{STATUS_LABEL.completed}».
+          </p>
+          <label className="flex items-center gap-2.5 font-semibold">
+            <input type="checkbox" name="confirm_uncomplete" required />
+            Sí, sacarlo de atendidos y borrar el cobro
+          </label>
         </div>
       )}
 
