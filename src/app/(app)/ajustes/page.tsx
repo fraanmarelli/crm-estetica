@@ -268,7 +268,7 @@ export default async function SettingsPage({
 
 {ctx.features.integrations && (
       <Fold
-        title="Planilla, calendario y Klaviyo"
+        title="Planilla y calendario"
         summary={
           list.length
             ? list.map((i) => `${TYPE_LABEL[i.type]}${i.is_active ? "" : " (pausada)"}`).join(" · ")
@@ -310,15 +310,6 @@ export default async function SettingsPage({
             <IntegrationForm branches={ctx.branches} isNetwork={ctx.isNetwork} currentBranch={ctx.currentBranch} />
           </div>
         </details>
-        <details className="rounded-xl bg-subtle px-3 py-2">
-          <summary className="cursor-pointer text-sm font-semibold">Cómo usar Klaviyo para los recordatorios</summary>
-          <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-muted">
-            <li>Cada tratamiento realizado llega a Klaviyo como evento «Tratamiento realizado», con el tratamiento y su fecha de vencimiento.</li>
-            <li>En Klaviyo creá un flow por tratamiento: disparador «Tratamiento realizado», filtro «tratamiento = Botox», espera de 110 días y el mail.</li>
-            <li>Agregá el filtro «no hizo Tratamiento realizado desde que empezó el flow» para no escribirle a quien ya volvió.</li>
-            <li>Solo se envían pacientes que aceptaron recibir mails y tienen email cargado.</li>
-          </ol>
-        </details>
       </Fold>
       )}
 
@@ -329,7 +320,7 @@ export default async function SettingsPage({
         open={errors.length > 0}
       >
         {errors.length === 0 ? (
-          <p className="text-sm text-muted">Todo lo que se mandó a la planilla, el calendario y Klaviyo llegó bien.</p>
+          <p className="text-sm text-muted">Todo lo que se mandó a la planilla y al calendario llegó bien.</p>
         ) : (
           <ul className="space-y-2 text-sm">
             {errors.map((e) => (

@@ -16,7 +16,8 @@ export function IntegrationForm({
 }) {
   const [state, action] = useActionState<ActionState, FormData>(createIntegration, null);
   const v = state?.ok ? {} : (state?.values ?? {});
-  const [type, setType] = useState(v.type ?? "klaviyo");
+  // Klaviyo oculto (nov 2026): el email marketing va a ser propio del CRM. El código de Klaviyo queda.
+  const [type, setType] = useState(v.type ?? "google_calendar");
 
   return (
     <form key={state?.ok ?? JSON.stringify(v)} action={action} className="space-y-3">
@@ -24,7 +25,6 @@ export function IntegrationForm({
         <div>
           <label className="label" htmlFor="int-type">Qué querés conectar</label>
           <select id="int-type" name="type" value={type} onChange={(e) => setType(e.target.value)} className="input">
-            <option value="klaviyo">Klaviyo (email marketing)</option>
             <option value="google_calendar">Google Calendar (agenda de turnos)</option>
             <option value="google_sheets">Google Sheets (copia de turnos)</option>
           </select>

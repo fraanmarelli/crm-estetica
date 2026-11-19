@@ -58,6 +58,8 @@ y entregá archivos completos.
   «Ya lo revisé» (`dismiss_transfer_check()`, `dismissed_at`/`dismissed_by_name`); recepción los ve pero no los saca.
 - `recall_queue` (vista) = último tratamiento realizado + recall_days, sin turno futuro, sin opt-out.
 - `loyalty_transactions` = libro mayor de millas (nunca se edita; se corrige con otro movimiento).
+- Klaviyo oculto en la app desde nov 2026 (no se conectan cuentas nuevas; el handler sigue). El email marketing va a ser
+  propio: handler de mail (Resend) en dispatch-events para recall y cumpleaños, con consentimiento.
 - `event_outbox` + `integrations` = toda automatización saliente (tipos: `google_sheets`, `klaviyo`,
   `google_calendar`). Eventos: `appointment.saved` (cualquier cambio), `.completed`, `.updated` (cambio de un
   realizado), `.deleted`. `integration_refs` guarda el id externo (evento de Google) que devuelve el handler.

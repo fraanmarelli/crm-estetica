@@ -6,7 +6,7 @@ export const FEATURE_LABEL: Record<FeatureKey, { title: string; detail: string }
   ads: { title: "Anuncios y leads", detail: "Números → Anuncios, Contactar → Leads y la conexión con Facebook" },
   mp: { title: "Verificar transferencias de Mercado Pago", detail: "Chequeo de cada cobro y el aviso de las que no llegaron" },
   promos: { title: "Promos propias", detail: "Que la sede cree sus promos. Las de la red siguen apareciendo" },
-  integrations: { title: "Planilla, calendario y Klaviyo", detail: "Envíos automáticos a Google Sheets, Calendar y Klaviyo" },
+  integrations: { title: "Planilla y calendario", detail: "Envíos automáticos a Google Sheets y Google Calendar" },
 };
 export function featuresFrom(disabled: string[] | null | undefined): Features {
   const off = new Set(disabled ?? []);

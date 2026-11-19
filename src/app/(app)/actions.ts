@@ -442,7 +442,7 @@ export async function adjustPoints(_prev: ActionState, formData: FormData): Prom
 // ---------------------------------------------------------------------
 export async function createIntegration(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const ctx = await requireManagerContext();
-  if (!ctx.features.integrations) return { error: "La marca apagó la planilla, el calendario y Klaviyo para esta sucursal." };
+  if (!ctx.features.integrations) return { error: "La marca apagó la planilla y el calendario para esta sucursal." };
   const supabase = await createClient();
   const type = str(formData, "type");
   const secret = str(formData, "secret");
@@ -468,16 +468,8 @@ export async function createIntegration(_prev: ActionState, formData: FormData):
       name = name || "Google Sheets";
     }
   } else if (type === "klaviyo") {
-    if (!/^pk_[A-Za-z0-9_]{10,}$/.test(secret)) {
-      return {
-        error: "La clave privada de Klaviyo empieza con pk_. La sacás de Klaviyo → Settings → API keys.",
-        values: valuesOf(formData),
-      };
-    }
-    const listId = str(formData, "list_id");
-    config = listId ? { list_id: listId } : {};
-    events = ["appointment.completed"];
-    name = name || "Klaviyo";
+    // Klaviyo oculto (nov 2026): el email marketing va a ser propio del CRM. Las conexiones viejas siguen.
+    return { error: "Klaviyo ya no se conecta desde acá: el email marketing va a venir incluido en el CRM." };
   } else {
     return { error: "Tipo de integración inválido." };
   }

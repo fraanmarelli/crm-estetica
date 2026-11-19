@@ -212,7 +212,7 @@ export default async function NetworkPage() {
                       <dd className="font-semibold">{o.has_ads ? "Conectada" : "Sin conectar"}</dd>
                     </div>
                     <div className="flex justify-between gap-3">
-                      <dt className="text-muted">Planilla, calendario y Klaviyo</dt>
+                      <dt className="text-muted">Planilla y calendario</dt>
                       <dd className="font-semibold">{o.integrations ? `${o.integrations} activas` : "Nada conectado"}</dd>
                     </div>
                   </dl>

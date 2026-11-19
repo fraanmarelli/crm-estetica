@@ -135,7 +135,7 @@ Pestañas: **Ventas · Comisiones · Facturación · Anuncios · Insumos · Camb
   - **Ventana del franquiciado** ✅: tocar un franquiciado (o «Funciones» en una sede sin franquiciado) abre una
     ventana con su último ingreso, el mes de la sede (atendidas, facturado, no vinieron, recall), equipo y
     conexiones, y los **interruptores de funciones de la sede** ✅: Anuncios y leads · Mercado Pago · Promos
-    propias · Planilla, calendario y Klaviyo. Apagada = desaparece para toda la sede (menú, pestañas, Pendientes,
+    propias · Planilla y calendario. Apagada = desaparece para toda la sede (menú, pestañas, Pendientes,
     Ajustes) y la base deja de hacerla; lo cargado queda guardado. En la lista, «N funciones apagadas».
 - Catálogo de tratamientos ✅ y promos de toda la red (se crean en Ajustes → Promos eligiendo «toda la red»).
 - 🆕 Números comparados entre sucursales.
@@ -147,11 +147,13 @@ Pestañas: **General · Promos**. Solo franquiciado y marca. En General, cada se
 sola si ya está configurada):
 
 - Equipo ✅ (con «Link para nueva contraseña» ✅ por persona, para mandar por WhatsApp) · Médicos y comisión ✅ · Cuentas de cobro ✅ · Mercado Pago (verificar transferencias) ✅ (muestra a nombre de quién quedó cada cuenta y no deja conectar la misma cuenta de MP dos veces ✅) ·
-  Planilla, calendario y Klaviyo ✅ · Errores de envío ✅.
+  Planilla y calendario ✅ (Klaviyo oculto desde nov 2026) · Errores de envío ✅.
+- 🆕 **Email marketing propio** (más adelante, en vez de Klaviyo): recall por tratamiento y cumpleaños por mail desde el
+  CRM con Resend, respetando el consentimiento; se configura en Ajustes → Mensajes.
 - **Promos** ✅ (`/promos`): vigentes, nueva promo, pausadas o vencidas. Al cobrar se eligen en el turno.
 - 🆕 **Mensajes**: recordatorio, cumpleaños, recall y leads (una sección plegada en General).
 - 🆕 **Días de recall** por tratamiento: misma sección que Mensajes.
-- 🆕 **Conectar con Google** (Calendar/Sheets): reemplaza el contenido de «Planilla, calendario y Klaviyo».
+- 🆕 **Conectar con Google** (Calendar/Sheets): reemplaza el contenido de «Planilla y calendario».
 
 ---
 
