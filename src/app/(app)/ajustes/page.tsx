@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { requireManagerContext } from "@/lib/context";
 import { DEFAULT_RECALL_MESSAGE, fmtDateTime, fmtTime } from "@/lib/format";
 import { RecallForm, type RecallRow } from "./recall-form";
+import { ArcaSection, type ArcaHolder } from "./arca-section";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { mpConfigured } from "@/lib/mercadopago";
 import { toggleIntegration } from "../actions";
 import { disconnectMp } from "./actions";
@@ -114,6 +116,30 @@ export default async function SettingsPage({
   const branchMessage = (branchData as { recall_message: string | null } | null)?.recall_message ?? "";
   const orgMessage = (ctx.org.settings.recall_message as string | undefined) || DEFAULT_RECALL_MESSAGE;
   const withRecall = recallRows.filter((r) => r.days).length;
+
+  // Factura electrónica: cada titular con su conexión a ARCA (el pedido .csr se lee con service role: es de esta sucursal
+  // y la página es solo para franquiciado y marca)
+  const [{ data: holderRows }, { data: arcaRows }] = await Promise.all([
+    supabase.from("account_holders").select("id, name, cuit").eq("branch_id", ctx.currentBranch.id).order("name"),
+    supabase
+      .from("arca_connections")
+      .select("id, holder_id, environment, cuit, business_name, address, iibb, activity_start, point_of_sale, status, cert_expires_at, last_error")
+      .eq("branch_id", ctx.currentBranch.id),
+  ]);
+  const arcaConns = (arcaRows ?? []) as (Omit<NonNullable<ArcaHolder["connection"]>, "csr"> & { holder_id: string })[];
+  const csrs = new Map<string, string>();
+  if (arcaConns.some((c) => c.status !== "ready")) {
+    const { data: secs } = await createAdminClient()
+      .from("arca_secrets")
+      .select("connection_id, csr")
+      .in("connection_id", arcaConns.map((c) => c.id));
+    for (const s of (secs ?? []) as { connection_id: string; csr: string }[]) csrs.set(s.connection_id, s.csr);
+  }
+  const arcaHolders: ArcaHolder[] = ((holderRows ?? []) as { id: string; name: string; cuit: string | null }[]).map((h) => {
+    const c = arcaConns.find((x) => x.holder_id === h.id);
+    return { holder_id: h.id, name: h.name, cuit: h.cuit, connection: c ? { ...c, csr: csrs.get(c.id) ?? null } : null };
+  });
+  const arcaReady = arcaHolders.filter((h) => h.connection?.status === "ready").length;
   const mpConnections = (mpData ?? []) as MpConnection[];
   const pesoAccounts = ((accounts ?? []) as { id: string; name: string; currency: string; is_active: boolean }[]).filter(
     (a) => a.currency === "ARS" && a.is_active && a.name.toLowerCase() !== "efectivo",
@@ -189,6 +215,31 @@ export default async function SettingsPage({
           monotributo se cargan en <Link href="/facturacion" className="link">Números → Facturación</Link>.
         </p>
         <AccountsForm accounts={accountList} />
+      </Fold>
+
+      <Fold
+        id="factura-electronica"
+        title="Factura electrónica"
+        summary={
+          arcaHolders.length === 0
+            ? "Primero cargá los titulares en Números → Facturación"
+            : `${arcaReady} de ${arcaHolders.length} titulares facturan desde el CRM`
+        }
+      >
+        {arcaHolders.length === 0 ? (
+          <p className="text-sm text-muted">
+            Cada factura sale con el CUIT de quien cobró. Cargá los titulares de las cuentas en{" "}
+            <Link href="/facturacion" className="link">Números → Facturación</Link> y volvé acá para conectarlos con ARCA.
+          </p>
+        ) : (
+          <>
+            <p className="text-sm text-muted">
+              Cada titular conecta su CUIT una sola vez con su propio certificado de ARCA. La clave queda guardada solo en el
+              servidor. Recepción puede facturar pero no ve esto.
+            </p>
+            <ArcaSection holders={arcaHolders} />
+          </>
+        )}
       </Fold>
 
       <Fold

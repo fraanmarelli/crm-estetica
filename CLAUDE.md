@@ -45,6 +45,18 @@ y entregá archivos completos.
   por sucursal; `payment_accounts.holder_id` (sin titular = no suma, ej. efectivo). `holder_status()` da lo del mes
   y lo de los últimos 12 meses con `level` ok/warn/over; `billing_by_account()` lo de cada cuenta en un período.
   Solo franquiciado y marca; la agenda avisa con warn/over.
+- Factura electrónica (ARCA, Factura C / Nota de Crédito C de monotributo): nada automático. Cada titular
+  (`account_holders`) factura con su CUIT y su propio certificado: `arca_connections` (datos públicos, punto de venta
+  Web Services, ambiente test/prod, `status` needs_cert/ready/error, `cert_expires_at`) + `arca_secrets` (clave privada,
+  .csr, certificado y acceso de WSAA; solo service role). El CRM genera la clave y el .csr (`src/lib/arca/crypto.ts`), el
+  titular lo sube en ARCA (prod: «Administración de Certificados Digitales» + «Administrador de Relaciones» → Facturación
+  Electrónica; prueba: WSASS) y trae el .crt. `src/lib/arca/core.ts` (XML de WSAA/WSFEv1, validaciones, QR) es puro y
+  tiene pruebas (`core.test.ts`); `arca.ts` (servidor) llama a ARCA con `https` (SECLEVEL=1, ARCA usa cifrado viejo).
+  `invoices`: la escribe solo el servidor (`src/app/(app)/facturas/actions.ts`) después de verificar permisos: guarda
+  «pending» con su número, pide el CAE y la completa; si se corta la red, `recoverInvoice` le pregunta a ARCA
+  (FECompConsultar). Anular = Nota de Crédito C asociada (`cancels_invoice_id`). PDF con QR en `/facturas/[id]/pdf`.
+  Facturan marca, franquiciado y recepción (`can_operate_branch`); conectan y anulan, franquiciado y marca.
+  Lo facturado no cambia el control del monotributo (sigue siendo lo cobrado por cuenta).
 - **Un turno cuenta en el día del turno** (`scheduled_at` en la hora de la organización), no en el día en que se
   marcó atendido: Ventas, Comisiones, Facturación, monotributo, Sucursales y el mail semanal usan la misma fecha.
 - Verificación de transferencias MP: `mp_connections` (una cuenta de MP por `payment_accounts` y no repetida en la sucursal,
@@ -169,11 +181,9 @@ y entregá archivos completos.
 - **"Conectar con Google"** (OAuth) para Calendar y Sheets en vez de Apps Script: un botón, el CRM crea el
   calendario de la sucursal solo. Requiere proyecto en Google Cloud y verificación de la app por Google.
 - **Exportar a Excel** los turnos/cobros por período, para sucursales que no necesitan sincronizar una planilla.
-- **Facturar en ARCA rápido** (pedido del dueño de la marca, nov 2026, a definir): botón en el cobro que emite la factura
-  por el web service de factura electrónica de ARCA (WSFE), con el certificado/delegación de cada franquiciado (cada
-  sucursal factura con su CUIT). Pedir DNI o CUIT a elección de la sucursal; «Buscar CUIT» desde el DNI: el CUIT de
-  persona física es prefijo (20/27/23/24) + DNI + dígito verificador, se calculan los candidatos y se confirma cuál
-  existe (y el nombre) en el padrón de ARCA (ws_sr_constancia_inscripcion) con el mismo certificado.
+- **«Buscar CUIT» desde el DNI** en la factura: el CUIT de persona física es prefijo (20/27/23/24) + DNI + dígito
+  verificador; se calculan los candidatos y se confirma cuál existe (y el nombre) en el padrón de ARCA
+  (ws_sr_constancia_inscripcion) con el mismo certificado (hay que habilitar ese servicio también).
 - Recordatorio previo al vencimiento del token de Meta (mail al franquiciado).
 - Handler `whatsapp_cloud` en dispatch-events (recall automático con plantillas aprobadas por Meta).
 - Página pública para que la paciente vea sus Beauty Millas.

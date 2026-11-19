@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireBranchContext } from "@/lib/context";
 import { loadCatalog } from "@/lib/catalog";
-import { STATUS_LABEL, fmtDateTime, fullName, isoToLocalInput } from "@/lib/format";
+import { STATUS_LABEL, fmtDateTime, fmtMoney, fullName, isoToLocalInput } from "@/lib/format";
+import { invoiceLabel } from "@/lib/arca/core";
 import { AppointmentForm } from "@/components/appointment-form";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { IntakePrompt } from "@/components/intake-prompt";
@@ -132,6 +133,34 @@ export async function AppointmentView({ id, sp }: { id: string; sp: { cobrar?: s
   const s = (v: number | string | null) => (v === null ? "" : String(v));
   const checkout = sp.cobrar === "1" && appt.status !== "cancelled";
 
+  // Factura electrónica: lo emitido para este turno y si alguien de la sucursal factura desde el CRM
+  const showInvoices = !checkout && appt.status === "completed";
+  const [{ data: invData }, { count: arcaCount }] = showInvoices
+    ? await Promise.all([
+        supabase
+          .from("invoices")
+          .select("id, cbte_tipo, point_of_sale, number, total, status, environment, issuer")
+          .eq("appointment_id", appt.id)
+          .neq("status", "failed")
+          .order("created_at"),
+        supabase
+          .from("arca_connections")
+          .select("id", { count: "exact", head: true })
+          .eq("branch_id", ctx.currentBranch.id)
+          .eq("status", "ready"),
+      ])
+    : [{ data: null }, { count: 0 }];
+  const apptInvoices = (invData ?? []) as {
+    id: string;
+    cbte_tipo: number;
+    point_of_sale: number;
+    number: number | null;
+    total: number;
+    status: string;
+    environment: string;
+    issuer: { business_name: string };
+  }[];
+
   return (
     <div className="mx-auto max-w-4xl space-y-4">
       <div>
@@ -173,6 +202,37 @@ export async function AppointmentView({ id, sp }: { id: string; sp: { cobrar?: s
           <h2 className="text-base">Transferencias en Mercado Pago</h2>
           <TransferStatus checks={appt.checks} />
           {appt.checks.some((c) => c.status === "pending") && <AutoRefresh />}
+        </div>
+      )}
+      {showInvoices && ((arcaCount ?? 0) > 0 || apptInvoices.length > 0) && (
+        <div className="card flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0 space-y-1">
+            <h2 className="text-base">Factura</h2>
+            {apptInvoices.length === 0 ? (
+              <p className="text-sm text-muted">Sin facturar.</p>
+            ) : (
+              <ul className="space-y-0.5 text-sm">
+                {apptInvoices.map((i) => (
+                  <li key={i.id}>
+                    <Link href={`/facturas/${i.id}`} className="link">
+                      {i.number ? invoiceLabel(i.cbte_tipo, i.point_of_sale, Number(i.number)) : "Factura C"}
+                    </Link>{" "}
+                    <span className="text-muted">
+                      · {i.issuer.business_name} · {i.cbte_tipo === 13 ? "−" : ""}
+                      {fmtMoney(i.total)}
+                      {i.status === "pending" ? " · por confirmar" : ""}
+                      {i.environment === "test" ? " · prueba" : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          {(arcaCount ?? 0) > 0 && (
+            <Link href={`/facturas/nueva?turno=${appt.id}`} className={apptInvoices.length ? "btn btn-sm" : "btn btn-primary btn-sm"}>
+              {apptInvoices.length ? "Facturar otra" : "Facturar"}
+            </Link>
+          )}
         </div>
       )}
       <AppointmentForm

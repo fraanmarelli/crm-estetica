@@ -74,6 +74,8 @@ export default async function AgendaPage({
     { count: followUpLeads },
     { data: alertData },
     { data: transferData },
+    { data: arcaData },
+    { count: pendingInvoices },
   ] = await Promise.all([
       // Mes: solo cuántos turnos hay por día. Semana: el detalle de cada turno.
       supabase
@@ -151,6 +153,18 @@ export default async function AgendaPage({
             .is("dismissed_at", null)
             .order("created_at", { ascending: false })
             .limit(20),
+      // Factura electrónica: certificados que vencen en 30 días o con error (solo quien configura)
+      ctx.canManageCurrentBranch
+        ? supabase
+            .from("arca_connections")
+            .select("business_name, status, cert_expires_at")
+            .eq("branch_id", branchId)
+            .or(`status.eq.error,cert_expires_at.lt.${new Date(Date.now() + 30 * 86_400_000).toISOString()}`)
+        : Promise.resolve({ data: [] }),
+      // Facturas «por confirmar» (se cortó ARCA mientras se emitían)
+      !ctx.canManageCurrentBranch
+        ? Promise.resolve({ count: 0 })
+        : supabase.from("invoices").select("id", { count: "exact", head: true }).eq("branch_id", branchId).eq("status", "pending"),
     ]);
 
   // Turnos por día para el calendario
@@ -348,8 +362,34 @@ export default async function AgendaPage({
     );
   }
 
+  const arcaIssues = (arcaData ?? []) as { business_name: string; status: string; cert_expires_at: string | null }[];
+  if ((arcaIssues.length || pendingInvoices) && day === today) {
+    notices.push(
+      <li key="arca">
+        <Link href={pendingInvoices ? "/facturacion" : "/ajustes#factura-electronica"} className="font-semibold hover:text-brand">
+          {pendingInvoices
+            ? pendingInvoices === 1
+              ? "1 factura por confirmar en ARCA"
+              : `${pendingInvoices} facturas por confirmar en ARCA`
+            : "Factura electrónica: revisar la conexión con ARCA"}
+        </Link>
+        <span className="text-muted">
+          {pendingInvoices
+            ? ": se cortó la conexión mientras se emitían. Entrá y tocá «Revisar en ARCA»."
+            : `: ${arcaIssues
+                .map((c) =>
+                  c.status === "error"
+                    ? `${c.business_name} tiene un error`
+                    : `el certificado de ${c.business_name} vence el ${shortDate(localDay(c.cert_expires_at!))}`,
+                )
+                .join(" · ")}.`}
+        </span>
+      </li>,
+    );
+  }
+
   // Pendientes: del más urgente al menos (docs/MAPA.md); a la vista los primeros, el resto plegado
-  const PRIORITY = ["transfers", "past", "changes", "leads", "leads-follow", "first", "bday"];
+  const PRIORITY = ["transfers", "arca", "past", "changes", "leads", "leads-follow", "first", "bday"];
   notices.sort(
     (a, b) =>
       PRIORITY.indexOf(String((a as React.ReactElement).key)) - PRIORITY.indexOf(String((b as React.ReactElement).key)),

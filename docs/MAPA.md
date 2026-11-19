@@ -121,9 +121,17 @@ Pestañas: **Ventas · Comisiones · Facturación · Anuncios · Insumos · Camb
   turno (cobrado y comisión). La profesional ve la misma pantalla solo con lo suyo, como «Mis comisiones».
 - **Facturación** ✅ (`/facturacion`): titulares del monotributo, lo del mes y 12 meses contra el tope,
   cuentas de cada titular.
-  - 🆕 **Facturar en ARCA**: acción por cobro desde acá (no pantalla nueva), rápida: un botón «Facturar» en el cobro
-    con los datos ya cargados. Factura con el DNI o el CUIT de la paciente; si hace falta CUIT y solo hay DNI,
-    botón «Buscar CUIT» que lo arma desde el DNI y lo confirma en el padrón de ARCA. (A definir con el dueño.)
+  - **Factura electrónica (ARCA)** ✅ (nov 2026; falta probarla con ARCA de verdad): nada automático, se factura solo lo que se decide.
+    - **Facturas emitidas** en esta pestaña: lista del período por titular (número, fecha, cliente, total, PDF,
+      «Anular» = nota de crédito) y botón **«Nueva factura»** para una suelta, sin turno: titular, líneas
+      (descripción · cantidad × precio), productos o servicios (arranca en productos), cliente consumidor final
+      sin identificar o con DNI/CUIT (obligatorio desde $10 M).
+    - **«Facturar» en el turno atendido** (tarjeta «Factura» arriba del cobro; desde la ficha se abre el turno): abre `/facturas/nueva?turno=…` con el titular
+      de la cuenta que cobró, el monto cobrado en ella (editable), los tratamientos como líneas y el DNI de la
+      paciente; arranca en servicios. Un turno cobrado en cuentas de dos titulares = una factura por titular.
+      Ya facturado: muestra «Factura C 0003-00000123» con el PDF.
+    - Facturan franquiciado, marca y recepción; las profesionales no lo ven. Cada titular emite con su CUIT.
+    - 🆕 «Buscar CUIT» desde el DNI (padrón de ARCA): más adelante.
 - **Cambios** ✅ (`/cambios`): lo que hizo recepción (o cualquiera que no sea franquiciado ni marca) y conviene
   mirar: cobro editado de un turno ya atendido (antes → después por cuenta), turno atendido que pasó a otro
   estado y millas cargadas a mano. «Revisado» uno o todos; Pendientes de Hoy avisa cuántos hay.
@@ -156,6 +164,11 @@ sola si ya está configurada):
 - **Recall** ✅ (sección plegada en General, solo franquiciado y marca): mensaje de WhatsApp de la sucursal con vista
   previa, y cada cuántos días vuelve cada tratamiento (arranca con lo del catálogo de la marca; vacío = sin recall).
 - 🆕 **Mensajes**: recordatorio, cumpleaños y leads (otra sección plegada en General).
+- **Factura electrónica** ✅ (sección plegada en General, solo franquiciado y marca): un renglón por titular con su
+  estado y «Conectar ARCA». Cada titular usa su propio certificado: datos de la factura (razón social, CUIT, domicilio
+  comercial, IIBB, inicio de actividades, punto de venta Web Services) → «Descargar pedido de certificado» (.csr) →
+  lo sube en ARCA y trae el certificado → «Probar conexión». Ambiente de prueba o real. Avisa en Pendientes 30 días
+  antes de que venza el certificado (dura 2 años). La clave privada queda solo en el servidor.
 - 🆕 **Conectar con Google** (Calendar/Sheets): reemplaza el contenido de «Planilla y calendario».
 
 ---

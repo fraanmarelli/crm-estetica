@@ -622,6 +622,102 @@ end $$;
 select pg_temp.check('10. recepción no puede cambiar el recall', current_setting('t.rec'), 'no pudo');
 
 -- ---------------------------------------------------------------------
+-- 11. Factura electrónica: lo facturado por titular (las notas de crédito restan) y quién ve qué
+-- ---------------------------------------------------------------------
+reset role;
+insert into arca_connections (id, organization_id, branch_id, holder_id, environment, cuit, business_name, address, point_of_sale, status)
+values ('00000000-0000-0000-0000-0000000000c9', '00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000b1',
+        '00000000-0000-0000-0000-0000000000a9', 'prod', '20273940589', 'Titular MP', 'Calle 1', 3, 'ready');
+insert into arca_secrets (connection_id, private_key, csr) values ('00000000-0000-0000-0000-0000000000c9', 'CLAVE', 'CSR');
+insert into invoices (id, organization_id, branch_id, holder_id, connection_id, environment, cuit, cbte_tipo, point_of_sale,
+                      number, status, issue_date, concept, doc_type, iva_condition, total, cae)
+values
+  ('00000000-0000-0000-0000-0000000001f1', '00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000b1',
+   '00000000-0000-0000-0000-0000000000a9', '00000000-0000-0000-0000-0000000000c9', 'prod', '20273940589', 11, 3, 1, 'issued',
+   '2026-11-10', 1, 99, 5, 700000, '1'),
+  ('00000000-0000-0000-0000-0000000001f2', '00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000b1',
+   '00000000-0000-0000-0000-0000000000a9', '00000000-0000-0000-0000-0000000000c9', 'prod', '20273940589', 11, 3, 2, 'issued',
+   '2026-11-11', 2, 96, 5, 100000, '2'),
+  ('00000000-0000-0000-0000-0000000001f3', '00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000b1',
+   '00000000-0000-0000-0000-0000000000a9', '00000000-0000-0000-0000-0000000000c9', 'prod', '20273940589', 13, 3, 1, 'issued',
+   '2026-11-12', 2, 96, 5, 100000, '3'),
+  -- rechazada por ARCA: no suma
+  ('00000000-0000-0000-0000-0000000001f4', '00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000b1',
+   '00000000-0000-0000-0000-0000000000a9', '00000000-0000-0000-0000-0000000000c9', 'prod', '20273940589', 11, 3, 3, 'failed',
+   '2026-11-12', 1, 99, 5, 50000, null),
+  -- de prueba (homologación): no suma
+  ('00000000-0000-0000-0000-0000000001f5', '00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000b1',
+   '00000000-0000-0000-0000-0000000000a9', '00000000-0000-0000-0000-0000000000c9', 'test', '20273940589', 11, 3, 1, 'issued',
+   '2026-11-12', 1, 99, 5, 90000, '5');
+update invoices set cancels_invoice_id = '00000000-0000-0000-0000-0000000001f2' where id = '00000000-0000-0000-0000-0000000001f3';
+
+do $$
+begin
+  perform set_config('t.dup', 'entró', true);
+  begin
+    insert into invoices (organization_id, branch_id, holder_id, environment, cuit, cbte_tipo, point_of_sale, number, status,
+                          issue_date, concept, doc_type, iva_condition, total)
+    values ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000a9',
+            'prod', '20273940589', 11, 3, 1, 'pending', '2026-11-13', 1, 99, 5, 1);
+  exception when unique_violation then
+    perform set_config('t.dup', 'no entró', true);
+  end;
+end $$;
+select pg_temp.check('11. el mismo número de factura no se usa dos veces', current_setting('t.dup'), 'no entró');
+
+select pg_temp.as_user('00000000-0000-0000-0000-00000000aa02', 'franquiciado@prueba.test');
+set local role authenticated;
+select set_config('t.fact', (select total from invoiced_by_holder('00000000-0000-0000-0000-0000000000b1', '2026-11-01', '2026-11-30'))::text, true);
+reset role;
+select pg_temp.check('11. facturado del titular: facturas menos notas de crédito (sin rechazadas ni de prueba)',
+  current_setting('t.fact')::numeric, 700000.00::numeric);
+
+select pg_temp.as_user('00000000-0000-0000-0000-00000000aa03', 'recepcion@prueba.test');
+set local role authenticated;
+select set_config('t.inv', (select count(*) from invoices)::text, true),
+       set_config('t.con', (select count(*) from arca_connections)::text, true);
+do $$
+begin
+  perform set_config('t.sec', 'leyó', true);
+  begin
+    perform 1 from arca_secrets;
+  exception when insufficient_privilege then
+    perform set_config('t.sec', 'no pudo', true);
+  end;
+  perform set_config('t.ins', 'escribió', true);
+  begin
+    update invoices set total = 1 where id = '00000000-0000-0000-0000-0000000001f1';
+    if not found then perform set_config('t.ins', 'no pudo', true); end if;
+  exception when others then
+    perform set_config('t.ins', 'no pudo', true);
+  end;
+end $$;
+reset role;
+select pg_temp.check('11. recepción ve las facturas (factura desde el turno)', current_setting('t.inv')::int, 5);
+select pg_temp.check('11. recepción ve qué titulares están conectados', current_setting('t.con')::int, 1);
+select pg_temp.check('11. nadie del equipo lee la clave del certificado', current_setting('t.sec'), 'no pudo');
+select pg_temp.check('11. una factura no se toca desde la app (solo el servidor)', current_setting('t.ins'), 'no pudo');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000aa03', 'recepcion@prueba.test');
+set local role authenticated;
+do $$
+begin
+  perform set_config('t.fac', 'vio', true);
+  begin
+    perform invoiced_by_holder('00000000-0000-0000-0000-0000000000b1', '2026-11-01', '2026-11-30');
+  exception when others then
+    perform set_config('t.fac', 'no pudo', true);
+  end;
+end $$;
+reset role;
+select pg_temp.check('11. recepción no ve el total facturado por titular', current_setting('t.fac'), 'no pudo');
+
+select pg_temp.as_user('00000000-0000-0000-0000-00000000aa04', 'doctora@prueba.test');
+set local role authenticated;
+select set_config('t.doc', (select count(*) from invoices)::text, true);
+reset role;
+select pg_temp.check('11. la doctora no ve facturas', current_setting('t.doc')::int, 0);
+
+-- ---------------------------------------------------------------------
 -- Resultado
 -- ---------------------------------------------------------------------
 \o
