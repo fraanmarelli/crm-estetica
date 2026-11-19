@@ -324,7 +324,7 @@
   }
 
   /* Interruptor (checkbox con forma de llave) */
-  .switch {
+  input[type="checkbox"].switch {
     appearance: none;
     position: relative;
     width: 2.6rem;

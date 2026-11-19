@@ -181,7 +181,7 @@ export default async function NetworkPage() {
                     </p>
                   </div>
                 )}
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className="grid grid-cols-2 gap-2">
                   <Kpi label="Atendidas este mes" value={String(cur?.completed ?? 0)} />
                   <Kpi
                     label="Facturado"
