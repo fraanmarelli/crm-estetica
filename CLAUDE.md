@@ -83,6 +83,10 @@ y entregá archivos completos.
   marca invita marca/franquiciado/equipo; franquiciado, recepción y profesionales de su sucursal.
   `team_members()`, `branch_owners()`, `remove_membership()`. Sucursal nueva (marca, en /marca) arranca con cuentas
   de cobro genéricas por trigger (`seed_branch_accounts`).
+- Contraseña olvidada: «Link para nueva contraseña» en Equipo (`createResetLink`: quien puede manejar ese rol genera
+  con service role un link de recuperación con `generateLink`, sin mail) → `/auth/confirmar?token_hash=…&type=recovery`
+  → `/nueva-contrasena`. `/recuperar` (por mail) depende del SMTP: el mail de Supabase sin SMTP propio solo llega a
+  miembros del equipo de Supabase (2 por hora); para que llegue a todos, configurar SMTP propio (Resend).
 - Leads de Meta (formularios instantáneos): `leads` (no son pacientes; status new/contacted/booked/lost;
   `prepare_lead()` normaliza el celular y vincula `patient_id` si ya existe). Pantalla en bloques: Sin contactar →
   «Escribirle» (`mark_lead_contacted()`: quién, cuándo, `contact_count`; «Deshacer» = `undo_lead_contacted()`) →

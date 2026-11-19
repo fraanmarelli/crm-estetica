@@ -134,7 +134,7 @@ Pestañas: **Ventas · Comisiones · Facturación · Anuncios · Insumos · Camb
 Pestañas: **General · Promos**. Solo franquiciado y marca. En General, cada sección plegada (se pliega
 sola si ya está configurada):
 
-- Equipo ✅ · Médicos y comisión ✅ · Cuentas de cobro ✅ · Mercado Pago (verificar transferencias) ✅ ·
+- Equipo ✅ (con «Link para nueva contraseña» ✅ por persona, para mandar por WhatsApp) · Médicos y comisión ✅ · Cuentas de cobro ✅ · Mercado Pago (verificar transferencias) ✅ ·
   Planilla, calendario y Klaviyo ✅ · Errores de envío ✅.
 - **Promos** ✅ (`/promos`): vigentes, nueva promo, pausadas o vencidas. Al cobrar se eligen en el turno.
 - 🆕 **Mensajes**: recordatorio, cumpleaños, recall y leads (una sección plegada en General).

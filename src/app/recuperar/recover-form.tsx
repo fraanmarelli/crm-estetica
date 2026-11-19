@@ -18,6 +18,10 @@ export function RecoverForm({ expired }: { expired: boolean }) {
               Si <b>{state.ok}</b> tiene cuenta en el CRM, te llegó un mail con un link para elegir una contraseña nueva.
               El link sirve una sola vez y vence en una hora. Si no lo ves, buscá en spam.
             </p>
+            <p className="text-sm text-muted">
+              ¿No te llega? Pedile a tu franquiciado (o a la marca) un link desde Ajustes → Equipo → «Link para nueva
+              contraseña», y te lo manda por WhatsApp.
+            </p>
             <Link href="/login" className="btn w-full">Volver a ingresar</Link>
           </>
         ) : (

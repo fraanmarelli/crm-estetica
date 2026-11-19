@@ -4,7 +4,7 @@ import { fmtDate, ROLE_LABEL } from "@/lib/format";
 import type { Role } from "@/lib/types";
 import { revokeInvite } from "./actions";
 import { InviteForm } from "./invite-form";
-import { RemoveMemberButton } from "./member-row";
+import { RemoveMemberButton, ResetLinkButton } from "./member-row";
 
 type Member = {
   membership_id: string;
@@ -74,7 +74,10 @@ export async function TeamPanel({
               </p>
             </div>
             {m.user_id !== currentUserId && roles.includes(m.role) && (
-              <RemoveMemberButton id={m.membership_id} email={m.email} />
+              <div className="flex flex-wrap items-start justify-end gap-x-4 gap-y-1">
+                <ResetLinkButton membershipId={m.membership_id} branchId={branchId} orgName={orgName} />
+                <RemoveMemberButton id={m.membership_id} email={m.email} />
+              </div>
             )}
           </li>
         ))}
