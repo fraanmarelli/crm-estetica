@@ -182,6 +182,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
     .sort((x, y) => (x.scheduled_at < y.scheduled_at ? -1 : 1));
   const past = history.filter((a) => localDay(a.scheduled_at) < today || (localDay(a.scheduled_at) === today && a.status === "cancelled"));
   const sessions = history.filter((a) => a.status === "completed"); // la más reciente primero
+  const pastDone = past.filter((a) => a.status === "completed");
 
   // Sin turno por delante: cuándo le toca volver (el recall más cercano de lo que se hizo)
   const lastByTreatment = new Map<string, { name: string; at: string; days: number }>();
@@ -366,8 +367,8 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
                     Pasados <span className="num font-normal text-muted">{past.length}</span>
                   </span>
                   <span className="text-xs text-muted">
-                    {sessions.length === 1 ? "1 atendido" : `${sessions.length} atendidos`}
-                    {sessions[0] ? `, el último el ${fmtDate(sessions[0].scheduled_at)}` : ""}
+                    {pastDone.length === 1 ? "1 atendido" : `${pastDone.length} atendidos`}
+                    {pastDone[0] ? `, el último el ${fmtDate(pastDone[0].scheduled_at)}` : ""}
                   </span>
                 </summary>
                 <ul className="divide-y divide-line border-t border-line">
@@ -494,9 +495,9 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
               {fin && (
                 <>
                   <dt className="text-muted">Insumos</dt>
-                  <dd className="num">−{fmtMoney(fin.supplies, cur)}</dd>
+                  <dd className="num">{fin.supplies > 0 ? "−" : ""}{fmtMoney(fin.supplies, cur)}</dd>
                   <dt className="text-muted">Comisiones</dt>
-                  <dd className="num">−{fmtMoney(fin.commission, cur)}</dd>
+                  <dd className="num">{fin.commission > 0 ? "−" : ""}{fmtMoney(fin.commission, cur)}</dd>
                   <dt className="border-t border-line pt-2 font-semibold">Lo que dejó</dt>
                   <dd className="num border-t border-line pt-2 font-semibold">{fmtMoney(fin.net, cur)}</dd>
                 </>
