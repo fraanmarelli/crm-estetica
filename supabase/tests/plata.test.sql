@@ -408,6 +408,81 @@ select pg_temp.check('6. el franquiciado la marca revisada',
   (select dismissed_by_name from transfer_checks where id = '00000000-0000-0000-0000-0000000000c9'), 'franquiciado@prueba.test');
 
 -- ---------------------------------------------------------------------
+-- 7. Funciones por sede: la marca las apaga y la base deja de hacerlas
+-- ---------------------------------------------------------------------
+reset role;
+insert into mp_connections (organization_id, branch_id, account_id, mp_user_id)
+values ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000b1', :'mp', 'mp-prueba');
+insert into integrations (id, organization_id, branch_id, type, name, events)
+values ('00000000-0000-0000-0000-0000000000ab', '00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000b1',
+        'google_sheets', 'Planilla', array['appointment.saved']);
+
+-- El franquiciado no puede prenderse ni apagarse funciones (solo la marca escribe sucursales)
+select pg_temp.as_user('00000000-0000-0000-0000-00000000aa02', 'franquiciado@prueba.test');
+set local role authenticated;
+update branches set disabled_features = array['promos'] where id = '00000000-0000-0000-0000-0000000000b1';
+reset role;
+select pg_temp.check('7. el franquiciado no cambia las funciones de su sede',
+  (select disabled_features from branches where id = '00000000-0000-0000-0000-0000000000b1'), '{}'::text[]);
+
+-- Prendidas: el cobro en una cuenta conectada crea su chequeo y el turno se encola para la planilla
+select pg_temp.as_user('00000000-0000-0000-0000-00000000aa01', 'marca@prueba.test');
+set local role authenticated;
+select save_appointment(null, '00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000f1',
+  null, '2026-10-27 10:00-03', 30, null, 'completed',
+  '[{"treatment_id":"00000000-0000-0000-0000-0000000000e3","price":5000}]'::jsonb,
+  jsonb_build_array(jsonb_build_object('account_id', current_setting('t.mp'), 'amount', 5000))) as prendida \gset
+reset role;
+select pg_temp.check('7. prendida: se crea el chequeo de Mercado Pago',
+  (select count(*) from transfer_checks where appointment_id = :'prendida')::int, 1);
+select pg_temp.check('7. prendida: se encola para la planilla',
+  (select count(*) from event_outbox where entity_id = :'prendida')::int > 0, true);
+
+-- La marca apaga todo en la sede
+set local role authenticated;
+update branches set disabled_features = array['ads', 'mp', 'promos', 'integrations']
+ where id = '00000000-0000-0000-0000-0000000000b1';
+select save_appointment(null, '00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000f1',
+  null, '2026-10-28 10:00-03', 30, null, 'completed',
+  '[{"treatment_id":"00000000-0000-0000-0000-0000000000e3","price":6000}]'::jsonb,
+  jsonb_build_array(jsonb_build_object('account_id', current_setting('t.mp'), 'amount', 6000))) as apagada \gset
+reset role;
+select pg_temp.check('7. apagada: el cobro se guarda igual', (select amount_paid from appointments where id = :'apagada'), 6000::numeric);
+select pg_temp.check('7. apagada: no se crea chequeo de Mercado Pago',
+  (select count(*) from transfer_checks where appointment_id = :'apagada')::int, 0);
+select pg_temp.check('7. apagada: no se encola para la planilla',
+  (select count(*) from event_outbox where entity_id = :'apagada')::int, 0);
+insert into leads (organization_id, branch_id, external_id)
+values ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000b1', 'lead-prueba');
+select pg_temp.check('7. apagada: no entran leads de Facebook',
+  (select count(*) from leads where external_id = 'lead-prueba')::int, 0);
+
+-- Promos propias apagadas: el franquiciado no crea; la marca sí
+select pg_temp.as_user('00000000-0000-0000-0000-00000000aa02', 'franquiciado@prueba.test');
+do $$
+begin
+  perform set_config('t.promo', 'creó', true);
+  set local role authenticated;
+  begin
+    insert into promotions (organization_id, branch_id, name, price)
+    values ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000b1', 'Promo sede', 1000);
+  exception when others then
+    perform set_config('t.promo', 'no creó', true);
+  end;
+  reset role;
+end $$;
+select pg_temp.check('7. promos apagadas: el franquiciado no crea promos de la sede', current_setting('t.promo'), 'no creó');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000aa01', 'marca@prueba.test');
+set local role authenticated;
+insert into promotions (organization_id, branch_id, name, price)
+values ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000b1', 'Promo de la marca', 1000);
+reset role;
+select pg_temp.check('7. promos apagadas: la marca sí crea promos de la sede',
+  (select count(*) from promotions where name = 'Promo de la marca')::int, 1);
+select pg_temp.check('7. la marca ve al franquiciado en la información',
+  (select count(*) from franchisee_overview('00000000-0000-0000-0000-0000000000a1'))::int, 1);
+
+-- ---------------------------------------------------------------------
 -- Resultado
 -- ---------------------------------------------------------------------
 \o

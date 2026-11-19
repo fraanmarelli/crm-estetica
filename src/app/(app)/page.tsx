@@ -139,7 +139,7 @@ export default async function AgendaPage({
             .limit(100)
         : Promise.resolve({ data: [] }),
       // Transferencias que no llegaron o hay que revisar, de cualquier día (la profesional no cobra)
-      ctx.isProfessionalOnly
+      ctx.isProfessionalOnly || !ctx.features.mp
         ? Promise.resolve({ data: [] })
         : supabase
             .from("transfer_checks")
@@ -165,7 +165,8 @@ export default async function AgendaPage({
   }
 
   const rows = (dayAppts ?? []) as unknown as (Row & { patient: (Row["patient"] & { prior?: unknown[] }) | null })[];
-  for (const r of rows) r.checks ??= [];
+  // Mercado Pago apagado en la sede: no se muestra el estado de las transferencias
+  for (const r of rows) r.checks = ctx.features.mp ? (r.checks ?? []) : [];
   const active = rows.filter((r) => r.status !== "cancelled");
   const done = rows.filter((r) => r.status === "completed");
   const pending = rows.filter((r) => r.status === "scheduled");
@@ -229,7 +230,7 @@ export default async function AgendaPage({
       </li>,
     );
   }
-  if (newLeads && day === today && ctx.canContactCurrentBranch) {
+  if (newLeads && day === today && ctx.canContactCurrentBranch && ctx.features.ads) {
     notices.push(
       <li key="leads">
         <Link href="/leads" className="font-semibold hover:text-brand">
@@ -253,7 +254,7 @@ export default async function AgendaPage({
       </li>,
     );
   }
-  if (followUpLeads && day === today && ctx.canContactCurrentBranch) {
+  if (followUpLeads && day === today && ctx.canContactCurrentBranch && ctx.features.ads) {
     notices.push(
       <li key="leads-follow">
         <Link href="/leads" className="font-semibold hover:text-brand">

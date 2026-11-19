@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getContext } from "@/lib/context";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -7,6 +8,7 @@ import { finalizeLeadPage } from "../actions";
 // Elegir cuál de las páginas de Facebook es la de esta sucursal
 export default async function ChooseLeadPage({ searchParams }: { searchParams: Promise<{ pending?: string }> }) {
   const ctx = await getContext();
+  if (ctx && !ctx.features.ads) redirect("/");
   const { pending } = await searchParams;
   if (!ctx || !pending) return null;
 

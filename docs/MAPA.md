@@ -126,6 +126,11 @@ Pestañas: **Ventas · Comisiones · Facturación · Anuncios · Insumos · Camb
 ## 5. Sucursales {marca} (`/marca`) — solo marca (ej. «Sucursales Dr Beauty»)
 
 - Sucursales y franquiciados ✅ (crear sucursal, invitar franquiciado), equipo de la marca ✅.
+  - **Ventana del franquiciado** ✅: tocar un franquiciado (o «Funciones» en una sede sin franquiciado) abre una
+    ventana con su último ingreso, el mes de la sede (atendidas, facturado, no vinieron, recall), equipo y
+    conexiones, y los **interruptores de funciones de la sede** ✅: Anuncios y leads · Mercado Pago · Promos
+    propias · Planilla, calendario y Klaviyo. Apagada = desaparece para toda la sede (menú, pestañas, Pendientes,
+    Ajustes) y la base deja de hacerla; lo cargado queda guardado. En la lista, «N funciones apagadas».
 - Catálogo de tratamientos ✅ y promos de toda la red (se crean en Ajustes → Promos eligiendo «toda la red»).
 - 🆕 Números comparados entre sucursales.
 - 🆕 Textos del consentimiento informado por tratamiento.

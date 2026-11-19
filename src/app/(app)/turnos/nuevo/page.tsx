@@ -93,7 +93,7 @@ export default async function NewAppointmentPage({
   // ------------------------------------------------------------------
   const [{ data: brief }, { treatments, professionals, accounts, promotions, lastLots }] = await Promise.all([
     supabase.rpc("patient_brief", { p_patient: paciente }),
-    loadCatalog(ctx.org.id, ctx.currentBranch.id),
+    loadCatalog(ctx.org.id, ctx.currentBranch.id, ctx.features.promos),
   ]);
   if (!brief?.length) {
     return <p className="alert-error">No se encontró la paciente.</p>;

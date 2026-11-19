@@ -105,6 +105,11 @@ y entregá archivos completos.
   (filtra mientras se escribe actualizando `?q=`).
 - Marketing: `ad_connections` (una cuenta de Meta por sucursal), `ad_connection_secrets` (tokens, solo
   service role), `ad_insights_daily` (gasto/resultados por campaña y día), `marketing_summary()` cruza con pacientes.
+- Funciones por sede: `branches.disabled_features` (`ads`, `mp`, `promos`, `integrations`; vacío = todo prendido),
+  solo la marca la escribe (en Sucursales, ventana del franquiciado, `setBranchFeatures`). `branch_feature_on()`;
+  la base deja de hacer lo apagado con triggers (leads, transfer_checks, event_outbox), `ad_connections_to_sync()`
+  y `can_manage_promotion()`. En la app: `ctx.features`, `requireFeature()`, `branchFeatureOn()` en rutas con
+  sucursal por parámetro, pestañas ocultas por `HiddenTabsProvider`. `franchisee_overview()` = info de la ventana.
 - Tareas programadas (pg_cron): `dispatch-events` y `mp-verify` cada minuto, `leads-sync` cada 5 min, `meta-sync` diario.
   `weekly-report` (mail de los lunes) apagado desde nov 2026: volver a programarlo con 2+ sucursales y Resend.
 

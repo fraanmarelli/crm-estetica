@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getContext } from "@/lib/context";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -12,6 +13,7 @@ export default async function ChooseAdAccountPage({
   searchParams: Promise<{ pending?: string }>;
 }) {
   const ctx = await getContext();
+  if (ctx && !ctx.features.ads) redirect("/");
   const { pending } = await searchParams;
   if (!ctx || !pending) return null;
 

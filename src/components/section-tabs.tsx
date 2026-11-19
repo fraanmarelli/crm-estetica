@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useLayoutEffect, useRef, useState } from "react";
 import { LinkPending, useTappedHref } from "@/components/nav-links";
+import { useHiddenTabs } from "@/components/hidden-tabs";
 
 // Pestañas de un ítem del menú (ver docs/MAPA.md). Cada pestaña es una ruta propia.
 const SECTIONS = {
@@ -26,7 +27,8 @@ const SECTIONS = {
 
 export function SectionTabs({ section }: { section: keyof typeof SECTIONS }) {
   const { pathname, tapped, tap } = useTappedHref();
-  const tabs = SECTIONS[section];
+  const hidden = useHiddenTabs();
+  const tabs = SECTIONS[section].filter((t) => !hidden.includes(t.href));
   const activeIndex = tabs.findIndex((t) =>
     tapped ? tapped === t.href : pathname === t.href || pathname.startsWith(`${t.href}/`),
   );

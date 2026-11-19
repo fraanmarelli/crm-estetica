@@ -4,7 +4,8 @@ import type { PaymentAccount, Professional, Promotion, Treatment } from "@/lib/t
 
 // Catálogo de la marca (con el insumo que usa cada tratamiento), profesionales, cuentas de cobro
 // y promos vigentes (de la red y de la sucursal) para cargar un turno.
-export async function loadCatalog(orgId: string, branchId: string) {
+// branchPromos = false: la marca apagó «Promos propias» en la sede (solo se ofrecen las de la red)
+export async function loadCatalog(orgId: string, branchId: string, branchPromos = true) {
   const supabase = await createClient();
   const today = todayISO();
   const [{ data: treatments }, { data: professionals }, { data: accounts }, { data: promotions }, { data: lots }] =
@@ -35,7 +36,7 @@ export async function loadCatalog(orgId: string, branchId: string) {
       .select("id, name, price, branch_id, valid_until, is_active, items:promotion_items(treatment_id, zone, sort_order)")
       .eq("organization_id", orgId)
       .eq("is_active", true)
-      .or(`branch_id.is.null,branch_id.eq.${branchId}`)
+      .or(branchPromos ? `branch_id.is.null,branch_id.eq.${branchId}` : "branch_id.is.null")
       .order("name"),
     // Últimos lotes usados en la sucursal: se propone el más reciente de cada tratamiento
     supabase

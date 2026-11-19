@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
-import { canManageBranch, getContext } from "@/lib/context";
+import { branchFeatureOn, canManageBranch, getContext } from "@/lib/context";
 import { META_GRAPH_VERSION } from "@/lib/meta";
 import { LEAD_SCOPES, META_LEADS_COOKIE, leadsConfigured, leadsRedirectUri } from "@/lib/meta-leads";
 
@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
   if (!ctx || !ctx.branches.some((b) => b.id === branchId) || !canManageBranch(ctx, branchId)) {
     return back("Solo el franquiciado o la marca pueden conectar la página.");
   }
+  if (!(await branchFeatureOn(branchId, "ads"))) return back("La marca apagó esta función para la sucursal.");
 
   const state = randomBytes(24).toString("hex");
   const dialog = new URL(`https://www.facebook.com/${META_GRAPH_VERSION}/dialog/oauth`);

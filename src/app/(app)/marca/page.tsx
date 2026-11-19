@@ -1,11 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { SoonCard } from "@/components/soon";
 import { requireNetworkContext } from "@/lib/context";
-import { fmtMoney, todayISO } from "@/lib/format";
+import { fmtDateTime, fmtMoney, todayISO } from "@/lib/format";
 import { Kpi } from "@/components/kpi";
 import { InviteForm } from "../equipo/invite-form";
 import { TeamPanel } from "../equipo/team-panel";
 import { BranchForm } from "./branch-form";
+import { FranchiseeDialog } from "./franchisee-dialog";
+import { FeaturesForm } from "./features-form";
+import { featuresFrom } from "@/lib/context";
 
 type Stat = {
   branch_id: string;
@@ -29,7 +32,7 @@ export default async function NetworkPage() {
   const current = monthStart(0);
   const previous = monthStart(-1);
 
-  const [{ data: stats }, { data: due }, { count: patientsCount }, { data: ownerData }] = await Promise.all([
+  const [{ data: stats }, { data: due }, { count: patientsCount }, { data: overviewData }, { data: branchRows }] = await Promise.all([
     supabase
       .from("branch_monthly_stats")
       .select("branch_id, month, completed, no_shows, cancelled, revenue, unique_patients")
@@ -37,9 +40,26 @@ export default async function NetworkPage() {
       .in("month", [current, previous]),
     supabase.from("recall_due_by_branch").select("branch_id, due_count").eq("organization_id", ctx.org.id),
     supabase.from("patients").select("id", { count: "exact", head: true }).eq("organization_id", ctx.org.id),
-    supabase.rpc("branch_owners", { p_org: ctx.org.id }),
+    // Franquiciados con su último ingreso, equipo y conexiones de la sede (solo la marca)
+    supabase.rpc("franchisee_overview", { p_org: ctx.org.id }),
+    supabase.from("branches").select("id, disabled_features").eq("organization_id", ctx.org.id),
   ]);
-  const owners = (ownerData ?? []) as { branch_id: string; email: string }[];
+  type Owner = {
+    user_id: string;
+    email: string;
+    full_name: string | null;
+    last_sign_in_at: string | null;
+    branch_id: string;
+    team_count: number;
+    mp_accounts: number;
+    has_facebook: boolean;
+    has_ads: boolean;
+    integrations: number;
+  };
+  const owners = (overviewData ?? []) as Owner[];
+  const disabledBy = new Map(
+    ((branchRows ?? []) as { id: string; disabled_features: string[] | null }[]).map((b) => [b.id, b.disabled_features ?? []]),
+  );
 
   const list = (stats ?? []) as Stat[];
   const get = (branchId: string, month: string) =>
@@ -140,17 +160,100 @@ export default async function NetworkPage() {
         </div>
         <ul className="divide-y divide-line">
           {ctx.branches.map((b) => {
-            const list = owners.filter((o) => o.branch_id === b.id).map((o) => o.email);
+            const list = owners.filter((o) => o.branch_id === b.id);
+            const off = disabledBy.get(b.id) ?? [];
+            const note = off.length ? `${off.length} ${off.length === 1 ? "función apagada" : "funciones apagadas"}` : undefined;
+            const cur = get(b.id, current);
+            const prev = get(b.id, previous);
+            // Lo mismo para cualquier franquiciado de la sede (o para la sede sin franquiciado)
+            const sede = (o: Owner | null) => (
+              <div className="space-y-5">
+                {o && (
+                  <div>
+                    <h2>{o.full_name ?? o.email}</h2>
+                    <p className="text-sm text-muted">
+                      Franquiciado/a de {b.name}
+                      {o.full_name ? ` · ${o.email}` : ""}
+                    </p>
+                    <p className="mt-1 text-sm">
+                      Último ingreso:{" "}
+                      <b>{o.last_sign_in_at ? fmtDateTime(o.last_sign_in_at) : "todavía no entró"}</b>
+                    </p>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <Kpi label="Atendidas este mes" value={String(cur?.completed ?? 0)} />
+                  <Kpi
+                    label="Facturado"
+                    value={fmtMoney(cur?.revenue ?? 0, ctx.org.currency)}
+                    hint={`${variation(Number(cur?.revenue ?? 0), Number(prev?.revenue ?? 0))} vs mes ant.`}
+                  />
+                  <Kpi label="No vinieron" value={String(cur?.no_shows ?? 0)} />
+                  <Kpi label="Recall vencido" value={String(dueMap.get(b.id) ?? 0)} />
+                </div>
+                {o && (
+                  <dl className="grid gap-x-6 gap-y-1.5 rounded-xl bg-subtle p-4 text-sm sm:grid-cols-2">
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-muted">Equipo con acceso</dt>
+                      <dd className="font-semibold">{o.team_count} {o.team_count === 1 ? "persona" : "personas"}</dd>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-muted">Mercado Pago</dt>
+                      <dd className="font-semibold">
+                        {o.mp_accounts ? `${o.mp_accounts} ${o.mp_accounts === 1 ? "cuenta conectada" : "cuentas conectadas"}` : "Sin conectar"}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-muted">Página de Facebook (leads)</dt>
+                      <dd className="font-semibold">{o.has_facebook ? "Conectada" : "Sin conectar"}</dd>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-muted">Cuenta de anuncios</dt>
+                      <dd className="font-semibold">{o.has_ads ? "Conectada" : "Sin conectar"}</dd>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-muted">Planilla, calendario y Klaviyo</dt>
+                      <dd className="font-semibold">{o.integrations ? `${o.integrations} activas` : "Nada conectado"}</dd>
+                    </div>
+                  </dl>
+                )}
+                <section className="space-y-2">
+                  <h3 className="text-sm font-semibold">Funciones de {b.name}</h3>
+                  <FeaturesForm branchId={b.id} branchName={b.name} features={featuresFrom(off)} />
+                </section>
+              </div>
+            );
             return (
               <li key={b.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
                 <span className="font-semibold">{b.name}</span>
-                <span className={list.length ? "text-muted" : "text-warn"}>
-                  {list.length ? list.join(", ") : "Sin franquiciado/a con acceso"}
+                <span className="flex flex-wrap items-center gap-2">
+                  {list.length ? (
+                    list.map((o) => (
+                      <FranchiseeDialog
+                        key={o.user_id}
+                        label={o.full_name ?? o.email}
+                        note={note}
+                        title={`${o.full_name ?? o.email} · ${b.name}`}
+                      >
+                        {sede(o)}
+                      </FranchiseeDialog>
+                    ))
+                  ) : (
+                    <>
+                      <span className="text-warn">Sin franquiciado/a con acceso</span>
+                      <FranchiseeDialog label="Funciones" note={note} title={`Funciones · ${b.name}`}>
+                        {sede(null)}
+                      </FranchiseeDialog>
+                    </>
+                  )}
                 </span>
               </li>
             );
           })}
         </ul>
+        <p className="text-xs text-muted">
+          Tocá un franquiciado para ver cómo viene su sede y prender o apagar funciones.
+        </p>
         <div className="grid gap-6 border-t border-line pt-4 lg:grid-cols-2">
           <div className="space-y-2">
             <h3 className="text-sm font-semibold">Dar acceso de franquiciado/a</h3>

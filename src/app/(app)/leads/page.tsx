@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { SubmitButton } from "@/components/submit-button";
 import Link from "next/link";
 import { SectionTabs } from "@/components/section-tabs";
@@ -60,6 +61,8 @@ export default async function LeadsPage({
   searchParams: Promise<{ error?: string; ok?: string }>;
 }) {
   const ctx = await requireContactContext();
+  // La marca apagó Anuncios y leads en esta sede: Contactar es solo Recall
+  if (!ctx.features.ads) redirect("/recall");
   const sp = await searchParams;
   const supabase = await createClient();
   const branchId = ctx.currentBranch.id;

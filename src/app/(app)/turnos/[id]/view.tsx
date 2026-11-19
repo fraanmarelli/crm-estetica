@@ -40,7 +40,7 @@ export async function AppointmentView({ id, sp }: { id: string; sp: { cobrar?: s
   const supabase = await createClient();
   // El catálogo (tratamientos, cuentas, promos) y la comisión no dependen del turno: se piden al mismo
   // tiempo que el turno, en vez de uno detrás del otro
-  const catalogP = ctx.isProfessionalOnly ? null : loadCatalog(ctx.org.id, ctx.currentBranch.id);
+  const catalogP = ctx.isProfessionalOnly ? null : loadCatalog(ctx.org.id, ctx.currentBranch.id, ctx.features.promos);
   const commissionP = ctx.canManageCurrentBranch
     ? supabase.rpc("appointment_commission", { p_appointment: id })
     : null;
@@ -123,7 +123,7 @@ export async function AppointmentView({ id, sp }: { id: string; sp: { cobrar?: s
   }
 
   const [{ treatments, professionals, accounts, promotions, lastLots }, commissionRes] = await Promise.all([
-    catalogP ?? loadCatalog(ctx.org.id, ctx.currentBranch.id),
+    catalogP ?? loadCatalog(ctx.org.id, ctx.currentBranch.id, ctx.features.promos),
     commissionP,
   ]);
   let commission = "";
@@ -168,7 +168,7 @@ export async function AppointmentView({ id, sp }: { id: string; sp: { cobrar?: s
           </Link>
         </div>
       )}
-      {appt.checks?.length > 0 && (
+      {ctx.features.mp && appt.checks?.length > 0 && (
         <div className="card space-y-2">
           <h2 className="text-base">Transferencias en Mercado Pago</h2>
           <TransferStatus checks={appt.checks} />

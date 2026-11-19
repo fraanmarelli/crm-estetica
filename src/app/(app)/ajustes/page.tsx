@@ -155,7 +155,7 @@ export default async function SettingsPage({
         <AccountsForm accounts={accountList} />
       </Fold>
 
-      {ctx.showRoadmap ? (
+      {!ctx.features.mp ? null : ctx.showRoadmap ? (
         <SoonCard
           title="Verificar transferencias de Mercado Pago"
           description="Cada cuenta de Mercado Pago del local se conecta una vez y el CRM confirma solo si la transferencia de la paciente llegó: monto exacto y que la haya mandado ella."
@@ -266,6 +266,7 @@ export default async function SettingsPage({
         </>
       )}
 
+{ctx.features.integrations && (
       <Fold
         title="Planilla, calendario y Klaviyo"
         summary={
@@ -319,6 +320,7 @@ export default async function SettingsPage({
           </ol>
         </details>
       </Fold>
+      )}
 
       <Fold
         title="Errores de envío"

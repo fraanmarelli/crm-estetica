@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/supabase/server";
 import { SectionTabs } from "@/components/section-tabs";
@@ -14,6 +15,8 @@ type PromoRow = Promotion & {
 
 export default async function PromosPage() {
   const ctx = await requireManagerContext();
+  // Promos propias apagadas en esta sede: el franquiciado no tiene esta pantalla (la marca sí: crea las de la red)
+  if (!ctx.features.promos && !ctx.isNetwork) redirect("/ajustes");
   const supabase = await createClient();
 
   const [{ data: promoData }, { data: treatmentData }] = await Promise.all([

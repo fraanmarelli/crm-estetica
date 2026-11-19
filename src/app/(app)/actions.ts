@@ -442,6 +442,7 @@ export async function adjustPoints(_prev: ActionState, formData: FormData): Prom
 // ---------------------------------------------------------------------
 export async function createIntegration(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const ctx = await requireManagerContext();
+  if (!ctx.features.integrations) return { error: "La marca apagó la planilla, el calendario y Klaviyo para esta sucursal." };
   const supabase = await createClient();
   const type = str(formData, "type");
   const secret = str(formData, "secret");

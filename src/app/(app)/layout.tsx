@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { BrandMark } from "@/components/brand-mark";
 import { BottomNav, SideNav, type NavItem } from "@/components/nav-links";
 import { IconLogout } from "@/components/icons";
+import { HiddenTabsProvider } from "@/components/hidden-tabs";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
@@ -62,7 +63,12 @@ export default async function AppLayout({ children, modal }: { children: React.R
     { href: "/", label: "Hoy", icon: "today" },
     { href: "/pacientes", label: "Pacientes", icon: "patients" },
     ...(ctx.canContactCurrentBranch
-      ? ([{ href: "/leads", label: "Contactar", icon: "leads", match: ["/recall"] }] as NavItem[])
+      ? ([
+          // Con Anuncios y leads apagado en la sede, Contactar es solo Recall
+          ctx.features.ads
+            ? { href: "/leads", label: "Contactar", icon: "leads", match: ["/recall"] }
+            : { href: "/recall", label: "Contactar", icon: "leads" },
+        ] as NavItem[])
       : []),
     // La profesional ve sus comisiones; franquiciado y marca las ven en Números → Comisiones
     ...(isProfessional
@@ -84,6 +90,12 @@ export default async function AppLayout({ children, modal }: { children: React.R
     ...(ctx.canManageCurrentBranch
       ? ([{ href: "/ajustes", label: "Ajustes", icon: "settings", match: ["/promos", "/equipo"] }] as NavItem[])
       : []),
+  ];
+
+  // Pestañas de funciones apagadas por la marca en esta sede (la marca sigue viendo Promos: crea las de la red)
+  const hiddenTabs = [
+    ...(ctx.features.ads ? [] : ["/leads", "/marketing"]),
+    ...(ctx.features.promos || ctx.isNetwork ? [] : ["/promos"]),
   ];
 
   // Colores propios de la organización (si los cargó) pisan los del tema
@@ -171,7 +183,7 @@ export default async function AppLayout({ children, modal }: { children: React.R
             elegí «Marca (yo)» en «Ver como».
           </p>
         )}
-        {children}
+        <HiddenTabsProvider hrefs={hiddenTabs}>{children}</HiddenTabsProvider>
       </main>
 
       <BottomNav items={items} />

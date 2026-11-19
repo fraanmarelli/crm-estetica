@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { SectionTabs } from "@/components/section-tabs";
 import { createClient } from "@/lib/supabase/server";
@@ -76,6 +77,8 @@ export default async function MarketingPage({
   const sp = await searchParams;
   const days = PERIODS.find((p) => String(p.days) === sp.dias)?.days ?? 30;
   const brandView = ctx.isNetwork && sp.vista === "marca";
+  // Anuncios apagado en esta sede: solo queda la vista de toda la marca
+  if (!brandView && !ctx.features.ads) redirect(ctx.isNetwork ? "/marketing?vista=marca" : "/numeros");
   const from = isoDaysAgo(days);
   const to = isoDaysAgo(0);
   const cur = ctx.org.currency;

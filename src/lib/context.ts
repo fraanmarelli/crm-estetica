@@ -11,6 +11,9 @@ export const VIEW_AS_COOKIE = "crm_view_as";
 export const ROADMAP_COOKIE = "crm_roadmap";
 export type ViewAs = { role: "branch_admin" | "reception" | "professional"; professionalId: string | null };
 
+import { FEATURE_KEYS, featuresFrom, type FeatureKey, type Features } from "@/lib/feature-labels";
+export { FEATURE_KEYS, FEATURE_LABEL, featuresFrom, type FeatureKey, type Features } from "@/lib/feature-labels";
+
 function parseViewAs(raw: string | undefined): ViewAs | null {
   if (!raw) return null;
   if (raw === "branch_admin" || raw === "reception") return { role: raw, professionalId: null };
@@ -42,6 +45,8 @@ export type AppContext = {
   realIsNetwork: boolean;
   // La marca prendió «Mostrar lo que viene»
   showRoadmap: boolean;
+  // Funciones prendidas en la sucursal activa (la marca las apaga por sede)
+  features: Features;
 };
 
 export function canManageBranch(ctx: Pick<AppContext, "isNetwork" | "memberships">, branchId: string): boolean {
@@ -68,7 +73,7 @@ export const getContext = cache(async (): Promise<AppContext | null> => {
       )
       .eq("user_id", userId),
     // RLS devuelve solo las sucursales de las organizaciones del usuario
-    supabase.from("branches").select("id, name, organization_id").eq("is_active", true).order("name"),
+    supabase.from("branches").select("id, name, organization_id, disabled_features").eq("is_active", true).order("name"),
     cookies(),
   ]);
 
@@ -85,9 +90,9 @@ export const getContext = cache(async (): Promise<AppContext | null> => {
   const isNetwork = own.some((m) => m.role === "network_owner" || m.role === "network_admin");
   const allowed = new Set(own.map((m) => m.branch_id).filter(Boolean));
 
-  const list = ((allBranches ?? []) as (Branch & { organization_id: string })[])
-    .filter((b) => b.organization_id === org.id && (isNetwork || allowed.has(b.id)))
-    .map(({ id, name }) => ({ id, name }));
+  const rawBranches = ((allBranches ?? []) as (Branch & { organization_id: string; disabled_features: string[] | null })[])
+    .filter((b) => b.organization_id === org.id && (isNetwork || allowed.has(b.id)));
+  const list = rawBranches.map(({ id, name }) => ({ id, name }));
 
   const wanted = cookieStore.get(BRANCH_COOKIE)?.value;
   const currentBranch = list.find((b) => b.id === wanted) ?? list[0] ?? null;
@@ -142,6 +147,7 @@ export const getContext = cache(async (): Promise<AppContext | null> => {
     viewAs,
     realIsNetwork: isNetwork,
     showRoadmap: isNetwork && cookieStore.get(ROADMAP_COOKIE)?.value === "1",
+    features: featuresFrom(rawBranches.find((b) => b.id === currentBranch?.id)?.disabled_features),
   };
 });
 
@@ -163,6 +169,20 @@ export async function requireManagerContext(): Promise<AppContext & { currentBra
 export async function requireContactContext(): Promise<AppContext & { currentBranch: Branch }> {
   const ctx = await requireBranchContext();
   if (!ctx.canContactCurrentBranch) redirect("/");
+  return ctx;
+}
+
+// ¿Está prendida la función en esa sucursal? (para rutas que reciben la sucursal por parámetro)
+export async function branchFeatureOn(branchId: string, key: FeatureKey): Promise<boolean> {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("branch_feature_on", { p_branch: branchId, p_key: key });
+  return data !== false;
+}
+
+// Pantallas de una función que la marca puede apagar por sede: apagada, se vuelve a Hoy
+export async function requireFeature(key: FeatureKey): Promise<AppContext & { currentBranch: Branch }> {
+  const ctx = await requireBranchContext();
+  if (!ctx.features[key]) redirect("/");
   return ctx;
 }
 

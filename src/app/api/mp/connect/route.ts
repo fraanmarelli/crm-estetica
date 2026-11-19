@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { canManageBranch, getContext } from "@/lib/context";
+import { branchFeatureOn, canManageBranch, getContext } from "@/lib/context";
 import { createClient } from "@/lib/supabase/server";
 import { MP_OAUTH_COOKIE, mpConfigured, startMpOAuth } from "@/lib/mercadopago";
 
@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
     return back("No tenés permiso para conectar esta cuenta.");
   }
   if (account.currency !== "ARS") return back("Solo se pueden verificar cuentas en pesos.");
+  if (!(await branchFeatureOn(account.branch_id, "mp"))) return back("La marca apagó esta función para la sucursal.");
 
   const { url, state, verifier } = startMpOAuth(request.nextUrl.origin);
   const response = NextResponse.redirect(url);
