@@ -48,20 +48,13 @@ export async function GET(request: NextRequest) {
     // navegador ya tenía abierta otra cuenta de MP (MP no vuelve a preguntar y conecta esa).
     const { data: taken } = await admin
       .from("mp_connections")
-      .select("account_id, account:payment_accounts(name)")
+      .select("account_id")
       .eq("branch_id", account.branch_id)
       .eq("mp_user_id", user.id)
       .neq("account_id", account.id)
       .maybeSingle();
-    if (taken) {
-      const other = (taken.account as unknown as { name: string } | null)?.name ?? "otra cuenta";
-      const who = user.name ?? user.email ?? user.nickname ?? "esa cuenta";
-      return fail(
-        `No se conectó: Mercado Pago entró con la cuenta de ${who}, que ya está conectada a «${other}». ` +
-          "Abrí una ventana de incógnito (o cerrá sesión en Mercado Pago) y volvé a tocar «Conectar» " +
-          "iniciando sesión con la cuenta de la persona correcta.",
-      );
-    }
+    // Solo códigos e ids en la dirección: el nombre de la cuenta de MP lo arma la página desde la base
+    if (taken) return finish(`mp_error=repetida&cuenta=${taken.account_id}`);
 
     const { data: conn, error } = await admin
       .from("mp_connections")
@@ -85,7 +78,7 @@ export async function GET(request: NextRequest) {
       .single();
     if (error) {
       if (error.code === "23505") {
-        return fail("Esa cuenta de Mercado Pago ya está conectada a otra cuenta de cobro de esta sucursal.");
+        return finish("mp_error=repetida");
       }
       throw new Error(error.message);
     }

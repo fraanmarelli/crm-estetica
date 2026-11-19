@@ -95,6 +95,8 @@ export default async function SettingsPage({
   const mpOwner = (c: MpConnection) =>
     [c.mp_name, c.mp_email].filter(Boolean).join(" · ") || c.mp_nickname || "cuenta de Mercado Pago";
   const justConnected = sp.mp === "ok" ? mpConnections.find((c) => c.account_id === sp.cuenta) : undefined;
+  const takenBy = sp.mp_error === "repetida" ? mpConnections.find((c) => c.account_id === sp.cuenta) : undefined;
+  const takenByName = takenBy ? pesoAccounts.find((a) => a.id === takenBy.account_id)?.name : undefined;
   const justConnectedName = justConnected ? pesoAccounts.find((a) => a.id === justConnected.account_id)?.name : undefined;
 
   return (
@@ -187,7 +189,23 @@ export default async function SettingsPage({
           ) : (
             <p className="alert-ok">Cuenta de Mercado Pago conectada.</p>
           ))}
-        {sp.mp_error && <p className="alert-error">{sp.mp_error}</p>}
+        {sp.mp_error === "repetida" ? (
+          <p className="alert-error">
+            No se conectó: Mercado Pago entró con una cuenta que ya está conectada
+            {takenBy && takenByName ? (
+              <>
+                {" "}
+                a «{takenByName}» (<strong>{mpOwner(takenBy)}</strong>)
+              </>
+            ) : (
+              " a otra cuenta de cobro"
+            )}
+            . Abrí una ventana de incógnito (o cerrá sesión en Mercado Pago) y volvé a tocar «Conectar» iniciando sesión
+            con la cuenta de la persona correcta.
+          </p>
+        ) : (
+          sp.mp_error && <p className="alert-error">{sp.mp_error}</p>
+        )}
         {!mpConfigured() ? (
           <p className="text-sm text-muted">Falta configurar la aplicación de Mercado Pago en el servidor (ver README).</p>
         ) : (
