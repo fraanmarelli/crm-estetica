@@ -70,6 +70,12 @@ De arriba hacia abajo:
 ## 2. Pacientes (`/pacientes`)
 
 - Buscar mientras se escribe ✅, ficha (`/pacientes/[id]`) con historial, datos y millas ✅.
+- **Ficha ordenada por lo que se hace con ella** ✅: arriba quién es (celular, edad, desde cuándo, WhatsApp, Nuevo
+  turno) y «Para tener en cuenta»; después el **próximo turno** (hoy: «Registrar atención»; sin turno: cuándo le toca
+  volver según el recall y «Agendar»); un panel con **Salud** (antecedentes, alergia resaltada; no la ve recepción) ·
+  **Última vez** (qué, lote, quién, última nota) · **Como paciente** (visitas, gasto, origen, millas y canje plegado);
+  y pestañas **Historial** (una línea por visita, abre el turno) · **Notas clínicas** · **Otros turnos** · **Datos**.
+  La profesional no ve montos.
 - Cargar paciente ✅ (`/pacientes/nuevo`; carga rápida para dar turno sin tenerla presente).
 - Completar ficha ✅ (`/pacientes/[id]/completar`: a mano o QR/link para la paciente).
 - 🆕 **DNI o CUIT** en la ficha: la sucursal elige qué pedir (DNI, CUIT o los dos) en el registro y la ficha; si es

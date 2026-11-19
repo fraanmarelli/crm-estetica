@@ -21,7 +21,11 @@ const FIELDS: { key: keyof Background; label: string; placeholder: string }[] = 
   { key: "previous_treatments", label: "Tratamientos previos", placeholder: "Ej. hilos 2024, rellenos en otra clínica" },
 ];
 
-// Antecedentes: fijo arriba de la historia clínica. Lo primero que mira la profesional antes de atender.
+// «Ninguna», «no», «no tiene»: cargado, pero sin nada que avisar
+const isNone = (v: string | null) => !!v && /^(ninguna?|no|no tiene|sin)\b/i.test(v.trim());
+
+// Salud (antecedentes): lo primero que mira la profesional antes de atender. Solo se muestra lo cargado;
+// una alergia va resaltada, y si no tiene ninguna lo dice en una línea.
 export function ClinicalBackground({ patientId, data }: { patientId: string; data: Background | null }) {
   const [editing, setEditing] = useState(false);
   const [state, action] = useActionState<ActionState, FormData>(saveClinicalBackground, null);
@@ -30,46 +34,45 @@ export function ClinicalBackground({ patientId, data }: { patientId: string; dat
     if (state?.ok) setEditing(false);
   }, [state]);
 
-  const empty = !data || FIELDS.every((f) => !data[f.key]);
-
   if (editing) {
     return (
-      <form action={action} className="card space-y-3">
+      <form action={action} className="space-y-3">
         <input type="hidden" name="patient_id" value={patientId} />
-        <h3 className="text-sm font-semibold">Antecedentes</h3>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {FIELDS.map((f) => (
-            <div key={f.key}>
-              <label className="label" htmlFor={`bg-${f.key}`}>
-                {f.label}
-              </label>
-              <textarea
-                id={`bg-${f.key}`}
-                name={f.key}
-                rows={2}
-                maxLength={1000}
-                defaultValue={(data?.[f.key] as string | null) ?? ""}
-                placeholder={f.placeholder}
-                className="input"
-              />
-            </div>
-          ))}
-        </div>
+        {FIELDS.map((f) => (
+          <div key={f.key}>
+            <label className="label" htmlFor={`bg-${f.key}`}>
+              {f.label}
+            </label>
+            <textarea
+              id={`bg-${f.key}`}
+              name={f.key}
+              rows={2}
+              maxLength={1000}
+              defaultValue={(data?.[f.key] as string | null) ?? ""}
+              placeholder={f.placeholder}
+              className="input"
+            />
+          </div>
+        ))}
         {state?.error && <p className="text-sm text-bad">{state.error}</p>}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn btn-sm" onClick={() => setEditing(false)}>
             Cancelar
           </button>
-          <SubmitButton className="btn btn-sm btn-primary">Guardar antecedentes</SubmitButton>
+          <SubmitButton className="btn btn-sm btn-primary">Guardar</SubmitButton>
         </div>
       </form>
     );
   }
 
-  if (empty) {
+  const filled = FIELDS.filter((f) => data?.[f.key]);
+  const allergy = data?.allergies ?? null;
+  const others = filled.filter((f) => f.key !== "allergies" && !isNone(data?.[f.key] as string | null));
+
+  if (filled.length === 0) {
     return (
-      <div className="card flex flex-wrap items-center justify-between gap-2 text-sm">
-        <span className="text-muted">Sin antecedentes cargados (alergias, medicación, condiciones).</span>
+      <div className="space-y-3">
+        <p className="text-sm text-muted">Todavía no se cargaron alergias, medicación ni condiciones.</p>
         <button type="button" onClick={() => setEditing(true)} className="btn btn-sm">
           Cargar antecedentes
         </button>
@@ -78,31 +81,39 @@ export function ClinicalBackground({ patientId, data }: { patientId: string; dat
   }
 
   return (
-    <div className="card space-y-2">
-      <div className="flex items-baseline justify-between gap-2">
-        <h3 className="text-sm font-semibold">Antecedentes</h3>
-        <button type="button" onClick={() => setEditing(true)} className="text-xs font-semibold text-brand hover:underline">
+    <div className="space-y-3">
+      {allergy && !isNone(allergy) ? (
+        <p className="inline-flex max-w-full items-baseline gap-2 rounded-lg bg-bad-soft px-2.5 py-1.5 text-sm text-bad">
+          <span className="shrink-0 font-semibold">Alergia</span>
+          <span className="min-w-0 whitespace-pre-line font-semibold">{allergy}</span>
+        </p>
+      ) : (
+        <p className="text-sm text-ok">{allergy ? "Sin alergias" : "Alergias sin cargar"}</p>
+      )}
+      {others.length > 0 && (
+        <dl className="space-y-1.5 text-sm">
+          {others.map((f) => (
+            <div key={f.key}>
+              <dt className="text-xs text-muted">{f.label}</dt>
+              <dd className="whitespace-pre-line">{data?.[f.key] as string}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      <div className="flex items-center justify-between gap-2 text-xs text-muted">
+        <span>
+          {data?.updated_at
+            ? `Actualizado el ${new Date(data.updated_at).toLocaleDateString("es-AR", {
+                timeZone: "America/Argentina/Buenos_Aires",
+                day: "numeric",
+                month: "numeric",
+              })}${data.updated_by_name ? ` por ${data.updated_by_name}` : ""}`
+            : ""}
+        </span>
+        <button type="button" onClick={() => setEditing(true)} className="font-semibold hover:text-ink">
           Editar
         </button>
       </div>
-      <dl className="grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
-        {FIELDS.map((f) => {
-          const v = data?.[f.key] as string | null;
-          const alert = f.key === "allergies" && v && !/^(ninguna|no)\b/i.test(v.trim());
-          return (
-            <div key={f.key} className="min-w-0">
-              <dt className="text-xs text-muted">{f.label}</dt>
-              <dd className={`whitespace-pre-line ${alert ? "font-semibold text-bad" : v ? "" : "text-muted"}`}>{v || "—"}</dd>
-            </div>
-          );
-        })}
-      </dl>
-      {data?.updated_at && (
-        <p className="text-xs text-muted">
-          Actualizado por {data.updated_by_name ?? "el equipo"} el{" "}
-          {new Date(data.updated_at).toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })}
-        </p>
-      )}
     </div>
   );
 }
