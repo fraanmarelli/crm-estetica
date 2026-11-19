@@ -103,7 +103,8 @@ y entregá archivos completos.
   (filtra mientras se escribe actualizando `?q=`).
 - Marketing: `ad_connections` (una cuenta de Meta por sucursal), `ad_connection_secrets` (tokens, solo
   service role), `ad_insights_daily` (gasto/resultados por campaña y día), `marketing_summary()` cruza con pacientes.
-- Tareas programadas (pg_cron): `dispatch-events` cada minuto, `meta-sync` diario, `weekly-report` los lunes.
+- Tareas programadas (pg_cron): `dispatch-events` y `mp-verify` cada minuto, `leads-sync` cada 5 min, `meta-sync` diario.
+  `weekly-report` (mail de los lunes) apagado desde nov 2026: volver a programarlo con 2+ sucursales y Resend.
 
 ## Pruebas
 - `npm test`: plata en la app (`src/lib/money.test.ts`: montos es-AR, reparto de promos, cobro en pantalla) y
