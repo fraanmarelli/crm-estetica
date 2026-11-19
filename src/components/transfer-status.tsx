@@ -8,6 +8,8 @@ export type TransferCheck = {
   matched_by: "dni" | "amount" | null;
   transfer_at: string | null;
   note: string | null;
+  /** Quién la marcó «Ya lo revisé» (no llegó o había que revisarla) */
+  dismissed_by_name?: string | null;
   account: { name: string } | null;
 };
 
@@ -56,6 +58,9 @@ export function TransferStatus({ checks, compact = false }: { checks: TransferCh
             </span>
             : {label}
             {c.note && !compact && <span className="block pl-4 text-muted">{c.note}</span>}
+            {c.dismissed_by_name && !compact && (
+              <span className="block pl-4 text-muted">Revisada por {c.dismissed_by_name}</span>
+            )}
           </li>
         );
       })}

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { AutoRefresh } from "@/components/auto-refresh";
+import { SubmitButton } from "@/components/submit-button";
+import { dismissTransferCheck } from "./actions";
 import { DayList, shortDate, type DayRow } from "@/components/day-list";
 import { createClient } from "@/lib/supabase/server";
 import { getContext } from "@/lib/context";
@@ -71,6 +73,7 @@ export default async function AgendaPage({
     { count: newLeads },
     { count: followUpLeads },
     { data: alertData },
+    { data: transferData },
   ] = await Promise.all([
       // Mes: solo cuántos turnos hay por día. Semana: el detalle de cada turno.
       supabase
@@ -135,6 +138,19 @@ export default async function AgendaPage({
             .is("reviewed_at", null)
             .limit(100)
         : Promise.resolve({ data: [] }),
+      // Transferencias que no llegaron o hay que revisar, de cualquier día (la profesional no cobra)
+      ctx.isProfessionalOnly
+        ? Promise.resolve({ data: [] })
+        : supabase
+            .from("transfer_checks")
+            .select(
+              "id, status, amount, is_deposit, appointment:appointments(id, scheduled_at, patient:patients(first_name, last_name)), account:payment_accounts(name)",
+            )
+            .eq("branch_id", branchId)
+            .in("status", ["review", "not_found"])
+            .is("dismissed_at", null)
+            .order("created_at", { ascending: false })
+            .limit(20),
     ]);
 
   // Turnos por día para el calendario
@@ -276,8 +292,63 @@ export default async function AgendaPage({
     );
   }
 
+  // Transferencias que no llegaron o hay que revisar: arriba de todo, es plata que puede faltar
+  const badTransfers = (transferData ?? []) as unknown as {
+    id: string;
+    status: "review" | "not_found";
+    amount: number;
+    is_deposit: boolean;
+    appointment: {
+      id: string;
+      scheduled_at: string;
+      patient: { first_name: string; last_name: string | null } | null;
+    } | null;
+    account: { name: string } | null;
+  }[];
+  if (badTransfers.length && day === today) {
+    notices.push(
+      <li key="transfers" className="space-y-1.5">
+        <p className="font-semibold text-bad">
+          {badTransfers.length === 1
+            ? "1 transferencia que no llegó o hay que revisar"
+            : `${badTransfers.length} transferencias que no llegaron o hay que revisar`}
+        </p>
+        <ul className="space-y-1.5">
+          {badTransfers.map((t) => (
+            <li key={t.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+              <Link
+                href={t.appointment ? `/turnos/${t.appointment.id}` : "/"}
+                className="min-w-0 hover:text-brand"
+              >
+                <span className="font-semibold">{t.appointment?.patient ? fullName(t.appointment.patient) : "Paciente"}</span>
+                {t.appointment && <span className="text-muted"> · {shortDate(localDay(t.appointment.scheduled_at))}</span>}
+                <span className="text-muted">
+                  {" "}
+                  · {t.is_deposit ? "seña " : ""}
+                  {t.account?.name ?? "Mercado Pago"} {fmtMoney(t.amount)}:{" "}
+                  {t.status === "not_found"
+                    ? "no llegó ninguna transferencia por ese monto"
+                    : "revisar en Mercado Pago (hay más de una parecida o no coincide el DNI)"}
+                </span>
+              </Link>
+              {ctx.canManageCurrentBranch && (
+                <form action={dismissTransferCheck}>
+                  <input type="hidden" name="id" value={t.id} />
+                  <SubmitButton className="btn btn-sm" pendingText="Guardando...">Ya lo revisé</SubmitButton>
+                </form>
+              )}
+            </li>
+          ))}
+        </ul>
+        {!ctx.canManageCurrentBranch && (
+          <p className="text-xs text-muted">Pedile el comprobante a la paciente y avisale al franquiciado.</p>
+        )}
+      </li>,
+    );
+  }
+
   // Pendientes: del más urgente al menos (docs/MAPA.md); a la vista los primeros, el resto plegado
-  const PRIORITY = ["past", "changes", "leads", "leads-follow", "first", "bday"];
+  const PRIORITY = ["transfers", "past", "changes", "leads", "leads-follow", "first", "bday"];
   notices.sort(
     (a, b) =>
       PRIORITY.indexOf(String((a as React.ReactElement).key)) - PRIORITY.indexOf(String((b as React.ReactElement).key)),

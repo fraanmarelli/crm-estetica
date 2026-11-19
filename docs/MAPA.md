@@ -57,7 +57,8 @@ De arriba hacia abajo:
 1. **Topes del monotributo** ✅ (solo franquiciado y marca, cuando un titular pasa el % de alerta o el tope).
 2. **Números del día** ✅: turnos, cobrado, para recontactar.
 3. **Pendientes** ✅ (una sola lista, máximo 4 a la vista y el resto plegado), en este orden:
-   turnos de días anteriores sin cerrar → leads sin contactar → leads para volver a escribir →
+   transferencias que no llegaron o hay que revisar, de cualquier día ✅ (abre el turno; «Ya lo revisé» solo
+   franquiciado y marca; recepción la ve para pedirle el comprobante) → turnos de días anteriores sin cerrar → leads sin contactar → leads para volver a escribir →
    pacientes que vienen por primera vez → cumpleaños.
 4. **Agenda del día o de la semana** ✅: «Por atender» y «Atendidas · No vinieron», con WhatsApp de
    recordatorio, ficha incompleta y estado de la transferencia.

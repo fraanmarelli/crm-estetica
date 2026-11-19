@@ -48,7 +48,7 @@ export async function AppointmentView({ id, sp }: { id: string; sp: { cobrar?: s
   const { data } = await supabase
     .from("appointments")
     .select(
-      `id, branch_id, patient_id, professional_id, scheduled_at, duration_minutes, status, notes, patient:patients(first_name, last_name, consent_data_at, notes), branch:branches(name), items:appointment_items(treatment_id, zone, quantity, price, promotion_id, lot_code, promotion:promotions(name)), payments:appointment_payments(account_id, amount, exchange_rate, is_deposit), checks:transfer_checks(status, amount, is_deposit, matched_by, transfer_at, note, account:payment_accounts(name))`,
+      `id, branch_id, patient_id, professional_id, scheduled_at, duration_minutes, status, notes, patient:patients(first_name, last_name, consent_data_at, notes), branch:branches(name), items:appointment_items(treatment_id, zone, quantity, price, promotion_id, lot_code, promotion:promotions(name)), payments:appointment_payments(account_id, amount, exchange_rate, is_deposit), checks:transfer_checks(status, amount, is_deposit, matched_by, transfer_at, note, dismissed_by_name, account:payment_accounts(name))`,
     )
     .eq("id", id)
     .maybeSingle();

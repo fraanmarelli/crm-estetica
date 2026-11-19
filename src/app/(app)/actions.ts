@@ -369,6 +369,16 @@ export async function setAppointmentStatus(formData: FormData) {
   revalidatePath("/");
 }
 
+// Transferencia que no llegó o hay que revisar: «Ya lo revisé» (solo franquiciado y marca; la base lo verifica)
+export async function dismissTransferCheck(formData: FormData) {
+  await requireBranchContext();
+  const supabase = await createClient();
+  const id = str(formData, "id");
+  if (!id) return;
+  await supabase.rpc("dismiss_transfer_check", { p_id: id });
+  revalidatePath("/");
+}
+
 // ---------------------------------------------------------------------
 // Recall
 // ---------------------------------------------------------------------

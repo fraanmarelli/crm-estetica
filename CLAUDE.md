@@ -54,6 +54,8 @@ y entregá archivos completos.
   del turno); la función `mp-verify` (cron cada minuto) usa `match.ts` (monto exacto, DNI de la paciente vs CUIT,
   ventana ±72 h, una transferencia valida un solo cobro) y marca pending/verified/review/not_found. Solo el
   servidor escribe los chequeos. `cleanup_transfer_checks()` borra los de cobros que ya no existen.
+  Los review/not_found de cualquier día van a «Pendientes» de Hoy hasta que el franquiciado/marca los marca
+  «Ya lo revisé» (`dismiss_transfer_check()`, `dismissed_at`/`dismissed_by_name`); recepción los ve pero no los saca.
 - `recall_queue` (vista) = último tratamiento realizado + recall_days, sin turno futuro, sin opt-out.
 - `loyalty_transactions` = libro mayor de millas (nunca se edita; se corrige con otro movimiento).
 - `event_outbox` + `integrations` = toda automatización saliente (tipos: `google_sheets`, `klaviyo`,

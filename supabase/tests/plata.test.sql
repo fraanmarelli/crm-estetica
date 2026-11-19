@@ -380,6 +380,34 @@ select pg_temp.check('5. recepción con comisión a mano: no se guarda', current
 select pg_temp.check('5. … ni el comentario del turno', (select notes from appointments where id = :'nuevo'), null::text);
 
 -- ---------------------------------------------------------------------
+-- 6. Transferencia que no llegó: «Ya lo revisé» solo franquiciado o marca
+-- ---------------------------------------------------------------------
+reset role;
+insert into transfer_checks (id, organization_id, branch_id, appointment_id, account_id, amount, status)
+values ('00000000-0000-0000-0000-0000000000c9', '00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000b1',
+        '00000000-0000-0000-0000-000000000101', :'mp', 777, 'not_found')
+on conflict do nothing;
+select pg_temp.as_user('00000000-0000-0000-0000-00000000aa03', 'recepcion@prueba.test');
+do $$
+begin
+  perform set_config('t.dis', 'pudo', true);
+  set local role authenticated;
+  begin
+    perform dismiss_transfer_check('00000000-0000-0000-0000-0000000000c9');
+  exception when others then
+    perform set_config('t.dis', 'no pudo', true);
+  end;
+  reset role;
+end $$;
+select pg_temp.check('6. recepción no puede sacar el aviso de una transferencia', current_setting('t.dis'), 'no pudo');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000aa02', 'franquiciado@prueba.test');
+set local role authenticated;
+select dismiss_transfer_check('00000000-0000-0000-0000-0000000000c9');
+reset role;
+select pg_temp.check('6. el franquiciado la marca revisada',
+  (select dismissed_by_name from transfer_checks where id = '00000000-0000-0000-0000-0000000000c9'), 'franquiciado@prueba.test');
+
+-- ---------------------------------------------------------------------
 -- Resultado
 -- ---------------------------------------------------------------------
 \o
