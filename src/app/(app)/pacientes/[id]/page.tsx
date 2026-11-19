@@ -298,7 +298,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
                       className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-subtle px-4 py-3"
                     >
                       <div className="flex min-w-0 items-baseline gap-4">
-                        <span className="num font-display text-2xl leading-none">{fmtTime(a.scheduled_at)}</span>
+                        <span className="num text-xl font-semibold leading-none">{fmtTime(a.scheduled_at)}</span>
                         <span className="min-w-0">
                           <span className="block font-semibold">{treatmentsLabel(a)}</span>
                           <span className="block text-xs text-muted">
