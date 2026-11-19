@@ -71,11 +71,11 @@ De arriba hacia abajo:
 
 - Buscar mientras se escribe ✅, ficha (`/pacientes/[id]`) con historial, datos y millas ✅.
 - **Ficha ordenada por lo que se hace con ella** ✅: arriba quién es (celular, edad, desde cuándo, WhatsApp, Nuevo
-  turno) y «Para tener en cuenta»; después el **próximo turno** (hoy: «Registrar atención»; sin turno: cuándo le toca
-  volver según el recall y «Agendar»); un panel con **Salud** (antecedentes, alergia resaltada; no la ve recepción) ·
-  **Última vez** (qué, lote, quién, última nota) · **Como paciente** (visitas, gasto, origen, millas y canje plegado);
-  y pestañas **Historial** (una línea por visita, abre el turno) · **Notas clínicas** · **Otros turnos** · **Datos**.
-  La profesional no ve montos.
+  turno) y «Para tener en cuenta». Columna principal: **Turnos** (Hoy abierto con «Registrar atención»; Próximos y
+  Pasados plegados; sin turnos por delante: cuándo le toca volver y «Agendar») → **Salud** plegada (la alergia se ve
+  en el título; no la ve recepción) → **Notas clínicas** plegadas → **Como paciente** plegado (visitas, facturado,
+  por visita y, para franquiciado y marca, **lo que dejó**: facturado − insumos − comisión, `patient_financials()`).
+  Columna derecha: **Pasaporte Dr Beauty** (millas y canje) y **Datos**. La profesional no ve montos.
 - Cargar paciente ✅ (`/pacientes/nuevo`; carga rápida para dar turno sin tenerla presente).
 - Completar ficha ✅ (`/pacientes/[id]/completar`: a mano o QR/link para la paciente).
 - 🆕 **DNI o CUIT** en la ficha: la sucursal elige qué pedir (DNI, CUIT o los dos) en el registro y la ficha; si es

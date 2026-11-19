@@ -15,7 +15,6 @@ import {
   STATUS_LABEL,
 } from "@/lib/format";
 import type { AppointmentStatus, Patient } from "@/lib/types";
-import { Tabs, type TabItem } from "@/components/tabs";
 import { ClinicalBackground, type Background } from "./clinical-background";
 import { NoteComposer } from "./note-composer";
 import { SoonButton, SoonCard } from "@/components/soon";
@@ -53,7 +52,6 @@ const weekdayDay = (iso: string) =>
   new Date(iso).toLocaleDateString("es-AR", { timeZone: TZ, weekday: "long", day: "numeric", month: "numeric" });
 const monthYear = (iso: string) =>
   new Date(iso).toLocaleDateString("es-AR", { timeZone: TZ, month: "long", year: "numeric" });
-const ago = (days: number) => (days === 0 ? "Hoy" : days === 1 ? "Ayer" : days < 60 ? `Hace ${days} días` : `Hace ${Math.round(days / 30)} meses`);
 
 const qty = (n: number | null, unit: string | null) =>
   n === null ? null : `${String(n).replace(".", ",")}${unit ? ` ${unit}` : ""}`;
@@ -97,7 +95,15 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
   const supabase = await createClient();
 
   // Todo junto, en una sola vuelta a la base (si no hay ficha, lo demás vuelve vacío)
-  const [{ data: patient }, { data: appts }, { data: balance }, { data: moves }, { data: notesData }, { data: bgData }] = await Promise.all([
+  const [
+    { data: patient },
+    { data: appts },
+    { data: balance },
+    { data: moves },
+    { data: notesData },
+    { data: bgData },
+    { data: finData },
+  ] = await Promise.all([
     supabase
       .from("patients")
       .select("*, home_branch:branches(name)")
@@ -132,6 +138,10 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
           .eq("patient_id", id)
           .maybeSingle()
       : Promise.resolve({ data: null }),
+    // Lo que dejó: solo quien ve costos (la base no devuelve nada a recepción ni a profesionales)
+    ctx.canManageCurrentBranch
+      ? supabase.rpc("patient_financials", { p_patient: id })
+      : Promise.resolve({ data: null }),
   ]);
   if (!patient) {
     // Puede existir en otra sucursal sin acceso a la ficha completa
@@ -150,10 +160,11 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
 
   const p = patient as Patient & { home_branch: { name: string } | null };
   const readOnly = ctx.isProfessionalOnly;
-  // La profesional no ve montos (cobros, gasto, ticket)
+  // La profesional no ve montos
   const showMoney = !ctx.isProfessionalOnly;
   const cur = ctx.org.currency;
   const today = todayISO();
+  const fin = ((finData ?? []) as { visits: number; revenue: number; supplies: number; commission: number; net: number }[])[0];
 
   const notes = (notesData ?? []) as Note[];
   const notesByAppt = new Map<string, Note[]>();
@@ -161,21 +172,18 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
     if (n.appointment_id) notesByAppt.set(n.appointment_id, [...(notesByAppt.get(n.appointment_id) ?? []), n]);
   }
 
+  // Turnos: hoy (abierto), próximos y pasados (plegados)
   const history = (appts ?? []) as unknown as Appt[];
-  const sessions = history.filter((a) => a.status === "completed"); // la más reciente primero
-  const others = history.filter((a) => a.status !== "completed");
-  const last = sessions[0] ?? null;
-  // En «Última vez» solo la nota de esa visita (o una suelta posterior); las demás están en Notas clínicas
-  const lastNote =
-    (last &&
-      notes.find((n) => n.appointment_id === last.id || (!n.appointment_id && localDay(n.created_at) >= localDay(last.scheduled_at)))) ||
-    null;
-
-  // Próximo turno: el agendado más cercano desde hoy
+  const todays = history
+    .filter((a) => localDay(a.scheduled_at) === today && a.status !== "cancelled")
+    .sort((x, y) => (x.scheduled_at < y.scheduled_at ? -1 : 1));
   const upcoming = history
-    .filter((a) => a.status === "scheduled" && localDay(a.scheduled_at) >= today)
-    .sort((x, y) => (x.scheduled_at < y.scheduled_at ? -1 : 1))[0];
-  // Sin turno: cuándo le toca volver (el recall más cercano de lo que se hizo)
+    .filter((a) => localDay(a.scheduled_at) > today && a.status === "scheduled")
+    .sort((x, y) => (x.scheduled_at < y.scheduled_at ? -1 : 1));
+  const past = history.filter((a) => localDay(a.scheduled_at) < today || (localDay(a.scheduled_at) === today && a.status === "cancelled"));
+  const sessions = history.filter((a) => a.status === "completed"); // la más reciente primero
+
+  // Sin turno por delante: cuándo le toca volver (el recall más cercano de lo que se hizo)
   const lastByTreatment = new Map<string, { name: string; at: string; days: number }>();
   for (const a of sessions) {
     for (const i of a.items) {
@@ -192,157 +200,42 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
   const years = age(p.birth_date);
   const canWrite = !readOnly && !p.marketing_opt_out_at && !!p.phone;
 
-  // ---------------------------------------------------------------------
-  // Pestañas
-  // ---------------------------------------------------------------------
-  const historyTab = (
-    <div className="card p-0">
-      {sessions.length === 0 ? (
-        <p className="px-4 py-5 text-sm text-muted">
-          Todavía no tiene visitas atendidas. Cuando se registra un turno como atendido aparece acá.
-        </p>
-      ) : (
-        <ul className="divide-y divide-line">
-          {sessions.map((a) => {
-            const groups = groupItems(a.items);
-            const n = notesByAppt.get(a.id)?.length ?? 0;
-            return (
-              <li key={a.id}>
-                <Link
-                  href={`/turnos/${a.id}`}
-                  className="grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-baseline gap-x-3 px-4 py-3 hover:bg-subtle/60"
-                >
-                  <span className="num text-sm text-muted">{fmtDate(a.scheduled_at)}</span>
-                  <span className="min-w-0">
-                    <span className="block text-sm font-semibold">{treatmentsLabel(a)}</span>
-                    <span className="block truncate text-xs text-muted">
-                      {[
-                        groups.map((g) => g.detail).filter(Boolean).join(", "),
-                        groups.some((g) => g.lot) ? `lote ${[...new Set(groups.map((g) => g.lot).filter(Boolean))].join(", ")}` : "",
-                        a.professional?.full_name ?? "",
-                        n ? (n === 1 ? "1 nota" : `${n} notas`) : "",
-                      ]
-                        .filter(Boolean)
-                        .join(", ")}
-                    </span>
-                  </span>
-                  {showMoney ? (
-                    <span className="num whitespace-nowrap text-sm">{fmtMoney(a.amount_paid, cur)}</span>
-                  ) : (
-                    <span aria-hidden="true" className="text-muted">›</span>
-                  )}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </div>
-  );
+  const bg = (bgData ?? null) as Background | null;
+  const allergy = bg?.allergies && !/^(ninguna?|no|no tiene|sin)\b/i.test(bg.allergies.trim()) ? bg.allergies : null;
+  const bgCount = bg ? [bg.allergies, bg.medications, bg.conditions, bg.previous_treatments].filter(Boolean).length : 0;
 
-  const notesTab = (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-muted">Solo la ven las profesionales, el franquiciado y la marca. Recepción no.</p>
-        <NoteComposer
-          patientId={p.id}
-          sessions={sessions.map((a) => ({ id: a.id, label: `${treatmentsLabel(a)} · ${fmtDate(a.scheduled_at)}` }))}
-        />
-      </div>
-      {ctx.showRoadmap && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <SoonCard
-            title="Consentimiento informado"
-            description="Cláusulas de cada tratamiento y firma en pantalla, guardado con fecha y versión del texto."
-          />
-          <SoonCard title="Fotos antes / después" description="En cada sesión, privadas, para comparar la evolución." />
-        </div>
-      )}
-      <div className="card p-0">
-        {notes.length === 0 ? (
-          <p className="px-4 py-5 text-sm text-muted">
-            Sin notas todavía. Con «+ Nota» se anota lo que pasó en una sesión o algo suelto.
-          </p>
-        ) : (
-          <ul className="divide-y divide-line">
-            {notes.map((n) => {
-              const s = n.appointment_id ? sessions.find((a) => a.id === n.appointment_id) : null;
-              return (
-                <li key={n.id} className="space-y-1 px-4 py-3">
-                  <p className="whitespace-pre-line text-sm">{n.body}</p>
-                  <p className="text-xs text-muted">
-                    {noteMeta(n)}
-                    {s && (
-                      <>
-                        {" · "}
-                        <Link href={`/turnos/${s.id}`} className="hover:text-ink hover:underline">
-                          {treatmentsLabel(s)} del {fmtDate(s.scheduled_at)}
-                        </Link>
-                      </>
-                    )}
-                  </p>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-    </div>
-  );
-
-  const othersTab = (
-    <div className="card p-0">
-      {others.length === 0 ? (
-        <p className="px-4 py-5 text-sm text-muted">No tiene turnos agendados, ausencias ni cancelaciones.</p>
-      ) : (
-        <ul className="divide-y divide-line">
-          {others.map((a) => (
-            <li key={a.id}>
-              <Link
-                href={`/turnos/${a.id}`}
-                className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 px-4 py-3 hover:bg-subtle/60"
-              >
-                <span className="min-w-0">
-                  <span className="num block text-sm">{fmtDateTime(a.scheduled_at)}</span>
-                  <span className="block truncate text-xs text-muted">{treatmentsLabel(a)}</span>
-                </span>
-                <span className={STATUS_CLASS[a.status]}>{STATUS_LABEL[a.status]}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-
-  const dataTab = (
-    <div className="card max-w-2xl space-y-3">
-      {readOnly ? (
-        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-          {[
-            ["Celular", p.phone ? `+${p.phone}` : null],
-            ["DNI", p.dni],
-            ["Email", p.email],
-            ["Nacimiento", p.birth_date ? fmtDate(`${p.birth_date}T12:00:00-03:00`) : null],
-          ].map(([k, v]) => (
-            <div key={k} className="contents">
-              <dt className="text-muted">{k}</dt>
-              <dd className="min-w-0 break-words">{v || "Sin cargar"}</dd>
-            </div>
-          ))}
-        </dl>
-      ) : (
-        <PatientEditForm patient={p} />
-      )}
-    </div>
-  );
-
-  const tabs: TabItem[] = [
-    { key: "historial", label: "Historial", count: sessions.length, content: historyTab },
-    ...(ctx.canViewClinical ? [{ key: "notas", label: "Notas clínicas", count: notes.length, content: notesTab }] : []),
-    { key: "otros", label: "Otros turnos", count: others.length, content: othersTab },
-    { key: "datos", label: "Datos", content: dataTab },
-  ];
+  // Un turno en una línea: cuándo, qué (con zona y lote), quién y cuánto o el estado
+  const row = (a: Appt, when: string) => {
+    const groups = groupItems(a.items);
+    const detail = groups.map((g) => g.detail).filter(Boolean).join(", ");
+    const lots = [...new Set(groups.map((g) => g.lot).filter(Boolean))].join(", ");
+    const n = notesByAppt.get(a.id)?.length ?? 0;
+    return (
+      <li key={a.id}>
+        <Link
+          href={`/turnos/${a.id}`}
+          className="grid grid-cols-[5.5rem_minmax(0,1fr)_auto] items-baseline gap-x-3 px-4 py-3 hover:bg-subtle/60"
+        >
+          <span className="num text-sm text-muted">{when}</span>
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold">{treatmentsLabel(a)}</span>
+            <span className="block truncate text-xs text-muted">
+              {[detail, lots && `lote ${lots}`, a.professional?.full_name, n ? (n === 1 ? "1 nota" : `${n} notas`) : ""]
+                .filter(Boolean)
+                .join(", ")}
+            </span>
+          </span>
+          {a.status === "completed" && showMoney ? (
+            <span className="num whitespace-nowrap text-sm">{fmtMoney(a.amount_paid, cur)}</span>
+          ) : a.status === "completed" ? (
+            <span aria-hidden="true" className="text-muted">›</span>
+          ) : (
+            <span className={STATUS_CLASS[a.status]}>{STATUS_LABEL[a.status]}</span>
+          )}
+        </Link>
+      </li>
+    );
+  };
 
   return (
     <div className="space-y-5">
@@ -377,12 +270,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
         {!readOnly && (
           <div className="flex gap-2">
             {canWrite && (
-              <a
-                href={whatsappLink(p.phone!, `Hola ${p.first_name}!`)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn"
-              >
+              <a href={whatsappLink(p.phone!, `Hola ${p.first_name}!`)} target="_blank" rel="noopener noreferrer" className="btn">
                 WhatsApp
               </a>
             )}
@@ -393,160 +281,288 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
 
       <PatientNotes patientId={p.id} notes={p.notes} canEdit={!readOnly} />
 
-      {/* Lo que hay que hacer ahora */}
-      {upcoming ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-ink px-5 py-4 text-surface">
-          <div className="min-w-0">
-            <p className="text-sm opacity-70">
-              {localDay(upcoming.scheduled_at) === today ? "Turno de hoy" : "Próximo turno"}
-            </p>
-            <p className="text-lg font-semibold">
-              {localDay(upcoming.scheduled_at) === today ? "Hoy" : weekdayDay(upcoming.scheduled_at)} a las{" "}
-              {fmtTime(upcoming.scheduled_at)}
-            </p>
-            <p className="truncate text-sm opacity-80">
-              {treatmentsLabel(upcoming)}
-              {upcoming.professional ? ` con ${upcoming.professional.full_name}` : ""}
-              {upcoming.branch && upcoming.branch.name !== ctx.currentBranch.name ? ` en ${upcoming.branch.name}` : ""}
-            </p>
-          </div>
-          {!readOnly &&
-            (localDay(upcoming.scheduled_at) <= today ? (
-              <Link href={`/turnos/${upcoming.id}?cobrar=1`} className="btn btn-primary">Registrar atención</Link>
-            ) : (
-              <Link href={`/turnos/${upcoming.id}`} className="btn border-0 bg-surface/10 text-surface hover:bg-surface/20">
-                Ver turno
-              </Link>
-            ))}
-        </div>
-      ) : (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line px-5 py-3.5">
-          <p className="min-w-0 text-sm">
-            {nextRecall ? (
-              nextRecall.due <= today ? (
-                <>
-                  <span className="font-semibold text-warn">Le toca volver</span>{" "}
-                  <span className="text-muted">
-                    a {nextRecall.name} desde el {shortDay(nextRecall.due)} (hace {daysBetween(nextRecall.due, today)} días)
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span className="font-semibold">Sin turno agendado.</span>{" "}
-                  <span className="text-muted">
-                    Le toca volver a {nextRecall.name} el {shortDay(nextRecall.due)}.
-                  </span>
-                </>
-              )
-            ) : (
-              <span className="text-muted">Sin turno agendado.</span>
-            )}
-          </p>
-          {!readOnly && (
-            <Link href={`/turnos/nuevo?paciente=${p.id}`} className="btn btn-sm">Agendar</Link>
-          )}
-        </div>
-      )}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="min-w-0 space-y-3">
+          {/* Turnos: hoy, próximos, pasados */}
+          <section className="card p-0">
+            <h2 className="px-4 pb-1 pt-4">Turnos</h2>
 
-      {/* Salud, última vez y como paciente */}
-      <div
-        className={`card grid gap-0 divide-y divide-line p-0 lg:divide-x lg:divide-y-0 ${
-          ctx.canViewClinical ? "lg:grid-cols-3" : "lg:grid-cols-2"
-        }`}
-      >
-        {ctx.canViewClinical && (
-          <section className="space-y-3 p-5">
-            <h2 className="text-sm font-semibold text-muted">Salud</h2>
-            <ClinicalBackground patientId={p.id} data={(bgData ?? null) as Background | null} />
-          </section>
-        )}
-
-        <section className="space-y-3 p-5">
-          <h2 className="text-sm font-semibold text-muted">Última vez</h2>
-          {last ? (
-            <>
-              <div>
-                <p className="font-display text-2xl leading-tight">{ago(daysBetween(localDay(last.scheduled_at), today))}</p>
-                <p className="num text-xs text-muted">
-                  {fmtDate(last.scheduled_at)}
-                  {last.professional ? `, con ${last.professional.full_name}` : ""}
-                </p>
-              </div>
-              <ul className="space-y-1 text-sm">
-                {groupItems(last.items).map((g) => (
-                  <li key={g.key}>
-                    <span className="font-semibold">{g.name}</span>
-                    {g.detail && <span className="text-muted"> {g.detail}</span>}
-                    {g.lot && <span className="num ml-1.5 text-xs text-muted">lote {g.lot}</span>}
-                  </li>
-                ))}
-              </ul>
-              {ctx.canViewClinical && lastNote && (
-                <blockquote className="border-l-2 border-line pl-3 text-sm">
-                  <p className="line-clamp-3 whitespace-pre-line">{lastNote.body}</p>
-                  <footer className="mt-1 text-xs text-muted">{noteMeta(lastNote)}</footer>
-                </blockquote>
-              )}
-              <Link href={`/turnos/${last.id}`} className="text-xs font-semibold text-muted hover:text-ink">
-                Ver ese turno
-              </Link>
-            </>
-          ) : (
-            <p className="text-sm text-muted">Todavía no se atendió.</p>
-          )}
-        </section>
-
-        <section className="space-y-3 p-5">
-          <h2 className="text-sm font-semibold text-muted">Como paciente</h2>
-          <div>
-            <p className="font-display text-2xl leading-tight">
-              {sessions.length === 0 ? "Sin visitas" : sessions.length === 1 ? "1 visita" : `${sessions.length} visitas`}
-            </p>
-            {showMoney && sessions.length > 0 && (
-              <p className="num text-xs text-muted">
-                {fmtMoney(totalSpent, cur)} en total, {fmtMoney(Math.round(totalSpent / sessions.length), cur)} por visita
-              </p>
-            )}
-          </div>
-          {p.source && <p className="text-sm text-muted">Nos conoció por {p.source}</p>}
-          <div className="flex items-baseline justify-between gap-3 border-t border-line pt-3">
-            <p className="text-sm">
-              <span className="gold-text num font-display text-xl">{balance?.balance ?? 0}</span>{" "}
-              <span className="text-muted">Beauty Millas</span>
-            </p>
-            {moves?.[0] && (
-              <p className="num text-xs text-muted">
-                {moves[0].points > 0 ? `+${moves[0].points}` : moves[0].points} el {fmtDate(moves[0].created_at)}
-              </p>
-            )}
-          </div>
-          {!readOnly && (
-            <details className="fold">
-              <summary className="cursor-pointer text-xs font-semibold text-muted hover:text-ink">
-                Canjear o sumar millas
-              </summary>
-              <div className="pt-3">
-                <PointsForm patientId={p.id} />
-                {moves && moves.length > 0 && (
-                  <ul className="mt-3 space-y-1 text-xs text-muted">
-                    {moves.slice(0, 5).map((m) => (
-                      <li key={m.id} className="flex justify-between gap-2">
-                        <span className="truncate">
-                          {fmtDate(m.created_at)} {m.reason}
+            {todays.length > 0 && (
+              <div className="px-4 pb-3">
+                <p className="mb-2 text-xs font-semibold text-brand">Hoy</p>
+                <ul className="space-y-2">
+                  {todays.map((a) => (
+                    <li
+                      key={a.id}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-subtle px-4 py-3"
+                    >
+                      <div className="flex min-w-0 items-baseline gap-4">
+                        <span className="num font-display text-2xl leading-none">{fmtTime(a.scheduled_at)}</span>
+                        <span className="min-w-0">
+                          <span className="block font-semibold">{treatmentsLabel(a)}</span>
+                          <span className="block text-xs text-muted">
+                            {a.professional ? `Con ${a.professional.full_name}` : "Sin médico/a asignado"}
+                          </span>
                         </span>
-                        <span className="num">{m.points > 0 ? `+${m.points}` : m.points}</span>
-                      </li>
-                    ))}
+                      </div>
+                      {a.status === "scheduled" && !readOnly ? (
+                        <Link href={`/turnos/${a.id}?cobrar=1`} className="btn btn-primary btn-sm">Registrar atención</Link>
+                      ) : a.status === "completed" ? (
+                        <Link href={`/turnos/${a.id}`} className="btn btn-sm">
+                          Atendida{showMoney ? `, ${fmtMoney(a.amount_paid, cur)}` : ""}
+                        </Link>
+                      ) : (
+                        <span className={STATUS_CLASS[a.status]}>{STATUS_LABEL[a.status]}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {todays.length === 0 && upcoming.length === 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 px-4 pb-3">
+                <p className="min-w-0 text-sm">
+                  {nextRecall && nextRecall.due <= today ? (
+                    <>
+                      <span className="font-semibold text-warn">Le toca volver</span>{" "}
+                      <span className="text-muted">
+                        a {nextRecall.name} desde el {shortDay(nextRecall.due)} (hace {daysBetween(nextRecall.due, today)}{" "}
+                        días)
+                      </span>
+                    </>
+                  ) : nextRecall ? (
+                    <span className="text-muted">
+                      Sin turnos por delante. Le toca volver a {nextRecall.name} el {shortDay(nextRecall.due)}.
+                    </span>
+                  ) : (
+                    <span className="text-muted">Sin turnos por delante.</span>
+                  )}
+                </p>
+                {!readOnly && <Link href={`/turnos/nuevo?paciente=${p.id}`} className="btn btn-sm">Agendar</Link>}
+              </div>
+            )}
+
+            {upcoming.length > 0 && (
+              <details className="fold border-t border-line">
+                <summary className="fold-summary px-4 py-3 text-sm">
+                  <span className="font-semibold">
+                    Próximos <span className="num font-normal text-muted">{upcoming.length}</span>
+                  </span>
+                  <span className="text-xs text-muted">
+                    {weekdayDay(upcoming[0].scheduled_at)} a las {fmtTime(upcoming[0].scheduled_at)}
+                  </span>
+                </summary>
+                <ul className="divide-y divide-line border-t border-line">
+                  {upcoming.map((a) => row(a, `${shortDay(localDay(a.scheduled_at))} ${fmtTime(a.scheduled_at)}`))}
+                </ul>
+              </details>
+            )}
+
+            {past.length > 0 && (
+              <details className="fold border-t border-line">
+                <summary className="fold-summary px-4 py-3 text-sm">
+                  <span className="font-semibold">
+                    Pasados <span className="num font-normal text-muted">{past.length}</span>
+                  </span>
+                  <span className="text-xs text-muted">
+                    {sessions.length === 1 ? "1 atendido" : `${sessions.length} atendidos`}
+                    {sessions[0] ? `, el último el ${fmtDate(sessions[0].scheduled_at)}` : ""}
+                  </span>
+                </summary>
+                <ul className="divide-y divide-line border-t border-line">
+                  {past.map((a) => row(a, fmtDate(a.scheduled_at)))}
+                </ul>
+              </details>
+            )}
+
+            {history.length === 0 && (
+              <p className="px-4 pb-4 text-sm text-muted">Todavía no tiene turnos.</p>
+            )}
+          </section>
+
+          {/* Salud (antecedentes): plegada; la alergia se ve sin abrir */}
+          {ctx.canViewClinical && (
+            <details className="card fold p-0">
+              <summary className="fold-summary px-4 py-3 text-sm">
+                <span className="font-semibold">Salud</span>
+                {allergy ? (
+                  <span className="min-w-0 truncate rounded-md bg-bad-soft px-2 py-0.5 text-xs font-semibold text-bad">
+                    Alergia: {allergy}
+                  </span>
+                ) : (
+                  <span className="text-xs text-muted">
+                    {bgCount ? (bg?.allergies ? "Sin alergias" : "Antecedentes cargados") : "Sin antecedentes cargados"}
+                  </span>
+                )}
+              </summary>
+              <div className="border-t border-line px-4 py-4">
+                <ClinicalBackground patientId={p.id} data={bg} />
+              </div>
+            </details>
+          )}
+
+          {/* Notas clínicas: plegadas */}
+          {ctx.canViewClinical && (
+            <details className="card fold p-0">
+              <summary className="fold-summary px-4 py-3 text-sm">
+                <span className="font-semibold">
+                  Notas clínicas <span className="num font-normal text-muted">{notes.length || ""}</span>
+                </span>
+                <span className="text-xs text-muted">
+                  {notes[0] ? `La última el ${fmtDate(notes[0].created_at)}` : "No la ve recepción"}
+                </span>
+              </summary>
+              <div className="space-y-3 border-t border-line px-4 py-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs text-muted">Solo la ven las profesionales, el franquiciado y la marca.</p>
+                  <NoteComposer
+                    patientId={p.id}
+                    sessions={sessions.map((a) => ({ id: a.id, label: `${treatmentsLabel(a)} · ${fmtDate(a.scheduled_at)}` }))}
+                  />
+                </div>
+                {ctx.showRoadmap && (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <SoonCard
+                      title="Consentimiento informado"
+                      description="Cláusulas de cada tratamiento y firma en pantalla, guardado con fecha y versión del texto."
+                    />
+                    <SoonCard title="Fotos antes / después" description="En cada sesión, privadas, para comparar la evolución." />
+                  </div>
+                )}
+                {notes.length === 0 ? (
+                  <p className="text-sm text-muted">Sin notas todavía.</p>
+                ) : (
+                  <ul className="divide-y divide-line">
+                    {notes.map((n) => {
+                      const s = n.appointment_id ? sessions.find((a) => a.id === n.appointment_id) : null;
+                      return (
+                        <li key={n.id} className="space-y-1 py-3 first:pt-0 last:pb-0">
+                          <p className="whitespace-pre-line text-sm">{n.body}</p>
+                          <p className="text-xs text-muted">
+                            {noteMeta(n)}
+                            {s && (
+                              <>
+                                {", "}
+                                <Link href={`/turnos/${s.id}`} className="hover:text-ink hover:underline">
+                                  {treatmentsLabel(s)} del {fmtDate(s.scheduled_at)}
+                                </Link>
+                              </>
+                            )}
+                          </p>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </div>
             </details>
           )}
-          {ctx.showRoadmap && <SoonButton label="Mandarle su saldo por WhatsApp" />}
-        </section>
-      </div>
 
-      <Tabs items={tabs} label="Ficha de la paciente" />
+          {/* Como paciente: plegado; lo que dejó se ve sin abrir */}
+          <details className="card fold p-0">
+            <summary className="fold-summary px-4 py-3 text-sm">
+              <span className="font-semibold">Como paciente</span>
+              <span className="text-xs text-muted">
+                {sessions.length === 1 ? "1 visita" : `${sessions.length} visitas`}
+                {fin ? `, dejó ${fmtMoney(fin.net, cur)}` : showMoney && sessions.length ? `, ${fmtMoney(totalSpent, cur)}` : ""}
+              </span>
+            </summary>
+            <dl className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-6 gap-y-2 border-t border-line px-4 py-4 text-sm">
+              <dt className="text-muted">Visitas atendidas</dt>
+              <dd className="num">{sessions.length}</dd>
+              {sessions.length > 0 && (
+                <>
+                  <dt className="text-muted">Primera visita</dt>
+                  <dd className="num">{fmtDate(sessions[sessions.length - 1].scheduled_at)}</dd>
+                  <dt className="text-muted">Última visita</dt>
+                  <dd className="num">{fmtDate(sessions[0].scheduled_at)}</dd>
+                </>
+              )}
+              {showMoney && (
+                <>
+                  <dt className="text-muted">Facturado</dt>
+                  <dd className="num">{fmtMoney(totalSpent, cur)}</dd>
+                  {sessions.length > 0 && (
+                    <>
+                      <dt className="text-muted">Por visita</dt>
+                      <dd className="num">{fmtMoney(Math.round(totalSpent / sessions.length), cur)}</dd>
+                    </>
+                  )}
+                </>
+              )}
+              {fin && (
+                <>
+                  <dt className="text-muted">Insumos</dt>
+                  <dd className="num">−{fmtMoney(fin.supplies, cur)}</dd>
+                  <dt className="text-muted">Comisiones</dt>
+                  <dd className="num">−{fmtMoney(fin.commission, cur)}</dd>
+                  <dt className="border-t border-line pt-2 font-semibold">Lo que dejó</dt>
+                  <dd className="num border-t border-line pt-2 font-semibold">{fmtMoney(fin.net, cur)}</dd>
+                </>
+              )}
+              <dt className="text-muted">Nos conoció por</dt>
+              <dd>{p.source ?? "Sin cargar"}</dd>
+              <dt className="text-muted">Sucursal de origen</dt>
+              <dd>{p.home_branch?.name ?? "Sin cargar"}</dd>
+            </dl>
+          </details>
+        </div>
+
+        {/* Columna derecha: Pasaporte y Datos */}
+        <aside className="space-y-6">
+          <section className="passport">
+            <p className="text-sm opacity-80">Pasaporte de Belleza</p>
+            <p className="gold-text mt-1 font-display text-5xl leading-none num">{balance?.balance ?? 0}</p>
+            <p className="text-sm opacity-80">Beauty Millas disponibles</p>
+            {moves && moves.length > 0 && (
+              <ul className="mt-3 space-y-1 text-xs">
+                {moves.slice(0, 4).map((m) => (
+                  <li key={m.id} className="flex justify-between gap-2 opacity-90">
+                    <span className="truncate">
+                      {fmtDate(m.created_at)} · {m.reason}
+                    </span>
+                    <span className="num font-semibold">{m.points > 0 ? `+${m.points}` : m.points}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {ctx.showRoadmap && (
+              <div className="mt-3">
+                <SoonButton label="Mandarle su saldo por WhatsApp" />
+              </div>
+            )}
+            {!readOnly && (
+              <div className="passport-stub">
+                <div className="rounded-xl bg-surface p-3 text-ink">
+                  <PointsForm patientId={p.id} />
+                </div>
+              </div>
+            )}
+          </section>
+
+          <section className="card space-y-3">
+            <h2>Datos</h2>
+            {readOnly ? (
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+                {[
+                  ["Celular", p.phone ? fmtPhone(p.phone) : null],
+                  ["DNI", p.dni],
+                  ["Email", p.email],
+                  ["Nacimiento", p.birth_date ? fmtDate(`${p.birth_date}T12:00:00-03:00`) : null],
+                ].map(([k, v]) => (
+                  <div key={k} className="contents">
+                    <dt className="text-muted">{k}</dt>
+                    <dd className="min-w-0 break-words">{v || "Sin cargar"}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <PatientEditForm patient={p} />
+            )}
+          </section>
+        </aside>
+      </div>
     </div>
   );
 }

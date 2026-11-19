@@ -483,6 +483,21 @@ select pg_temp.check('7. la marca ve al franquiciado en la información',
   (select count(*) from franchisee_overview('00000000-0000-0000-0000-0000000000a1'))::int, 1);
 
 -- ---------------------------------------------------------------------
+-- 8. Lo que dejó la paciente (ficha): facturado − insumos − comisión, solo para quien ve costos
+-- ---------------------------------------------------------------------
+reset role;
+select pg_temp.as_user('00000000-0000-0000-0000-00000000aa02', 'franquiciado@prueba.test');
+select pg_temp.check('8. ganancia de la paciente = facturado − insumos − comisión',
+  (select net from patient_financials('00000000-0000-0000-0000-0000000000f1')),
+  (select sum(a.amount_paid) - coalesce((select sum(i.cost) from appointment_items i join appointments x on x.id = i.appointment_id
+                                         where x.patient_id = '00000000-0000-0000-0000-0000000000f1' and x.status = 'completed'), 0)
+          - sum(coalesce(a.commission, 0))
+     from appointments a where a.patient_id = '00000000-0000-0000-0000-0000000000f1' and a.status = 'completed'));
+select pg_temp.as_user('00000000-0000-0000-0000-00000000aa03', 'recepcion@prueba.test');
+select pg_temp.check('8. recepción no ve la ganancia de la paciente',
+  (select count(*) from patient_financials('00000000-0000-0000-0000-0000000000f1'))::int, 0);
+
+-- ---------------------------------------------------------------------
 -- Resultado
 -- ---------------------------------------------------------------------
 \o
