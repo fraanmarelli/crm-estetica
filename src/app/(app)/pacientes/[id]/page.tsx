@@ -74,6 +74,14 @@ const treatmentsLabel = (a: Appt) =>
   [...new Set(a.items.map((i) => i.treatment?.name).filter(Boolean))].join(" + ") || "Sin tratamiento cargado";
 const noteMeta = (n: Note) => `${n.author_name ?? "Equipo"}, ${fmtDateTime(n.created_at)}`;
 
+// 5491133432864 → +54 9 11 3343-2864 (CABA); otras áreas: +54 9 351 555-1234 aprox. (el número queda entero)
+function fmtPhone(raw: string): string {
+  const m = /^549(11)(\d{4})(\d{4})$/.exec(raw);
+  if (m) return `+54 9 ${m[1]} ${m[2]}-${m[3]}`;
+  const r = /^549(\d+)(\d{4})$/.exec(raw);
+  return r ? `+54 9 ${r[1]}-${r[2]}` : `+${raw}`;
+}
+
 function age(birth: string | null): number | null {
   if (!birth) return null;
   const [y, m, d] = birth.split("-").map(Number);
@@ -157,7 +165,11 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
   const sessions = history.filter((a) => a.status === "completed"); // la más reciente primero
   const others = history.filter((a) => a.status !== "completed");
   const last = sessions[0] ?? null;
-  const lastNote = notes[0] ?? null;
+  // En «Última vez» solo la nota de esa visita (o una suelta posterior); las demás están en Notas clínicas
+  const lastNote =
+    (last &&
+      notes.find((n) => n.appointment_id === last.id || (!n.appointment_id && localDay(n.created_at) >= localDay(last.scheduled_at)))) ||
+    null;
 
   // Próximo turno: el agendado más cercano desde hoy
   const upcoming = history
@@ -206,7 +218,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
                     <span className="block truncate text-xs text-muted">
                       {[
                         groups.map((g) => g.detail).filter(Boolean).join(", "),
-                        groups.some((g) => g.lot) ? `lote ${groups.map((g) => g.lot).filter(Boolean).join(", ")}` : "",
+                        groups.some((g) => g.lot) ? `lote ${[...new Set(groups.map((g) => g.lot).filter(Boolean))].join(", ")}` : "",
                         a.professional?.full_name ?? "",
                         n ? (n === 1 ? "1 nota" : `${n} notas`) : "",
                       ]
@@ -339,7 +351,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
         <div className="min-w-0 space-y-1.5">
           <h1>{fullName(p)}</h1>
           <p className="flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-muted">
-            {p.phone && <span className="num">+{p.phone}</span>}
+            {p.phone && <span className="num">{fmtPhone(p.phone)}</span>}
             {years !== null && <span>{years} años</span>}
             <span>Paciente desde {monthYear(p.created_at)}</span>
             {p.home_branch && p.home_branch.name !== ctx.currentBranch.name && <span>De {p.home_branch.name}</span>}
