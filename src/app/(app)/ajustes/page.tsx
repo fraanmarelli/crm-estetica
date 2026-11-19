@@ -36,6 +36,8 @@ type MpConnection = {
   id: string;
   account_id: string;
   mp_nickname: string | null;
+  mp_name: string | null;
+  mp_email: string | null;
   last_checked_at: string | null;
   last_error: string | null;
 };
@@ -43,7 +45,7 @@ type MpConnection = {
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ mp?: string; mp_error?: string }>;
+  searchParams: Promise<{ mp?: string; mp_error?: string; cuenta?: string }>;
 }) {
   const ctx = await requireManagerContext();
   const sp = await searchParams;
@@ -73,7 +75,7 @@ export default async function SettingsPage({
       .order("name"),
     supabase
       .from("mp_connections")
-      .select("id, account_id, mp_nickname, last_checked_at, last_error")
+      .select("id, account_id, mp_nickname, mp_name, mp_email, last_checked_at, last_error")
       .eq("branch_id", ctx.currentBranch.id),
   ]);
   const mpConnections = (mpData ?? []) as MpConnection[];
@@ -89,6 +91,11 @@ export default async function SettingsPage({
   const activeProfs = profList.filter((p) => p.is_active);
   const connectedCount = pesoAccounts.filter((a) => mpConnections.some((c) => c.account_id === a.id)).length;
   const mpErrors = mpConnections.filter((c) => c.last_error).length;
+  // A nombre de quién quedó cada conexión (nombre y mail de la cuenta de MP)
+  const mpOwner = (c: MpConnection) =>
+    [c.mp_name, c.mp_email].filter(Boolean).join(" · ") || c.mp_nickname || "cuenta de Mercado Pago";
+  const justConnected = sp.mp === "ok" ? mpConnections.find((c) => c.account_id === sp.cuenta) : undefined;
+  const justConnectedName = justConnected ? pesoAccounts.find((a) => a.id === justConnected.account_id)?.name : undefined;
 
   return (
     <div className="mx-auto max-w-4xl space-y-4">
@@ -171,7 +178,15 @@ export default async function SettingsPage({
           solo si la plata llegó: monto exacto y, si la paciente tiene DNI cargado, que la haya mandado ella. Tarda uno o
           dos minutos. Es solo lectura: el CRM no puede mover plata.
         </p>
-        {sp.mp === "ok" && <p className="alert-ok">Cuenta de Mercado Pago conectada.</p>}
+        {sp.mp === "ok" &&
+          (justConnected && justConnectedName ? (
+            <p className="alert-ok">
+              «{justConnectedName}» quedó conectada a <strong>{mpOwner(justConnected)}</strong>. Si no es la cuenta de esa
+              persona, tocá «Desconectar» y volvé a conectarla desde una ventana de incógnito.
+            </p>
+          ) : (
+            <p className="alert-ok">Cuenta de Mercado Pago conectada.</p>
+          ))}
         {sp.mp_error && <p className="alert-error">{sp.mp_error}</p>}
         {!mpConfigured() ? (
           <p className="text-sm text-muted">Falta configurar la aplicación de Mercado Pago en el servidor (ver README).</p>
@@ -187,7 +202,7 @@ export default async function SettingsPage({
                       <p className={`text-xs ${conn.last_error ? "text-bad" : "text-muted"}`}>
                         {conn.last_error
                           ? `Error: ${conn.last_error}`
-                          : `Conectada${conn.mp_nickname ? ` a ${conn.mp_nickname}` : ""}${
+                          : `Conectada a ${mpOwner(conn)}${
                               conn.last_checked_at ? ` · último chequeo ${fmtTime(conn.last_checked_at)}` : ""
                             }`}
                       </p>
@@ -212,7 +227,9 @@ export default async function SettingsPage({
         )}
         <p className="text-xs text-muted">
           Al conectar, iniciá sesión con la cuenta de Mercado Pago de esa persona (por ejemplo, la de Marian para «MP
-          Marian»). Las transferencias a bancos y los cobros con posnet no se pueden verificar así.
+          Marian»). Si el navegador ya tiene abierta otra cuenta de Mercado Pago, se conecta esa sin preguntar: conviene
+          hacerlo desde una ventana de incógnito. Una misma cuenta de Mercado Pago no se puede conectar a dos cuentas de
+          cobro. Las transferencias a bancos y los cobros con posnet no se pueden verificar así.
         </p>
       </Fold>
         </>

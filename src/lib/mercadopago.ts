@@ -61,12 +61,20 @@ export async function exchangeMpCode(code: string, verifier: string, requestOrig
   };
 }
 
-export async function mpUser(accessToken: string): Promise<{ id: string; nickname: string | null }> {
+export async function mpUser(
+  accessToken: string,
+): Promise<{ id: string; nickname: string | null; name: string | null; email: string | null }> {
   const res = await fetch(`${MP_API}/users/me`, {
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: "no-store",
   });
   if (!res.ok) throw new Error(`Mercado Pago respondió ${res.status} al leer la cuenta`);
   const data = await res.json();
-  return { id: String(data.id), nickname: data.nickname ?? data.email ?? null };
+  const name = [data.first_name, data.last_name].filter((p) => typeof p === "string" && p.trim()).join(" ").trim();
+  return {
+    id: String(data.id),
+    nickname: data.nickname ?? data.email ?? null,
+    name: name || null,
+    email: typeof data.email === "string" && data.email ? data.email : null,
+  };
 }

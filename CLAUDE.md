@@ -45,7 +45,8 @@ y entregá archivos completos.
   Solo franquiciado y marca; la agenda avisa con warn/over.
 - **Un turno cuenta en el día del turno** (`scheduled_at` en la hora de la organización), no en el día en que se
   marcó atendido: Ventas, Comisiones, Facturación, monotributo, Sucursales y el mail semanal usan la misma fecha.
-- Verificación de transferencias MP: `mp_connections` (una cuenta de MP por `payment_accounts`, OAuth solo lectura,
+- Verificación de transferencias MP: `mp_connections` (una cuenta de MP por `payment_accounts` y no repetida en la sucursal,
+  con `mp_name`/`mp_email` para ver a quién quedó; si el navegador ya tenía otra cuenta de MP la conecta sin preguntar), OAuth solo lectura,
   rutas `/api/mp/connect` y `/api/mp/callback`) + `mp_connection_secrets` (tokens, solo service role).
   Un trigger en `appointment_payments` crea `transfer_checks` (clave turno+cuenta+monto+seña, sobrevive a la edición
   del turno); la función `mp-verify` (cron cada minuto) usa `match.ts` (monto exacto, DNI de la paciente vs CUIT,

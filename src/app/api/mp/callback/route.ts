@@ -44,6 +44,25 @@ export async function GET(request: NextRequest) {
       .single();
     if (!account) return fail("No se encontró la cuenta de cobro.");
 
+    // La misma cuenta de MP no puede quedar en dos cuentas de cobro de la sucursal: pasa cuando el
+    // navegador ya tenía abierta otra cuenta de MP (MP no vuelve a preguntar y conecta esa).
+    const { data: taken } = await admin
+      .from("mp_connections")
+      .select("account_id, account:payment_accounts(name)")
+      .eq("branch_id", account.branch_id)
+      .eq("mp_user_id", user.id)
+      .neq("account_id", account.id)
+      .maybeSingle();
+    if (taken) {
+      const other = (taken.account as unknown as { name: string } | null)?.name ?? "otra cuenta";
+      const who = user.name ?? user.email ?? user.nickname ?? "esa cuenta";
+      return fail(
+        `No se conectó: Mercado Pago entró con la cuenta de ${who}, que ya está conectada a «${other}». ` +
+          "Abrí una ventana de incógnito (o cerrá sesión en Mercado Pago) y volvé a tocar «Conectar» " +
+          "iniciando sesión con la cuenta de la persona correcta.",
+      );
+    }
+
     const { data: conn, error } = await admin
       .from("mp_connections")
       .upsert(
@@ -53,6 +72,8 @@ export async function GET(request: NextRequest) {
           account_id: account.id,
           mp_user_id: user.id,
           mp_nickname: user.nickname,
+          mp_name: user.name,
+          mp_email: user.email,
           connected_by: ctx.userId,
           token_expires_at: token.expiresAt,
           last_error: null,
@@ -62,7 +83,12 @@ export async function GET(request: NextRequest) {
       )
       .select("id")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (error.code === "23505") {
+        return fail("Esa cuenta de Mercado Pago ya está conectada a otra cuenta de cobro de esta sucursal.");
+      }
+      throw new Error(error.message);
+    }
 
     const { error: secretError } = await admin.from("mp_connection_secrets").upsert({
       connection_id: conn.id,
@@ -72,7 +98,8 @@ export async function GET(request: NextRequest) {
     });
     if (secretError) throw new Error(secretError.message);
 
-    return finish("mp=ok");
+    // El id de la cuenta de cobro (no datos de la persona) para resaltar cuál se acaba de conectar
+    return finish(`mp=ok&cuenta=${account.id}`);
   } catch (err) {
     return fail(`Mercado Pago respondió: ${err instanceof Error ? err.message : "error desconocido"}`);
   }
