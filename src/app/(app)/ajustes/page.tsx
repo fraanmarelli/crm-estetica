@@ -4,7 +4,8 @@ import Link from "next/link";
 import { SectionTabs } from "@/components/section-tabs";
 import { createClient } from "@/lib/supabase/server";
 import { requireManagerContext } from "@/lib/context";
-import { fmtDateTime, fmtTime } from "@/lib/format";
+import { DEFAULT_RECALL_MESSAGE, fmtDateTime, fmtTime } from "@/lib/format";
+import { RecallForm, type RecallRow } from "./recall-form";
 import { mpConfigured } from "@/lib/mercadopago";
 import { toggleIntegration } from "../actions";
 import { disconnectMp } from "./actions";
@@ -52,7 +53,16 @@ export default async function SettingsPage({
   const supabase = await createClient();
 
   // RLS: la marca ve todas; el franquiciado, las de su sucursal
-  const [{ data: integrations }, { data: problems }, { data: profs }, { data: accounts }, { data: mpData }] = await Promise.all([
+  const [
+    { data: integrations },
+    { data: problems },
+    { data: profs },
+    { data: accounts },
+    { data: mpData },
+    { data: treatmentData },
+    { data: overrideData },
+    { data: branchData },
+  ] = await Promise.all([
     supabase
       .from("integrations")
       .select("id, name, type, is_active, config, branch:branches(name)")
@@ -77,7 +87,33 @@ export default async function SettingsPage({
       .from("mp_connections")
       .select("id, account_id, mp_nickname, mp_name, mp_email, last_checked_at, last_error")
       .eq("branch_id", ctx.currentBranch.id),
+    supabase
+      .from("treatments")
+      .select("id, name, category, recall_days")
+      .eq("organization_id", ctx.org.id)
+      .eq("is_active", true)
+      .order("sort_order")
+      .order("name"),
+    supabase.from("branch_recall_days").select("treatment_id, recall_days").eq("branch_id", ctx.currentBranch.id),
+    supabase.from("branches").select("recall_message").eq("id", ctx.currentBranch.id).maybeSingle(),
   ]);
+
+  // Recall: lo de la sucursal, y si no cambió nada, lo del catálogo de la marca
+  const overrides = new Map(
+    ((overrideData ?? []) as { treatment_id: string; recall_days: number | null }[]).map((o) => [o.treatment_id, o.recall_days]),
+  );
+  const recallRows: RecallRow[] = (
+    (treatmentData ?? []) as { id: string; name: string; category: string | null; recall_days: number | null }[]
+  ).map((t) => ({
+    id: t.id,
+    name: t.name,
+    category: t.category,
+    catalog_days: t.recall_days,
+    days: overrides.has(t.id) ? (overrides.get(t.id) ?? null) : t.recall_days,
+  }));
+  const branchMessage = (branchData as { recall_message: string | null } | null)?.recall_message ?? "";
+  const orgMessage = (ctx.org.settings.recall_message as string | undefined) || DEFAULT_RECALL_MESSAGE;
+  const withRecall = recallRows.filter((r) => r.days).length;
   const mpConnections = (mpData ?? []) as MpConnection[];
   const pesoAccounts = ((accounts ?? []) as { id: string; name: string; currency: string; is_active: boolean }[]).filter(
     (a) => a.currency === "ARS" && a.is_active && a.name.toLowerCase() !== "efectivo",
@@ -153,6 +189,22 @@ export default async function SettingsPage({
           monotributo se cargan en <Link href="/facturacion" className="link">Números → Facturación</Link>.
         </p>
         <AccountsForm accounts={accountList} />
+      </Fold>
+
+      <Fold
+        id="recall"
+        title="Recall"
+        summary={`Mensaje de WhatsApp y cada cuánto vuelve cada tratamiento · ${withRecall} con recall`}
+      >
+        <p className="text-sm text-muted">
+          Lo que usa la lista de Contactar → Recall en {ctx.currentBranch.name}. Recepción la ve pero no la cambia.
+        </p>
+        <RecallForm
+          rows={recallRows}
+          message={branchMessage}
+          defaultMessage={orgMessage}
+          branchLabel={`${ctx.org.name} ${ctx.currentBranch.name}`}
+        />
       </Fold>
 
       {!ctx.features.mp ? null : ctx.showRoadmap ? (
@@ -256,8 +308,8 @@ export default async function SettingsPage({
       {ctx.showRoadmap && (
         <>
           <SoonCard
-            title="Mensajes y días de recall"
-            description="Editar los textos de recordatorio, cumpleaños, recall y leads, y cada cuántos días vuelve cada tratamiento."
+            title="Mensajes"
+            description="Editar los textos de recordatorio, cumpleaños y leads."
           />
           <SoonCard
             title="Conectar con Google"

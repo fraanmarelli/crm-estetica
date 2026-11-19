@@ -153,8 +153,9 @@ sola si ya está configurada):
 - 🆕 **Email marketing propio** (más adelante, en vez de Klaviyo): recall por tratamiento y cumpleaños por mail desde el
   CRM con Resend, respetando el consentimiento; se configura en Ajustes → Mensajes.
 - **Promos** ✅ (`/promos`): vigentes, nueva promo, pausadas o vencidas. Al cobrar se eligen en el turno.
-- 🆕 **Mensajes**: recordatorio, cumpleaños, recall y leads (una sección plegada en General).
-- 🆕 **Días de recall** por tratamiento: misma sección que Mensajes.
+- **Recall** ✅ (sección plegada en General, solo franquiciado y marca): mensaje de WhatsApp de la sucursal con vista
+  previa, y cada cuántos días vuelve cada tratamiento (arranca con lo del catálogo de la marca; vacío = sin recall).
+- 🆕 **Mensajes**: recordatorio, cumpleaños y leads (otra sección plegada en General).
 - 🆕 **Conectar con Google** (Calendar/Sheets): reemplaza el contenido de «Planilla y calendario».
 
 ---

@@ -106,6 +106,38 @@ export async function createAccount(_prev: ActionState, formData: FormData): Pro
   return { ok: "Cuenta agregada. Su titular para el monotributo se elige en Facturación." };
 }
 
+// ---------------- Recall ----------------
+export async function saveRecallSettings(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const ctx = await requireManagerContext();
+  const message = String(formData.get("message") ?? "").trim();
+  if (message.length > 1000) return { error: "El mensaje es muy largo (máximo 1000 letras)." };
+  let rows: { treatment_id: string; days: string }[] = [];
+  try {
+    rows = JSON.parse(String(formData.get("days") ?? "[]"));
+  } catch {
+    return { error: "No se pudieron leer los datos." };
+  }
+  const days = [];
+  for (const r of rows) {
+    const s = String(r.days ?? "").trim();
+    const n = s === "" ? null : Number(s);
+    if (n !== null && (!Number.isInteger(n) || n < 1 || n > 3650)) {
+      return { error: "Los días tienen que ser un número entero entre 1 y 3650 (o vacío para que no tenga recall)." };
+    }
+    days.push({ treatment_id: String(r.treatment_id), days: n });
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("save_recall_settings", {
+    p_branch: ctx.currentBranch.id,
+    p_message: message,
+    p_days: days,
+  });
+  if (error) return { error: `No se pudo guardar: ${error.message}` };
+  revalidatePath("/ajustes");
+  revalidatePath("/recall");
+  return { ok: "Recall guardado. La lista de Recall ya usa estos días." };
+}
+
 // ---------------- Mercado Pago ----------------
 export async function disconnectMp(formData: FormData) {
   const ctx = await requireManagerContext();

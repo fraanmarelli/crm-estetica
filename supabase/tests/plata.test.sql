@@ -558,6 +558,70 @@ end $$;
 select pg_temp.check('9. recepción no puede importar', current_setting('t.imp'), 'no pudo');
 
 -- ---------------------------------------------------------------------
+-- 10. Recall por sucursal: el catálogo de la marca vale hasta que la sucursal lo cambia
+-- ---------------------------------------------------------------------
+reset role;
+update treatments set recall_days = 120 where id = '00000000-0000-0000-0000-0000000000e2';
+select id as lucia from patients where dni = '30111222' \gset
+create function pg_temp.due() returns date language sql as $$
+  select due_date from recall_queue
+   where patient_id = current_setting('t.lucia')::uuid and treatment_id = '00000000-0000-0000-0000-0000000000e2'
+$$;
+select set_config('t.lucia', :'lucia', true);
+select pg_temp.check('10. sin cambios: los días del catálogo (Botox 120)', pg_temp.due(), '2024-03-05'::date + 120);
+
+select pg_temp.as_user('00000000-0000-0000-0000-00000000aa02', 'franquiciado@prueba.test');
+set local role authenticated;
+select save_recall_settings('00000000-0000-0000-0000-0000000000b1', ' Hola {nombre} ',
+  '[{"treatment_id": "00000000-0000-0000-0000-0000000000e2", "days": 90}]');
+reset role;
+select pg_temp.check('10. el franquiciado lo cambia para su sucursal (90)', pg_temp.due(), '2024-03-05'::date + 90);
+select pg_temp.check('10. el mensaje de la sucursal se guarda sin espacios de más',
+  (select recall_message from branches where id = '00000000-0000-0000-0000-0000000000b1'), 'Hola {nombre}');
+select pg_temp.check('10. el catálogo de la marca no cambia',
+  (select recall_days from treatments where id = '00000000-0000-0000-0000-0000000000e2'), 120);
+
+select pg_temp.as_user('00000000-0000-0000-0000-00000000aa02', 'franquiciado@prueba.test');
+set local role authenticated;
+select save_recall_settings('00000000-0000-0000-0000-0000000000b1', '',
+  '[{"treatment_id": "00000000-0000-0000-0000-0000000000e2", "days": null}]');
+reset role;
+select pg_temp.check('10. vacío = ese tratamiento sale de Recall', pg_temp.due(), null::date);
+select pg_temp.check('10. mensaje vacío = el de siempre',
+  (select recall_message from branches where id = '00000000-0000-0000-0000-0000000000b1'), null::text);
+
+select pg_temp.as_user('00000000-0000-0000-0000-00000000aa02', 'franquiciado@prueba.test');
+set local role authenticated;
+select save_recall_settings('00000000-0000-0000-0000-0000000000b1', '',
+  '[{"treatment_id": "00000000-0000-0000-0000-0000000000e2", "days": 120}]');
+reset role;
+select pg_temp.check('10. igual que el catálogo: no queda nada guardado (sigue a la marca)',
+  (select count(*) from branch_recall_days where branch_id = '00000000-0000-0000-0000-0000000000b1')::int, 0);
+
+select pg_temp.as_user('00000000-0000-0000-0000-00000000aa03', 'recepcion@prueba.test');
+do $$
+begin
+  perform set_config('t.rec', 'pudo', true);
+  set local role authenticated;
+  begin
+    perform save_recall_settings('00000000-0000-0000-0000-0000000000b1', 'otro',
+      '[{"treatment_id": "00000000-0000-0000-0000-0000000000e2", "days": 30}]');
+  exception when others then
+    perform set_config('t.rec', 'no pudo', true);
+  end;
+  begin
+    insert into branch_recall_days (organization_id, branch_id, treatment_id, recall_days)
+    values ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000b1',
+            '00000000-0000-0000-0000-0000000000e2', 30);
+    perform set_config('t.rec', current_setting('t.rec') || ' / escribió la tabla', true);
+  exception when others then
+    null;
+  end;
+  reset role;
+end $$;
+select pg_temp.check('10. recepción no puede cambiar el recall', current_setting('t.rec'), 'no pudo');
+
+-- ---------------------------------------------------------------------
 -- Resultado
 -- ---------------------------------------------------------------------
 \o

@@ -49,19 +49,26 @@ export default async function RecallPage({ searchParams }: { searchParams: Promi
   const limitISO = limit.toISOString().slice(0, 10);
 
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("recall_queue")
-    .select(
-      "patient_id, treatment_id, treatment_name, last_done_at, due_date, first_name, last_name, phone, consent_marketing_at, last_contacted_at, last_outcome",
-    )
-    .eq("branch_id", ctx.currentBranch.id)
-    .lte("due_date", limitISO)
-    .or("last_outcome.is.null,last_outcome.not.in.(not_interested,wrong_number,opted_out)")
-    .order("due_date", { ascending: true })
-    .limit(200);
+  const [{ data }, { data: branchData }] = await Promise.all([
+    supabase
+      .from("recall_queue")
+      .select(
+        "patient_id, treatment_id, treatment_name, last_done_at, due_date, first_name, last_name, phone, consent_marketing_at, last_contacted_at, last_outcome",
+      )
+      .eq("branch_id", ctx.currentBranch.id)
+      .lte("due_date", limitISO)
+      .or("last_outcome.is.null,last_outcome.not.in.(not_interested,wrong_number,opted_out)")
+      .order("due_date", { ascending: true })
+      .limit(200),
+    supabase.from("branches").select("recall_message").eq("id", ctx.currentBranch.id).maybeSingle(),
+  ]);
 
   const rows = (data ?? []) as Row[];
-  const template = ctx.org.settings.recall_message || DEFAULT_RECALL_MESSAGE;
+  // El mensaje de la sucursal (Ajustes → Recall); si no cargó uno, el de la red o el de siempre
+  const template =
+    (branchData as { recall_message: string | null } | null)?.recall_message ||
+    ctx.org.settings.recall_message ||
+    DEFAULT_RECALL_MESSAGE;
   const branchLabel = `${ctx.org.name} ${ctx.currentBranch.name}`;
 
   return (

@@ -24,6 +24,7 @@ import { PointsForm } from "./points-form";
 
 type Appt = {
   id: string;
+  branch_id: string;
   scheduled_at: string;
   status: AppointmentStatus;
   amount_paid: number | null;
@@ -35,7 +36,7 @@ type Appt = {
     zone: string | null;
     quantity: number | null;
     lot_code: string | null;
-    treatment: { name: string; unit_label: string | null; recall_days: number | null } | null;
+    treatment: { id: string; name: string; unit_label: string | null; recall_days: number | null } | null;
   }[];
 };
 
@@ -103,6 +104,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
     { data: notesData },
     { data: bgData },
     { data: finData },
+    { data: recallOverrides },
   ] = await Promise.all([
     supabase
       .from("patients")
@@ -112,7 +114,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
     supabase
       .from("appointments")
       .select(
-        "id, scheduled_at, status, amount_paid, payment_method, notes, branch:branches(name), professional:professionals(full_name), items:appointment_items(zone, quantity, lot_code, treatment:treatments(name, unit_label, recall_days))",
+        "id, branch_id, scheduled_at, status, amount_paid, payment_method, notes, branch:branches(name), professional:professionals(full_name), items:appointment_items(zone, quantity, lot_code, treatment:treatments(id, name, unit_label, recall_days))",
       )
       .eq("patient_id", id)
       .order("scheduled_at", { ascending: false }),
@@ -142,6 +144,8 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
     ctx.canManageCurrentBranch
       ? supabase.rpc("patient_financials", { p_patient: id })
       : Promise.resolve({ data: null }),
+    // Recall: lo que cada sucursal cambió del catálogo (Ajustes → Recall)
+    supabase.from("branch_recall_days").select("branch_id, treatment_id, recall_days").eq("organization_id", ctx.org.id),
   ]);
   if (!patient) {
     // Puede existir en otra sucursal sin acceso a la ficha completa
@@ -185,15 +189,26 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
   const pastDone = past.filter((a) => a.status === "completed");
 
   // Sin turno por delante: cuándo le toca volver (el recall más cercano de lo que se hizo)
+  // Los días son los de la sucursal donde se lo hizo (si los cambió) o los del catálogo
+  const branchDays = new Map(
+    ((recallOverrides ?? []) as { branch_id: string; treatment_id: string; recall_days: number | null }[]).map((o) => [
+      `${o.branch_id}:${o.treatment_id}`,
+      o.recall_days,
+    ]),
+  );
   const lastByTreatment = new Map<string, { name: string; at: string; days: number }>();
   for (const a of sessions) {
     for (const i of a.items) {
       const t = i.treatment;
-      if (!t?.recall_days || lastByTreatment.has(t.name)) continue;
-      lastByTreatment.set(t.name, { name: t.name, at: localDay(a.scheduled_at), days: t.recall_days });
+      if (!t || lastByTreatment.has(t.name)) continue;
+      const key = `${a.branch_id}:${t.id}`;
+      const days = branchDays.has(key) ? branchDays.get(key) : t.recall_days;
+      // El último de ese tratamiento manda: si en esa sucursal no tiene recall, no se busca uno más viejo
+      lastByTreatment.set(t.name, { name: t.name, at: localDay(a.scheduled_at), days: days ?? 0 });
     }
   }
   const nextRecall = [...lastByTreatment.values()]
+    .filter((t) => t.days > 0)
     .map((t) => ({ name: t.name, due: addDays(t.at, t.days) }))
     .sort((x, y) => (x.due < y.due ? -1 : 1))[0];
 

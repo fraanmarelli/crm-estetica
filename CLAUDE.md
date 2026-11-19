@@ -56,7 +56,10 @@ y entregá archivos completos.
   servidor escribe los chequeos. `cleanup_transfer_checks()` borra los de cobros que ya no existen.
   Los review/not_found de cualquier día van a «Pendientes» de Hoy hasta que el franquiciado/marca los marca
   «Ya lo revisé» (`dismiss_transfer_check()`, `dismissed_at`/`dismissed_by_name`); recepción los ve pero no los saca.
-- `recall_queue` (vista) = último tratamiento realizado + recall_days, sin turno futuro, sin opt-out.
+- `recall_queue` (vista) = último tratamiento realizado + recall_days, sin turno futuro, sin opt-out, con celular.
+  Los días: `branch_recall_days` (lo que la sucursal cambió; `recall_days` null = sin recall ahí) o, si no hay fila,
+  `treatments.recall_days` (catálogo de la marca). Mensaje: `branches.recall_message` → `organizations.settings.recall_message`
+  → el de siempre. Se edita en Ajustes → Recall con `save_recall_settings()` (franquiciado y marca; recepción no).
 - `loyalty_transactions` = libro mayor de millas (nunca se edita; se corrige con otro movimiento).
 - Klaviyo oculto en la app desde nov 2026 (no se conectan cuentas nuevas; el handler sigue). El email marketing va a ser
   propio: handler de mail (Resend) en dispatch-events para recall y cumpleaños, con consentimiento.
@@ -171,7 +174,6 @@ y entregá archivos completos.
   sucursal factura con su CUIT). Pedir DNI o CUIT a elección de la sucursal; «Buscar CUIT» desde el DNI: el CUIT de
   persona física es prefijo (20/27/23/24) + DNI + dígito verificador, se calculan los candidatos y se confirma cuál
   existe (y el nombre) en el padrón de ARCA (ws_sr_constancia_inscripcion) con el mismo certificado.
-- Editar el mensaje de recall y los `recall_days` desde Ajustes.
 - Recordatorio previo al vencimiento del token de Meta (mail al franquiciado).
 - Handler `whatsapp_cloud` en dispatch-events (recall automático con plantillas aprobadas por Meta).
 - Página pública para que la paciente vea sus Beauty Millas.
