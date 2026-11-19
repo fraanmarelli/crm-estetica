@@ -498,6 +498,66 @@ select pg_temp.check('8. recepción no ve la ganancia de la paciente',
   (select count(*) from patient_financials('00000000-0000-0000-0000-0000000000f1'))::int, 0);
 
 -- ---------------------------------------------------------------------
+-- 9. Importar la planilla: entra una vez, sin millas ni Mercado Pago, con la comisión y el insumo de la planilla
+-- ---------------------------------------------------------------------
+reset role;
+update branches set disabled_features = '{}' where id = '00000000-0000-0000-0000-0000000000b1';
+select set_config('t.rows', jsonb_build_array(
+  jsonb_build_object('ref', 'sheet:a1', 'date', '2024-03-05', 'first_name', 'Lucía', 'last_name', 'Planilla',
+    'dni', '30.111.222', 'phone', '351 555-1234', 'email', 'lucia@prueba.test', 'patient_key', 'sheet-dni:30111222',
+    'professional', 'Daniel Felix', 'raw', 'BTX + AH labios', 'comment', 'no fuma',
+    'items', jsonb_build_array(
+      jsonb_build_object('treatment', 'Botox', 'price', 60000, 'lot', 'L123'),
+      jsonb_build_object('treatment', 'Ácido hialurónico', 'zone', 'Labios', 'quantity', 1, 'price', 40000)),
+    'payments', jsonb_build_array(
+      jsonb_build_object('account', 'Mercado Pago', 'amount', 70000),
+      jsonb_build_object('account', 'efectivo', 'amount', 30000)),
+    'commission', 20000, 'supplies', 15000),
+  jsonb_build_object('ref', 'sheet:a2', 'date', '2024-03-20', 'first_name', 'Lucia', 'last_name', 'Planilla',
+    'dni', '30111222', 'patient_key', 'sheet-dni:30111222', 'raw', 'control btx',
+    'items', jsonb_build_array(jsonb_build_object('treatment', 'Control', 'zone', 'Botox', 'price', 0)),
+    'payments', '[]'::jsonb)
+)::text, true);
+select pg_temp.as_user('00000000-0000-0000-0000-00000000aa02', 'franquiciado@prueba.test');
+set local role authenticated;
+select import_sheet_rows('00000000-0000-0000-0000-0000000000b1', current_setting('t.rows')::jsonb) as primera \gset
+select import_sheet_rows('00000000-0000-0000-0000-0000000000b1', current_setting('t.rows')::jsonb) as segunda \gset
+reset role;
+select pg_temp.check('9. primera vez: entran las 2 visitas', (:'primera'::jsonb ->> 'imported')::int, 2);
+select pg_temp.check('9. primera vez: 1 paciente nueva (DNI con puntos = sin puntos)', (:'primera'::jsonb ->> 'patients')::int, 1);
+select pg_temp.check('9. segunda vez: no entra nada repetido', (:'segunda'::jsonb ->> 'imported')::int, 0);
+select id as imp from appointments where external_ref = 'sheet:a1' \gset
+select pg_temp.check('9. cobrado = suma de las cuentas', (select amount_paid from appointments where id = :'imp'), 100000::numeric);
+select pg_temp.check('9. comisión de la planilla', (select commission from appointments where id = :'imp'), 20000::numeric);
+select pg_temp.check('9. insumo de la planilla', (select sum(cost) from appointment_items where appointment_id = :'imp'), 15000::numeric);
+select pg_temp.check('9. no da millas', (select count(*) from loyalty_transactions where appointment_id = :'imp')::int, 0);
+select pg_temp.check('9. no crea chequeo de Mercado Pago', (select count(*) from transfer_checks where appointment_id = :'imp')::int, 0);
+select pg_temp.check('9. no se manda a la planilla', (select count(*) from event_outbox where entity_id = :'imp')::int, 0);
+select pg_temp.check('9. cuenta en el día de la planilla',
+  ((select completed_at from appointments where id = :'imp') at time zone 'America/Argentina/Buenos_Aires')::date, '2024-03-05'::date);
+select pg_temp.check('9. el comentario queda como nota clínica',
+  (select author_name || ': ' || body from clinical_notes where appointment_id = :'imp'), 'Planilla: no fuma');
+select pg_temp.check('9. paciente con ficha incompleta y sin consentimiento',
+  (select consent_data_at is null and consent_marketing_at is null from patients where dni = '30111222'), true);
+select pg_temp.check('9. el médico que no estaba se crea inactivo',
+  (select is_active from professionals where full_name = 'Daniel Felix'), false);
+select pg_temp.check('9. el control entra como tratamiento inactivo «Control»',
+  (select is_active from treatments where name = 'Control' and organization_id = '00000000-0000-0000-0000-0000000000a1'), false);
+select pg_temp.as_user('00000000-0000-0000-0000-00000000aa03', 'recepcion@prueba.test');
+do $$
+begin
+  perform set_config('t.imp', 'pudo', true);
+  set local role authenticated;
+  begin
+    perform import_sheet_rows('00000000-0000-0000-0000-0000000000b1', '[]'::jsonb);
+  exception when others then
+    perform set_config('t.imp', 'no pudo', true);
+  end;
+  reset role;
+end $$;
+select pg_temp.check('9. recepción no puede importar', current_setting('t.imp'), 'no pudo');
+
+-- ---------------------------------------------------------------------
 -- Resultado
 -- ---------------------------------------------------------------------
 \o

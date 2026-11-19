@@ -93,7 +93,9 @@ De arriba hacia abajo:
 - 🆕 **Fotos antes/después**: en la ficha, dentro de cada sesión de la historia clínica, y para subir en el turno.
 - 🆕 **Consentimiento informado con firma**: va en la ficha (pestaña o sección «Consentimientos») y se
   pide al completar la ficha. Las cláusulas por tratamiento las define la marca en **Sucursales**.
-- 🆕 **Importar historial** (CSV): acción secundaria plegada en Pacientes, solo franquiciado y marca.
+- **Importar historial** ✅ (`/pacientes/importar`, botón secundario en Pacientes, solo franquiciado y marca): el CSV de
+  la hoja de la sucursal (Google Sheets → Descargar → .csv). Vista previa antes de guardar (visitas, pacientes, cobrado,
+  tratamientos reconocidos, médicos, filas que no entran) y después «Importar». Se puede repetir: solo entra lo nuevo.
 - 🆕 **Beauty Millas pública**: link desde la ficha («Mandarle su saldo»).
 
 ## 3. Contactar (`/leads` · `/recall`)

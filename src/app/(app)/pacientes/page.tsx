@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { SoonButton } from "@/components/soon";
 import { Suspense } from "react";
 import { LiveSearch } from "@/components/live-search";
 import { createClient } from "@/lib/supabase/server";
@@ -39,7 +38,9 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
         <h1>Pacientes</h1>
         {!ctx.isProfessionalOnly && (
           <div className="flex flex-wrap gap-2">
-            {ctx.showRoadmap && ctx.canManageCurrentBranch && <SoonButton label="Importar historial" />}
+            {ctx.canManageCurrentBranch && (
+              <Link href="/pacientes/importar" className="btn">Importar historial</Link>
+            )}
             <Link href="/pacientes/registro" className="btn">Registro con QR</Link>
             <Link href="/pacientes/nuevo" className="btn btn-primary">Nueva paciente</Link>
           </div>

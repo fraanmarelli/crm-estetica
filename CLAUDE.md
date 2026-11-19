@@ -103,6 +103,11 @@ y entregá archivos completos.
   desde la carga rápida con `lead_id` y lo marca booked. Al conectar se importan los últimos 30 días.
   Respaldo: `leads-sync` (cron cada 5 min) busca leads nuevos por página desde `lead_pages.last_synced_at`
   (Meta no entrega webhooks reales con la app sin publicar).
+- Importar historial: `src/lib/sheet-import.ts` (lee el CSV en el navegador: tratamientos del texto libre → catálogo,
+  «Control» y «Otro (de la planilla)» inactivos; cobro por columna de cuenta; ref estable por fila) →
+  `importSheetChunk` (tandas de 250) → `import_sheet_rows()` (security definer, franquiciado/marca). Lo importado
+  (`external_ref`) no se sincroniza, no da millas, no crea chequeos de MP, usa comisión e insumo de la planilla
+  (`crm.import_cost`) y `completed_at` = día de la planilla. Las pacientes quedan con ficha incompleta y sin consentimiento.
 - Búsqueda de pacientes: `applyPatientSearch()` (cada palabra en nombre, apellido, celular o DNI) + `LiveSearch`
   (filtra mientras se escribe actualizando `?q=`).
 - Marketing: `ad_connections` (una cuenta de Meta por sucursal), `ad_connection_secrets` (tokens, solo
@@ -162,7 +167,6 @@ y entregá archivos completos.
   sucursal factura con su CUIT). Pedir DNI o CUIT a elección de la sucursal; «Buscar CUIT» desde el DNI: el CUIT de
   persona física es prefijo (20/27/23/24) + DNI + dígito verificador, se calculan los candidatos y se confirma cuál
   existe (y el nombre) en el padrón de ARCA (ws_sr_constancia_inscripcion) con el mismo certificado.
-- Importar pacientes/turnos históricos desde la planilla (CSV) usando `external_ref` (no se re-sincronizan).
 - Editar el mensaje de recall y los `recall_days` desde Ajustes.
 - Recordatorio previo al vencimiento del token de Meta (mail al franquiciado).
 - Handler `whatsapp_cloud` en dispatch-events (recall automático con plantillas aprobadas por Meta).
