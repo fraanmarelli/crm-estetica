@@ -9,6 +9,7 @@ const MESSAGES: Record<string, string> = {
   cobro: "Cobro guardado",
   paciente: "Paciente guardada",
   ficha: "Ficha completa",
+  clave: "Contraseña cambiada",
 };
 
 export function DoneToast() {

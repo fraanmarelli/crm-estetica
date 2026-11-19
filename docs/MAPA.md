@@ -146,4 +146,5 @@ sola si ya está configurada):
 ## Páginas públicas (sin sesión)
 
 `/registro/[token]` (alta de paciente) · `/ficha/[token]` (completar ficha) · `/invitacion/[token]`
-(sumarse al equipo) · `/privacidad` · `/borrado-de-datos`.
+(sumarse al equipo) · `/privacidad` · `/borrado-de-datos` · `/recuperar` ✅ («¿Olvidaste tu contraseña?» en el
+login: manda un link al mail, que entra por `/auth/confirmar` y lleva a `/nueva-contrasena`).

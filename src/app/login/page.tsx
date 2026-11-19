@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { signIn } from "./actions";
 
@@ -20,6 +21,9 @@ export default function LoginPage() {
         <div>
           <label className="label" htmlFor="password">Contraseña</label>
           <input id="password" name="password" type="password" autoComplete="current-password" required className="input" />
+          <p className="mt-1.5 text-right text-xs">
+            <Link href="/recuperar" className="text-muted hover:text-ink">¿Olvidaste tu contraseña?</Link>
+          </p>
         </div>
         {state?.error && <p className="alert-error">{state.error}</p>}
         <button type="submit" disabled={pending} className="btn btn-primary w-full">
