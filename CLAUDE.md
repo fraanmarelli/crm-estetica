@@ -108,6 +108,10 @@ y entregá archivos completos.
   `importSheetChunk` (tandas de 250) → `import_sheet_rows()` (security definer, franquiciado/marca). Lo importado
   (`external_ref`) no se sincroniza, no da millas, no crea chequeos de MP, usa comisión e insumo de la planilla
   (`crm.import_cost`) y `completed_at` = día de la planilla. Las pacientes quedan con ficha incompleta y sin consentimiento.
+  Córdoba importada el 19/11/2026 (3.790 visitas, 1.265 pacientes). Quedaron como «Otro (de la planilla)», con el texto
+  original en `appointment_items.zone`, porque no se sabe qué son: «dermo 1-2/3-4/7-8/9-10», «peptona 1 a 5», «sexy lips»,
+  «neauvia», «hydroxifill». Si algún día se aclara, reasignar con un update por `zone`. Celulares (solo 70) e insumos
+  (vacíos desde dic 2025) faltan en la planilla: se completan cuando Córdoba use la app.
 - Búsqueda de pacientes: `applyPatientSearch()` (cada palabra en nombre, apellido, celular o DNI) + `LiveSearch`
   (filtra mientras se escribe actualizando `?q=`).
 - Marketing: `ad_connections` (una cuenta de Meta por sucursal), `ad_connection_secrets` (tokens, solo
